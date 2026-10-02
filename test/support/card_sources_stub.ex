@@ -2,8 +2,14 @@ defmodule MillenniumQuiz.CardSourcesStub do
   @moduledoc """
   Stands in for YGOPRODeck, YAML Yugi and Yugipedia in tests. Knows two
   cards: Monster Reborn (real errata page, listed by YGOPRODeck under an
-  alternate artwork id) and "Plain Card" (no errata page).
+  alternate artwork id) and "Plain Card", a Pendulum monster without errata
+  page or artwork.
   """
+
+  # Stand-in for a JPEG; only the bytes matter here.
+  @artwork <<0xFF, 0xD8, 0xFF, 0xE0, "reborn-artwork", 0xFF, 0xD9>>
+
+  def artwork, do: @artwork
 
   @reborn %{konami_id: 4842, ids: [83_764_719, 83_764_718], password: 83_764_718, page_id: 24}
   @plain %{konami_id: 9001, ids: [11_111_111], password: 11_111_111, page_id: 9001}
@@ -62,6 +68,16 @@ defmodule MillenniumQuiz.CardSourcesStub do
       else: json(conn, 200, %{data: cards})
   end
 
+  def handle(%Plug.Conn{host: "images.ygoprodeck.com", request_path: path} = conn) do
+    if path == "/images/cards_cropped/83764718.jpg" do
+      conn
+      |> Plug.Conn.put_resp_content_type("image/jpeg", nil)
+      |> Plug.Conn.send_resp(200, @artwork)
+    else
+      Plug.Conn.send_resp(conn, 404, "Not found")
+    end
+  end
+
   def handle(%Plug.Conn{host: "cdn.jsdelivr.net", request_path: path} = conn) do
     cond do
       String.ends_with?(path, "/83764718.json") ->
@@ -74,10 +90,27 @@ defmodule MillenniumQuiz.CardSourcesStub do
             "Wiedergeburt",
             "Target 1 monster in either GY; Special Summon it."
           )
+          |> Map.merge(%{card_type: "Spell", property: "Normal"})
         )
 
       String.ends_with?(path, "/11111111.json") ->
-        json(conn, 200, yaml_yugi(@plain, "Plain Card", "Einfache Karte", "Draw 1 card."))
+        json(
+          conn,
+          200,
+          yaml_yugi(@plain, "Plain Card", "Einfache Karte", "Draw 1 card.")
+          |> Map.merge(%{
+            card_type: "Monster",
+            monster_type_line: "Dragon / Xyz / Pendulum / Effect",
+            attribute: "DARK",
+            rank: 7,
+            atk: 3000,
+            def: "?",
+            pendulum_scale: 4,
+            pendulum_effect: %{en: "Once per turn: You can draw 1 card."},
+            materials: "2 Level 7 monsters",
+            series: ["Plain"]
+          })
+        )
 
       true ->
         conn
@@ -123,6 +156,7 @@ defmodule MillenniumQuiz.CardSourcesStub do
       "name" => "Monster Reborn",
       "type" => "Spell Card",
       "humanReadableCardType" => "Normal Spell",
+      "frameType" => "spell",
       "card_images" => Enum.map(images, &%{"id" => &1}),
       "misc_info" => [%{"konami_id" => @reborn.konami_id, "tcg_date" => "2002-03-08"}]
     }
@@ -133,7 +167,8 @@ defmodule MillenniumQuiz.CardSourcesStub do
       "id" => 11_111_111,
       "name" => "Plain Card",
       "type" => "Spell Card",
-      "humanReadableCardType" => "Normal Spell",
+      "humanReadableCardType" => "XYZ Pendulum Effect Monster",
+      "frameType" => "xyz_pendulum",
       "card_images" => [%{"id" => 11_111_111}],
       "misc_info" => [%{"konami_id" => @plain.konami_id, "tcg_date" => "2015-05-05"}]
     }

@@ -31,14 +31,23 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
 
 | Source | Used for | Notes |
 |---|---|---|
-| [YGOPRODeck API](https://ygoprodeck.com/api-guide/) | card search, TCG release date | 20 requests/s, going over blocks the IP for 1 h, so a search needs 3+ characters |
-| [YAML Yugi](https://github.com/DawnbrandBots/yaml-yugi) | names and current texts in 10+ languages, Konami id, Yugipedia page id | static JSON on jsDelivr |
+| [YGOPRODeck API](https://ygoprodeck.com/api-guide/) | card search, TCG release date, frame type, artwork | 20 requests/s, going over blocks the IP for 1 h, so a search needs 3+ characters. Images must not be hotlinked, so each artwork is downloaded once and served from the database |
+| [YAML Yugi](https://github.com/DawnbrandBots/yaml-yugi) | names, current texts, Pendulum Effects and stats in 10+ languages, Konami id, Yugipedia page id | static JSON on jsDelivr |
 | [Yugipedia](https://yugipedia.com) | errata history (`Card Errata:` pages), set release dates | MediaWiki API; text is CC BY-SA 4.0 and must be credited where it is shown |
 
 `MillenniumQuiz.Cards.text_on/3` picks the text for a date: the newest printed
 version released by then. Reprints that bring back an older wording (e.g.
 *Legendary Collection* reproductions) don't count as errata. English follows
 the North American release dates; other languages are stored for later.
+
+Besides the text, the pool stores everything else printed on a card:
+Monster/Spell/Trap, Spell/Trap property (Quick-Play, Continuous, Counter...),
+frame, type line, Attribute, Level/Rank, Link Arrows, ATK/DEF, Pendulum Scale
+and Effect, materials and archetypes. It also stores the artwork (picture
+only, 624x624 JPEG), served at `/cards/<id>/artwork`, so cards can be drawn
+locally with the text of any date.
+`bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_cards()"` fetches
+every card again, e.g. after new errata.
 
 ## Architecture
 
@@ -208,6 +217,6 @@ TLS terminates at the Ingress. The app itself does not redirect to https.
 
 ## Next: Yu-Gi-Oh! features
 
-- **Card previews:** add a `MillenniumQuiz.Cards` context filled from the YGOPRODeck API using `Req`. Download the images once instead of hotlinking them. Add an optional `card_ids` to questions and a `<.card_preview>` component in `GameLive`.
+- **Drawn cards:** the card pool has everything printed on a card plus its artwork (`/cards/<id>/artwork`). A `<.card>` component could draw the frame, artwork and stats with the text of the format's date, instead of the text boxes shown now.
 - **Board states / gameplay:** the open-source engine is ygopro-core / EDOPro (Project Ignis), C++ and Lua under the AGPL. A first step is questions with a board state stored as JSON and rendered by a component. The engine itself would run as its own container next to the app.
 - `Game` is not tied to a question type. A `kind` field on questions (`:multiple_choice`, `:card_image`, `:board_state`) would only change rendering and answer checking.

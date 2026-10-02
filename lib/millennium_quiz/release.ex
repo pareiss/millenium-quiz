@@ -5,6 +5,7 @@ defmodule MillenniumQuiz.Release do
       bin/millennium_quiz eval "MillenniumQuiz.Release.migrate()"
       bin/millennium_quiz eval 'MillenniumQuiz.Release.create_admin("name", "a long password")'
       bin/millennium_quiz eval "MillenniumQuiz.Release.seed()"
+      bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_cards()"
   """
   @app :millennium_quiz
 
@@ -29,6 +30,17 @@ defmodule MillenniumQuiz.Release do
 
   def seed do
     with_repo(fn -> Code.eval_file(Application.app_dir(@app, "priv/repo/seeds.exs")) end)
+  end
+
+  @doc "Fetches every card in the card pool again (new errata, stats, artworks)."
+  def refresh_cards do
+    {:ok, _} = Application.ensure_all_started(:req)
+
+    with_repo(fn ->
+      {refreshed, failed} = MillenniumQuiz.Cards.refresh_all()
+      IO.puts("Refreshed #{refreshed} cards")
+      if failed != [], do: IO.puts("Failed: #{Enum.join(failed, ", ")}")
+    end)
   end
 
   # Creates the first admin from ADMIN_USERNAME / ADMIN_PASSWORD when the

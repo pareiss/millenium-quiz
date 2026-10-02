@@ -4,16 +4,21 @@ defmodule MillenniumQuiz.Cards do
   current name and text in every language and all its printed text versions
   (errata), so the remote sources are only asked once per card.
 
+  Besides the text it keeps everything else printed on the card (stats,
+  Spell/Trap property, frame, Pendulum Effect) and the artwork, so cards can
+  be drawn locally with the text of any format's date.
+
   Sources (see `MillenniumQuiz.Cards.Sources.*`):
-    * YGOPRODeck - search, TCG release date
-    * YAML Yugi - names and texts in every language
+    * YGOPRODeck - search, TCG release date, frame, artwork
+    * YAML Yugi - names, texts, stats and Pendulum Effects in every language
     * Yugipedia - errata history and release dates of the products
   """
 
   import Ecto.Query, warn: false
+  require Logger
 
   alias MillenniumQuiz.Repo
-  alias MillenniumQuiz.Cards.{Card, CardText, ErrataParser}
+  alias MillenniumQuiz.Cards.{Card, CardArtwork, CardText, ErrataParser}
   alias MillenniumQuiz.Cards.Sources.{YamlYugi, YGOPRODeck, Yugipedia}
 
   @min_query_length 3
@@ -74,9 +79,26 @@ defmodule MillenniumQuiz.Cards do
   @doc "Fetches a stored card again from the remote sources, e.g. after new errata."
   def refresh(%Card{} = card) do
     with {:ok, info} <- YGOPRODeck.fetch(card.password) do
-      fetch_and_store(info, Repo.preload(card, :card_texts))
+      fetch_and_store(info, Repo.preload(card, [:card_texts, :artwork]))
     end
   end
+
+  @doc """
+  Refreshes every card in the pool, one after the other (the sources are
+  rate limited). Returns `{refreshed, failed_card_names}`.
+  """
+  def refresh_all do
+    Repo.all(from c in Card, order_by: c.id)
+    |> Enum.reduce({0, []}, fn card, {ok, failed} ->
+      case refresh(card) do
+        {:ok, _} -> {ok + 1, failed}
+        {:error, _} -> {ok, failed ++ [card.name]}
+      end
+    end)
+  end
+
+  @doc "The stored artwork of a card, or nil."
+  def get_artwork(card_id), do: Repo.get_by(CardArtwork, card_id: card_id)
 
   defp fetch_and_store(info, card) do
     with {:ok, yaml} <- YamlYugi.fetch(info.passwords),
@@ -86,6 +108,8 @@ defmodule MillenniumQuiz.Cards do
       texts = card_texts(versions, dates, yaml, info)
 
       card
+      |> Ecto.Changeset.change(yaml.details)
+      |> Ecto.Changeset.change(frame_type: info.frame_type)
       |> Ecto.Changeset.change(
         password: yaml.password,
         konami_id: yaml.konami_id || info.konami_id,
@@ -98,7 +122,31 @@ defmodule MillenniumQuiz.Cards do
         fetched_at: DateTime.utc_now(:second)
       )
       |> Ecto.Changeset.put_assoc(:card_texts, texts)
+      |> put_artwork(info, yaml.password)
       |> Repo.insert_or_update()
+      |> case do
+        {:ok, card} -> {:ok, %{card | artwork: %Ecto.Association.NotLoaded{}}}
+        error -> error
+      end
+    end
+  end
+
+  # The artwork of the printed password; a failed download doesn't stop the
+  # import (the card can be refreshed later).
+  defp put_artwork(changeset, info, password) do
+    artwork_id = if password in info.passwords, do: password, else: hd(info.passwords)
+
+    case YGOPRODeck.artwork(artwork_id) do
+      {:ok, artwork} ->
+        Ecto.Changeset.put_assoc(
+          changeset,
+          :artwork,
+          struct(CardArtwork, Map.put(artwork, :fetched_at, DateTime.utc_now(:second)))
+        )
+
+      {:error, reason} ->
+        Logger.warning("No artwork for card #{artwork_id}: #{inspect(reason)}")
+        changeset
     end
   end
 

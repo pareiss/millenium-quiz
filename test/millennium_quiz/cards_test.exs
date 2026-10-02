@@ -1,6 +1,9 @@
 defmodule MillenniumQuiz.CardsTest do
   use MillenniumQuiz.DataCase, async: true
 
+  # Plain Card has no artwork on purpose; the import logs a warning.
+  @moduletag :capture_log
+
   alias MillenniumQuiz.{Cards, CardSourcesStub}
   alias MillenniumQuiz.Cards.{Card, CardText}
 
@@ -55,6 +58,47 @@ defmodule MillenniumQuiz.CardsTest do
                card.card_texts
 
       assert hd(card.card_texts).released_on == ~D[2015-05-05]
+    end
+
+    test "stores what is printed besides the text, and the artwork" do
+      {:ok, reborn} = Cards.import(83_764_719)
+      assert %{kind: "Spell", property: "Normal", frame_type: "spell"} = reborn
+
+      artwork = Cards.get_artwork(reborn.id)
+      assert artwork.artwork_id == 83_764_718
+      assert artwork.data == CardSourcesStub.artwork()
+      assert artwork.content_type == "image/jpeg"
+
+      {:ok, plain} = Cards.import(11_111_111)
+
+      assert %{
+               kind: "Monster",
+               frame_type: "xyz_pendulum",
+               monster_type_line: "Dragon / Xyz / Pendulum / Effect",
+               attribute: "DARK",
+               rank: 7,
+               level: nil,
+               atk: "3000",
+               def: "?",
+               pendulum_scale: 4,
+               materials: "2 Level 7 monsters",
+               archetypes: ["Plain"]
+             } = plain
+
+      assert plain.pendulum_texts["en"] == "Once per turn: You can draw 1 card."
+      # a missing artwork doesn't stop the import
+      assert Cards.get_artwork(plain.id) == nil
+    end
+
+    test "refresh/1 fetches the card again and replaces texts and artwork" do
+      {:ok, card} = Cards.import(83_764_719)
+      Repo.update_all(Card, set: [property: "Old"])
+
+      assert {:ok, refreshed} = Cards.refresh(Cards.get_card!(card.id))
+      assert refreshed.id == card.id
+      assert refreshed.property == "Normal"
+      assert Repo.aggregate(CardText, :count) == length(card.card_texts)
+      assert Repo.aggregate(MillenniumQuiz.Cards.CardArtwork, :count) == 1
     end
 
     test "unknown cards are an error" do
