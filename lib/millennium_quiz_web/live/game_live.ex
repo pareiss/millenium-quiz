@@ -245,6 +245,7 @@ defmodule MillenniumQuizWeb.GameLive do
         <p class="text-xl sm:text-2xl font-semibold leading-snug" id="question-text">
           {@question.text}
         </p>
+        <.question_cards cards={@question.cards} />
         <div class="grid gap-3 sm:grid-cols-2">
           <button
             :for={{choice, i} <- Enum.with_index(@question.choices)}
@@ -285,6 +286,7 @@ defmodule MillenniumQuizWeb.GameLive do
     >
       <.question_meta question={@question} />
       <p class="text-xl font-semibold leading-snug">{@question.text}</p>
+      <.question_cards cards={@question.cards} />
       <p class="text-sm text-base-content/60">Chosen by {@chooser.name}</p>
 
       <ul class="grid gap-2 sm:grid-cols-2">
@@ -336,6 +338,42 @@ defmodule MillenniumQuizWeb.GameLive do
         <.icon name="hero-arrow-right" class="size-5" />
       </button>
     </div>
+    """
+  end
+
+  attr :cards, :list, required: true
+
+  # The cards a question is about, with their text as of the format's date.
+  defp question_cards(assigns) do
+    ~H"""
+    <div :if={@cards != []} class="grid gap-3 sm:grid-cols-2" id="question-cards">
+      <article
+        :for={{card, i} <- Enum.with_index(@cards)}
+        id={"question-card-#{i}"}
+        class="rounded-field border border-amber-700/30 bg-amber-50 p-4 text-stone-900 shadow-sm dark:bg-stone-900 dark:text-stone-100 dark:border-amber-500/30"
+      >
+        <h3 class="font-semibold">{card.name}</h3>
+        <p class="mt-1 text-sm leading-relaxed whitespace-pre-line">{card.text}</p>
+        <p :if={card.set} class="mt-2 text-xs opacity-60">As printed in {card.set}</p>
+      </article>
+    </div>
+    <.card_credit :if={@cards != []} />
+    """
+  end
+
+  defp card_credit(assigns) do
+    ~H"""
+    <p class="text-xs text-base-content/50">
+      Card texts from
+      <a href="https://yugipedia.com" target="_blank" rel="noopener" class="link">Yugipedia</a>
+      (CC BY-SA 4.0) and <a
+        href="https://github.com/DawnbrandBots/yaml-yugi"
+        target="_blank"
+        rel="noopener"
+        class="link"
+      >YAML Yugi</a>.
+      Yu-Gi-Oh! card names and texts © Konami.
+    </p>
     """
   end
 

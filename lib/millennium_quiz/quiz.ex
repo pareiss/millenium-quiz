@@ -63,7 +63,9 @@ defmodule MillenniumQuiz.Quiz do
 
   ## Questions
 
-  def get_question!(id), do: Question |> Repo.get!(id) |> Repo.preload(:topic)
+  def get_question!(id) do
+    Question |> Repo.get!(id) |> Repo.preload([:topic, question_cards: [card: :card_texts]])
+  end
 
   def get_topic!(id), do: Topic |> Repo.get!(id) |> Repo.preload(:format)
 
@@ -72,16 +74,22 @@ defmodule MillenniumQuiz.Quiz do
     Repo.one(from q in Question, where: q.topic_id == ^topic.id, select: count(q.id))
   end
 
-  @doc "Creates a question at the end of the topic."
-  def create_question(%Topic{} = topic, attrs) do
-    %Question{topic_id: topic.id, position: next_question_position(topic)}
+  @doc """
+  Creates a question at the end of the topic. `card_ids` (card pool ids, in
+  display order) sets the cards the question is about.
+  """
+  def create_question(%Topic{} = topic, attrs, card_ids \\ []) do
+    %Question{topic_id: topic.id, position: next_question_position(topic), question_cards: []}
     |> Question.changeset(attrs)
+    |> Question.put_cards(card_ids)
     |> Repo.insert()
   end
 
-  def update_question(%Question{} = question, attrs) do
+  def update_question(%Question{} = question, attrs, card_ids \\ nil) do
     question
+    |> Repo.preload(:question_cards)
     |> Question.changeset(attrs)
+    |> then(&if(card_ids, do: Question.put_cards(&1, card_ids), else: &1))
     |> Repo.update()
   end
 
@@ -145,13 +153,13 @@ defmodule MillenniumQuiz.Quiz do
     end)
   end
 
-  @doc "All questions of a format with their topic, used to build a game."
+  @doc "All questions of a format with their topic and cards, used to build a game."
   def questions_for_format(format_id) do
     Repo.all(
       from q in Question,
         join: t in assoc(q, :topic),
         where: t.format_id == ^format_id,
-        preload: [topic: t]
+        preload: [topic: t, question_cards: [card: :card_texts]]
     )
   end
 end

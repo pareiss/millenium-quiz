@@ -24,6 +24,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
   - an email with the link
   - the "Continue a game" list on the home page of the same device
 - **Formats**: a format is a point in time with a **date**. Only cards released in the TCG by that date can be attached to its questions, and every card shows the text (errata) it had on that date.
+- **Card pool**: admins search cards by name and attach them to questions. The first time a card is used it is copied into the local database with its current name and text in every language and all its printed text versions, so the sources are only asked once.
 - **Admin** (`/admin`): username/password login. It covers formats with their 2–6 topics edited inline, questions per topic (2–6 answers, one correct), ↑/↓ difficulty ordering, and managing admins.
 - **Points**: the easiest question in a topic is worth 10, the next 20, then 30 and so on. A custom value on a question overrides this. Moving a question changes its default.
 

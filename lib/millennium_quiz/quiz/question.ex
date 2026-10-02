@@ -2,7 +2,7 @@ defmodule MillenniumQuiz.Quiz.Question do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias MillenniumQuiz.Quiz.Choice
+  alias MillenniumQuiz.Quiz.{Choice, QuestionCard}
 
   @min_choices 2
   @max_choices 6
@@ -17,6 +17,11 @@ defmodule MillenniumQuiz.Quiz.Question do
     embeds_many :choices, Choice, on_replace: :delete
 
     belongs_to :topic, MillenniumQuiz.Quiz.Topic
+
+    # The cards the question is about, from the card pool.
+    has_many :question_cards, QuestionCard,
+      preload_order: [asc: :position],
+      on_replace: :delete
 
     timestamps(type: :utc_datetime)
   end
@@ -40,6 +45,19 @@ defmodule MillenniumQuiz.Quiz.Question do
       drop_param: :choices_drop
     )
     |> validate_choices()
+  end
+
+  @doc "Sets the question's cards, in order, from card pool ids."
+  def put_cards(changeset, card_ids) do
+    question_cards =
+      card_ids
+      |> Enum.uniq()
+      |> Enum.with_index()
+      |> Enum.map(fn {card_id, position} ->
+        %QuestionCard{card_id: card_id, position: position}
+      end)
+
+    put_assoc(changeset, :question_cards, question_cards)
   end
 
   defp validate_choices(changeset) do
