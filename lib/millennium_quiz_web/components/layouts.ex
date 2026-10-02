@@ -45,7 +45,7 @@ defmodule MillenniumQuizWeb.Layouts do
         <div class="flex-1" />
 
         <%= if @current_scope do %>
-          <.link navigate={~p"/admin/categories"} class="btn btn-ghost btn-sm">Categories</.link>
+          <.link navigate={~p"/admin/formats"} class="btn btn-ghost btn-sm">Formats</.link>
           <.link navigate={~p"/admin/users"} class="btn btn-ghost btn-sm">
             <.icon name="hero-user-circle" class="size-4" />
             <span class="hidden sm:inline">{@current_scope.user.username}</span>

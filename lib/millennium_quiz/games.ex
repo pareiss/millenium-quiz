@@ -27,12 +27,12 @@ defmodule MillenniumQuiz.Games do
 
   `opts` go to `MillenniumQuiz.Game.new/4`, e.g. `mode: :ascending`.
   """
-  def create_game(category_id, player_names, opts \\ []) do
-    category = Quiz.get_category!(category_id)
-    questions = Quiz.questions_for_category(category.id)
+  def create_game(format_id, player_names, opts \\ []) do
+    format = Quiz.get_format!(format_id)
+    questions = Quiz.questions_for_format(format.id)
 
-    with {:ok, game} <- Game.new(category, player_names, questions, opts) do
-      %GameRecord{category_id: category.id, status: :active, state: Game.to_map(game)}
+    with {:ok, game} <- Game.new(format, player_names, questions, opts) do
+      %GameRecord{format_id: format.id, status: :active, state: Game.to_map(game)}
       |> Repo.insert()
       |> case do
         {:ok, record} -> {:ok, record.id}

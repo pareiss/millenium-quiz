@@ -1,4 +1,4 @@
-defmodule MillenniumQuizWeb.Admin.CategoryLive.Show do
+defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
   use MillenniumQuizWeb, :live_view
 
   alias MillenniumQuiz.Quiz
@@ -9,24 +9,29 @@ defmodule MillenniumQuizWeb.Admin.CategoryLive.Show do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} width="lg">
       <.link
-        navigate={~p"/admin/categories"}
+        navigate={~p"/admin/formats"}
         class="text-sm text-base-content/60 hover:text-base-content"
       >
-        <span aria-hidden="true">&larr;</span> Categories
+        <span aria-hidden="true">&larr;</span> Formats
       </.link>
       <.header>
-        {@category.name}
-        <:subtitle>{@category.description}</:subtitle>
+        {@format.name}
+        <:subtitle>
+          <span class="inline-flex items-center gap-1" id="format-date">
+            <.icon name="hero-calendar" class="size-4" /> {display_date(@format.date)}
+          </span>
+          <span :if={@format.description} class="block">{@format.description}</span>
+        </:subtitle>
         <:actions>
           <div class="flex gap-2">
-            <.button navigate={~p"/admin/categories/#{@category}/edit"} id="edit-category">
+            <.button navigate={~p"/admin/formats/#{@format}/edit"} id="edit-format">
               <.icon name="hero-pencil-square" class="size-4" /> Edit
             </.button>
             <.button
-              phx-click="delete_category"
-              data-confirm="Delete this category with all topics and questions?"
+              phx-click="delete_format"
+              data-confirm="Delete this format with all topics and questions?"
               class="btn btn-ghost text-error"
-              id="delete-category"
+              id="delete-format"
             >
               <.icon name="hero-trash" class="size-4" />
             </.button>
@@ -40,7 +45,7 @@ defmodule MillenniumQuizWeb.Admin.CategoryLive.Show do
       </p>
 
       <section
-        :for={topic <- @category.topics}
+        :for={topic <- @format.topics}
         id={"topic-#{topic.id}"}
         class="rounded-box border border-base-300 bg-base-100 shadow-sm"
       >
@@ -121,35 +126,35 @@ defmodule MillenniumQuizWeb.Admin.CategoryLive.Show do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    {:ok, assign_category(socket, id)}
+    {:ok, assign_format(socket, id)}
   end
 
   @impl true
   def handle_event("move", %{"id" => id, "dir" => dir}, socket) when dir in ["up", "down"] do
     question = Quiz.get_question!(id)
     {:ok, _} = Quiz.move_question(question, String.to_existing_atom(dir))
-    {:noreply, assign_category(socket, socket.assigns.category.id)}
+    {:noreply, assign_format(socket, socket.assigns.format.id)}
   end
 
   def handle_event("delete_question", %{"id" => id}, socket) do
     {:ok, _} = id |> Quiz.get_question!() |> Quiz.delete_question()
-    {:noreply, assign_category(socket, socket.assigns.category.id)}
+    {:noreply, assign_format(socket, socket.assigns.format.id)}
   end
 
-  def handle_event("delete_category", _params, socket) do
-    {:ok, _} = Quiz.delete_category(socket.assigns.category)
+  def handle_event("delete_format", _params, socket) do
+    {:ok, _} = Quiz.delete_format(socket.assigns.format)
 
     {:noreply,
      socket
-     |> put_flash(:info, "Category deleted.")
-     |> push_navigate(to: ~p"/admin/categories")}
+     |> put_flash(:info, "Format deleted.")
+     |> push_navigate(to: ~p"/admin/formats")}
   end
 
-  defp assign_category(socket, id) do
-    category = Quiz.get_category!(id)
+  defp assign_format(socket, id) do
+    format = Quiz.get_format!(id)
 
     socket
-    |> assign(:page_title, category.name)
-    |> assign(:category, category)
+    |> assign(:page_title, format.name)
+    |> assign(:format, format)
   end
 end

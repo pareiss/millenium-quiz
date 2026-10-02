@@ -8,7 +8,7 @@ defmodule MillenniumQuizWeb.AdminTest do
   alias MillenniumQuiz.Quiz
 
   test "admin pages require login", %{conn: conn} do
-    assert {:error, {:redirect, %{to: "/admin/login"}}} = live(conn, ~p"/admin/categories")
+    assert {:error, {:redirect, %{to: "/admin/login"}}} = live(conn, ~p"/admin/formats")
     assert redirected_to(get(conn, ~p"/admin/users")) == ~p"/admin/login"
   end
 
@@ -21,7 +21,7 @@ defmodule MillenniumQuizWeb.AdminTest do
           user: %{username: user.username, password: valid_user_password()}
         )
 
-      assert redirected_to(conn) == ~p"/admin/categories"
+      assert redirected_to(conn) == ~p"/admin/formats"
       assert get_session(conn, :user_token)
     end
 
@@ -47,21 +47,22 @@ defmodule MillenniumQuizWeb.AdminTest do
   describe "logged in" do
     setup :register_and_log_in_user
 
-    test "creates a category with topics", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/categories/new")
+    test "creates a format with topics", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/formats/new")
 
       # "Add topic" dispatches a form change with topics_sort[]=new
       view
-      |> form("#category-form")
-      |> render_change(%{category: %{topics_sort: ["0", "1", "new"]}})
+      |> form("#format-form")
+      |> render_change(%{format: %{topics_sort: ["0", "1", "new"]}})
 
-      assert has_element?(view, "input[name='category[topics][2][name]']")
+      assert has_element?(view, "input[name='format[topics][2][name]']")
 
       result =
         view
-        |> form("#category-form",
-          category: %{
+        |> form("#format-form",
+          format: %{
             name: "Card Lore",
+            date: "2005-04-01",
             topics: %{
               "0" => %{name: "Monsters"},
               "1" => %{name: "Spells"},
@@ -71,13 +72,15 @@ defmodule MillenniumQuizWeb.AdminTest do
         )
         |> render_submit()
 
-      assert {:error, {:live_redirect, %{to: "/admin/categories/" <> id}}} = result
-      assert Enum.map(Quiz.get_category!(id).topics, & &1.name) == ["Monsters", "Spells", "Traps"]
+      assert {:error, {:live_redirect, %{to: "/admin/formats/" <> id}}} = result
+      format = Quiz.get_format!(id)
+      assert format.date == ~D[2005-04-01]
+      assert Enum.map(format.topics, & &1.name) == ["Monsters", "Spells", "Traps"]
     end
 
     test "creates a question with default points and reorders it", %{conn: conn} do
-      category = category_fixture()
-      topic = hd(category.topics)
+      format = format_fixture()
+      topic = hd(format.topics)
       first = question_fixture(topic)
 
       {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
@@ -97,8 +100,8 @@ defmodule MillenniumQuizWeb.AdminTest do
       )
       |> render_submit()
 
-      {:ok, show, _html} = live(conn, ~p"/admin/categories/#{category.id}")
-      [_, second] = Quiz.get_category!(category.id).topics |> hd() |> Map.fetch!(:questions)
+      {:ok, show, _html} = live(conn, ~p"/admin/formats/#{format.id}")
+      [_, second] = Quiz.get_format!(format.id).topics |> hd() |> Map.fetch!(:questions)
       assert second.text == "Which card draws 2?"
 
       show |> element("#move-up-#{second.id}") |> render_click()

@@ -11,16 +11,16 @@ defmodule MillenniumQuizWeb.GameLiveTest do
   setup :set_swoosh_global
 
   setup do
-    %{category: playable_category_fixture(1)}
+    %{format: playable_format_fixture(1)}
   end
 
-  test "home lists playable categories", %{conn: conn, category: category} do
+  test "home lists playable formats", %{conn: conn, format: format} do
     {:ok, view, _html} = live(conn, ~p"/")
-    assert has_element?(view, "#category-#{category.id}")
+    assert has_element?(view, "#format-#{format.id}")
   end
 
-  test "starting a game validates the players", %{conn: conn, category: category} do
-    {:ok, view, _html} = live(conn, ~p"/categories/#{category.id}/play")
+  test "starting a game validates the players", %{conn: conn, format: format} do
+    {:ok, view, _html} = live(conn, ~p"/formats/#{format.id}/play")
 
     view |> form("#players-form", %{"names" => ["Ann", "ann"]}) |> render_submit()
     assert has_element?(view, "#players-error")
@@ -43,8 +43,8 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert {:ok, %{game: %{mode: :ascending}}} = Games.fetch_game(id)
   end
 
-  test "a full Heart of the Cards game", %{conn: conn, category: category} do
-    {:ok, id} = Games.create_game(category.id, ["Ann", "Bob"], mode: :free)
+  test "a full Heart of the Cards game", %{conn: conn, format: format} do
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :free)
     {:ok, view, _html} = live(conn, ~p"/games/#{id}")
 
     # one question per topic, both worth 10 points; the second topic first
@@ -75,8 +75,8 @@ defmodule MillenniumQuizWeb.GameLiveTest do
   end
 
   test "Level Up! lets players choose a topic", %{conn: conn} do
-    category = playable_category_fixture(2)
-    {:ok, id} = Games.create_game(category.id, ["Ann", "Bob"], mode: :ascending)
+    format = playable_format_fixture(2)
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :ascending)
     {:ok, view, _html} = live(conn, ~p"/games/#{id}")
 
     refute has_element?(view, "button#question-1")
@@ -91,8 +91,8 @@ defmodule MillenniumQuizWeb.GameLiveTest do
   end
 
   test "pause shows resume options and the game continues in another session",
-       %{conn: conn, category: category} do
-    {:ok, id} = Games.create_game(category.id, ["Ann", "Bob"])
+       %{conn: conn, format: format} do
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
     {:ok, view, _html} = live(conn, ~p"/games/#{id}")
     view |> element("#question-0") |> render_click()
 
@@ -117,8 +117,8 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     _ = render(view)
   end
 
-  test "ending asks for confirmation in a modal", %{conn: conn, category: category} do
-    {:ok, id} = Games.create_game(category.id, ["Ann", "Bob"])
+  test "ending asks for confirmation in a modal", %{conn: conn, format: format} do
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
     {:ok, view, _html} = live(conn, ~p"/games/#{id}")
 
     view |> element("#end-game") |> render_click()
@@ -131,6 +131,14 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     view |> element("#confirm-end") |> render_click()
     refute has_element?(view, "#end-game-modal")
     assert has_element?(view, "#final")
+  end
+
+  test "links from before formats redirect", %{conn: conn, format: format} do
+    conn = get(conn, "/categories/#{format.id}/play?players[]=Ann")
+    assert redirected_to(conn, 301) == "/formats/#{format.id}/play?players[]=Ann"
+
+    conn = get(build_conn(), "/admin/categories/#{format.id}")
+    assert redirected_to(conn, 301) == "/admin/formats/#{format.id}"
   end
 
   test "unknown games redirect home", %{conn: conn} do

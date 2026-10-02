@@ -1,4 +1,8 @@
-defmodule MillenniumQuiz.Quiz.Category do
+defmodule MillenniumQuiz.Quiz.Format do
+  @moduledoc """
+  A format is a point in time of the game: its `date` decides which cards
+  exist and which errata of their text applies (TCG timeline).
+  """
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -7,9 +11,10 @@ defmodule MillenniumQuiz.Quiz.Category do
   @min_topics 2
   @max_topics 6
 
-  schema "categories" do
+  schema "formats" do
     field :name, :string
     field :description, :string
+    field :date, :date
 
     has_many :topics, Topic, preload_order: [asc: :position], on_replace: :delete
 
@@ -20,14 +25,14 @@ defmodule MillenniumQuiz.Quiz.Category do
   def max_topics, do: @max_topics
 
   @doc """
-  Topics are edited inline with the category. `topics_sort` / `topics_drop`
+  Topics are edited inline with the format. `topics_sort` / `topics_drop`
   are the params produced by `<.inputs_for>` add/remove buttons; the position
   of each topic follows its index in the form.
   """
-  def changeset(category, attrs) do
-    category
-    |> cast(attrs, [:name, :description])
-    |> validate_required([:name])
+  def changeset(format, attrs) do
+    format
+    |> cast(attrs, [:name, :description, :date])
+    |> validate_required([:name, :date])
     |> validate_length(:name, max: 80)
     |> cast_assoc(:topics,
       with: &Topic.changeset/3,
@@ -39,7 +44,7 @@ defmodule MillenniumQuiz.Quiz.Category do
   end
 
   # `validate_length/3` only runs when the association changed, but a
-  # category must always have 2-6 topics, so this checks the final list.
+  # format must always have 2-6 topics, so this checks the final list.
   defp validate_topic_count(changeset) do
     count = changeset |> get_assoc(:topics, :struct) |> length()
 

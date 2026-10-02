@@ -9,7 +9,7 @@ defmodule MillenniumQuizWeb.HomeLive do
     <Layouts.app flash={@flash} current_scope={@current_scope} width="lg">
       <section class="text-center space-y-3 pt-4 pb-2">
         <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">Trivia night</p>
-        <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">Choose your category</h1>
+        <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">Choose your format</h1>
         <p class="text-base-content/70 max-w-xl mx-auto">
           2 to 4 players, one device. Take turns choosing questions from the board: the harder the question, the more points it is worth.
         </p>
@@ -26,7 +26,7 @@ defmodule MillenniumQuizWeb.HomeLive do
         <ul class="divide-y divide-base-300">
           <li :for={g <- @unfinished_games} class="py-2 flex items-center gap-3">
             <div class="flex-1 min-w-0">
-              <p class="font-medium truncate">{g.game.category_name}</p>
+              <p class="font-medium truncate">{g.game.format_name}</p>
               <p class="text-sm text-base-content/60 truncate">
                 {Enum.map_join(g.game.players, ", ", & &1.name)} · question {g.game.round}/{Game.total_rounds(
                   g.game
@@ -50,9 +50,9 @@ defmodule MillenniumQuizWeb.HomeLive do
         class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
       >
         <.link
-          :for={%{category: c, topics: topics, questions: questions} <- @categories}
-          navigate={~p"/categories/#{c.id}/play"}
-          id={"category-#{c.id}"}
+          :for={%{format: c, topics: topics, questions: questions} <- @formats}
+          navigate={~p"/formats/#{c.id}/play"}
+          id={"format-#{c.id}"}
           class="group relative overflow-hidden rounded-box border border-base-300 bg-base-100 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
         >
           <div class="absolute -right-6 -top-6 size-24 rounded-full bg-primary/10 transition group-hover:scale-125" />
@@ -60,20 +60,21 @@ defmodule MillenniumQuizWeb.HomeLive do
           <p :if={c.description} class="relative mt-1 text-sm text-base-content/70 line-clamp-3">
             {c.description}
           </p>
-          <div class="relative mt-4 flex items-center gap-3 text-xs text-base-content/60">
-            <span class="badge badge-ghost badge-sm">{topics} topics</span>
-            <span class="badge badge-ghost badge-sm">{questions} questions</span>
-            <span class="ml-auto text-primary font-medium group-hover:translate-x-0.5 transition">
+          <div class="relative mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-base-content/60">
+            <span class="badge badge-ghost badge-sm whitespace-nowrap">{display_date(c.date)}</span>
+            <span class="badge badge-ghost badge-sm whitespace-nowrap">{topics} topics</span>
+            <span class="badge badge-ghost badge-sm whitespace-nowrap">{questions} questions</span>
+            <span class="ml-auto whitespace-nowrap text-primary font-medium group-hover:translate-x-0.5 transition">
               Play <span aria-hidden="true">&rarr;</span>
             </span>
           </div>
         </.link>
 
         <div
-          :if={@categories == []}
+          :if={@formats == []}
           class="sm:col-span-2 lg:col-span-3 rounded-box border border-dashed border-base-300 p-10 text-center text-base-content/60"
         >
-          No playable categories yet. An admin needs to add a category with at least two topics and one question.
+          No playable formats yet. An admin needs to add a format with at least two topics and one question.
         </div>
       </div>
       <script :type={Phoenix.LiveView.ColocatedHook} name=".KnownGames">
@@ -95,8 +96,8 @@ defmodule MillenniumQuizWeb.HomeLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:page_title, "Categories")
-     |> assign(:categories, Quiz.list_playable_categories())
+     |> assign(:page_title, "Formats")
+     |> assign(:formats, Quiz.list_playable_formats())
      |> assign(:unfinished_games, [])}
   end
 

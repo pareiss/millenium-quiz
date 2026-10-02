@@ -73,7 +73,7 @@ defmodule MillenniumQuizWeb.GameLive do
       <div class="flex items-end justify-between gap-4">
         <div>
           <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">
-            {@game.category_name}
+            {@game.format_name}
             <span class="text-base-content/50" id="game-mode">· {Game.mode_name(@game.mode)}</span>
           </p>
           <h1 class="text-2xl font-bold tracking-tight" id="round-label">
@@ -543,14 +543,14 @@ defmodule MillenniumQuizWeb.GameLive do
       <div class="flex flex-wrap justify-center gap-2">
         <.link
           navigate={
-            ~p"/categories/#{@game.category_id}/play?#{[players: Enum.map(@game.players, & &1.name), mode: @game.mode]}"
+            ~p"/formats/#{@game.format_id}/play?#{[players: Enum.map(@game.players, & &1.name), mode: @game.mode]}"
           }
           class="btn btn-primary"
           id="play-again"
         >
           <.icon name="hero-arrow-path" class="size-5" /> Play again
         </.link>
-        <.link navigate={~p"/"} class="btn btn-ghost">Other categories</.link>
+        <.link navigate={~p"/"} class="btn btn-ghost">Other formats</.link>
       </div>
     </div>
     """
@@ -651,7 +651,7 @@ defmodule MillenniumQuizWeb.GameLive do
     socket
     |> assign(:status, view.status)
     |> assign(:game, view.game)
-    |> assign(:page_title, "#{view.game.category_name} · Q#{view.game.round}")
+    |> assign(:page_title, "#{view.game.format_name} · Q#{view.game.round}")
     |> maybe_assign_qr()
   end
 

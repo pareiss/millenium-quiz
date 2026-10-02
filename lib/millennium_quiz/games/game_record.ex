@@ -9,7 +9,7 @@ defmodule MillenniumQuiz.Games.GameRecord do
     field :status, Ecto.Enum, values: [:active, :paused, :finished], default: :active
     field :state, :map
 
-    belongs_to :category, MillenniumQuiz.Quiz.Category
+    belongs_to :format, MillenniumQuiz.Quiz.Format
 
     timestamps(type: :utc_datetime)
   end

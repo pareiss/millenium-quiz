@@ -9,7 +9,7 @@ defmodule MillenniumQuiz.Game do
 
   ## Board and modes
 
-  The topics of the category are the columns of a board, and every question
+  The topics of the format are the columns of a board, and every question
   is a cell that only shows its points. Players take turns choosing; then
   every player answers the chosen question, starting with the chooser.
   Picks stay hidden until the reveal, and everyone who was right scores.
@@ -36,8 +36,9 @@ defmodule MillenniumQuiz.Game do
   @max_players 4
   @modes [:free, :ascending]
 
-  defstruct category_id: nil,
-            category_name: nil,
+  defstruct format_id: nil,
+            format_name: nil,
+            format_date: nil,
             mode: :free,
             players: [],
             topics: [],
@@ -64,8 +65,9 @@ defmodule MillenniumQuiz.Game do
           result: result() | nil
         }
   @type t :: %__MODULE__{
-          category_id: integer() | nil,
-          category_name: String.t() | nil,
+          format_id: integer() | nil,
+          format_name: String.t() | nil,
+          format_date: Date.t() | nil,
           mode: mode(),
           players: [player()],
           topics: [String.t()],
@@ -101,7 +103,7 @@ defmodule MillenniumQuiz.Game do
   def parse_mode(_), do: {:error, :invalid_mode}
 
   @doc """
-  Creates a game from a category, player names and `Question` structs
+  Creates a game from a format, player names and `Question` structs
   (with `:topic` preloaded).
 
   Options:
@@ -109,7 +111,7 @@ defmodule MillenniumQuiz.Game do
     * `:shuffle` - function used for every random decision, defaults to
       `Enum.shuffle/1`. Tests pass `& &1` to make games deterministic.
   """
-  def new(category, player_names, questions, opts \\ []) do
+  def new(format, player_names, questions, opts \\ []) do
     shuffle = Keyword.get(opts, :shuffle, &Enum.shuffle/1)
     names = Enum.map(player_names, &String.trim/1)
     mode = parse_mode(Keyword.get(opts, :mode, :free))
@@ -133,8 +135,9 @@ defmodule MillenniumQuiz.Game do
 
         {:ok,
          %__MODULE__{
-           category_id: category.id,
-           category_name: category.name,
+           format_id: format.id,
+           format_name: format.name,
+           format_date: format.date,
            mode: mode,
            players: Enum.map(names, &%{name: &1, score: 0}),
            topics: topics,
@@ -354,8 +357,9 @@ defmodule MillenniumQuiz.Game do
     no_picks = List.duplicate(nil, length(map["players"]))
 
     %__MODULE__{
-      category_id: map["category_id"],
-      category_name: map["category_name"],
+      format_id: map["format_id"] || map["category_id"],
+      format_name: map["format_name"] || map["category_name"],
+      format_date: date_from_map(map["format_date"]),
       mode: mode,
       players: players_from_map(map["players"]),
       topics: map["topics"],
@@ -384,8 +388,9 @@ defmodule MillenniumQuiz.Game do
 
   def from_map(%{} = map) do
     %__MODULE__{
-      category_id: map["category_id"],
-      category_name: map["category_name"],
+      format_id: map["format_id"] || map["category_id"],
+      format_name: map["format_name"] || map["category_name"],
+      format_date: date_from_map(map["format_date"]),
       mode: :ascending,
       players: players_from_map(map["players"]),
       topics: map["questions"] |> Enum.map(& &1["topic"]) |> Enum.uniq(),
@@ -401,6 +406,11 @@ defmodule MillenniumQuiz.Game do
   # Early board games, where only the chooser answered.
   defp result_from_map(%{"player" => player, "pick" => pick}, no_picks),
     do: %{chooser: player, picks: List.replace_at(no_picks, player, pick)}
+
+  # Snapshots from before categories became formats have `category_*` keys
+  # and no date.
+  defp date_from_map(nil), do: nil
+  defp date_from_map(date), do: Date.from_iso8601!(date)
 
   defp players_from_map(players), do: Enum.map(players, &%{name: &1["name"], score: &1["score"]})
 

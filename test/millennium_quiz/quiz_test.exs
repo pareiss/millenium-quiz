@@ -8,42 +8,53 @@ defmodule MillenniumQuiz.QuizTest do
 
   defp topics(n), do: Map.new(1..n//1, &{to_string(&1), %{"name" => "Topic #{&1}"}})
 
-  describe "categories" do
+  describe "formats" do
     test "need between 2 and 6 topics" do
-      assert {:error, cs} = Quiz.create_category(%{"name" => "One", "topics" => topics(1)})
+      assert {:error, cs} = Quiz.create_format(%{"name" => "One", "topics" => topics(1)})
       assert %{topics: ["must have between 2 and 6 topics"]} = errors_on(cs)
 
-      assert {:error, cs} = Quiz.create_category(%{"name" => "None"})
+      assert {:error, cs} = Quiz.create_format(%{"name" => "None"})
       assert %{topics: [_]} = errors_on(cs)
 
-      assert {:error, _} = Quiz.create_category(%{"name" => "Seven", "topics" => topics(7)})
-      assert {:ok, _} = Quiz.create_category(%{"name" => "Six", "topics" => topics(6)})
+      assert {:error, _} = Quiz.create_format(%{"name" => "Seven", "topics" => topics(7)})
+
+      assert {:ok, _} =
+               Quiz.create_format(%{
+                 "name" => "Six",
+                 "date" => "2005-04-01",
+                 "topics" => topics(6)
+               })
+    end
+
+    test "need a date" do
+      assert {:error, cs} = Quiz.create_format(%{"name" => "Undated", "topics" => topics(2)})
+      assert %{date: ["can't be blank"]} = errors_on(cs)
     end
 
     test "topics keep the form order as position" do
-      category =
-        category_fixture(%{"topics" => %{"0" => %{"name" => "B"}, "1" => %{"name" => "A"}}})
+      format =
+        format_fixture(%{"topics" => %{"0" => %{"name" => "B"}, "1" => %{"name" => "A"}}})
 
-      assert Enum.map(category.topics, &{&1.name, &1.position}) == [{"B", 0}, {"A", 1}]
+      assert Enum.map(format.topics, &{&1.name, &1.position}) == [{"B", 0}, {"A", 1}]
     end
 
     test "dropping a topic below the minimum is rejected" do
-      category = category_fixture()
+      format = format_fixture()
 
       attrs = %{
-        "topics" => %{"0" => %{"id" => hd(category.topics).id, "name" => "x"}},
+        "topics" => %{"0" => %{"id" => hd(format.topics).id, "name" => "x"}},
         "topics_drop" => ["1"]
       }
 
-      assert {:error, cs} = Quiz.update_category(category, attrs)
+      assert {:error, cs} = Quiz.update_format(format, attrs)
       assert %{topics: [_]} = errors_on(cs)
     end
 
-    test "only categories with questions are playable" do
-      empty = category_fixture()
-      playable = playable_category_fixture(1)
+    test "only formats with questions are playable" do
+      empty = format_fixture()
+      playable = playable_format_fixture(1)
 
-      ids = Enum.map(Quiz.list_playable_categories(), & &1.category.id)
+      ids = Enum.map(Quiz.list_playable_formats(), & &1.format.id)
       assert playable.id in ids
       refute empty.id in ids
     end
@@ -51,7 +62,7 @@ defmodule MillenniumQuiz.QuizTest do
 
   describe "questions" do
     setup do
-      %{topic: hd(category_fixture().topics)}
+      %{topic: hd(format_fixture().topics)}
     end
 
     test "need 2-6 answers with exactly one correct", %{topic: topic} do
