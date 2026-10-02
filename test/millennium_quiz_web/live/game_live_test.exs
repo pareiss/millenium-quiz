@@ -1,0 +1,139 @@
+defmodule MillenniumQuizWeb.GameLiveTest do
+  use MillenniumQuizWeb.ConnCase
+
+  import Phoenix.LiveViewTest
+  import MillenniumQuiz.QuizFixtures
+  import Swoosh.TestAssertions
+
+  alias MillenniumQuiz.Games
+
+  # Emails are sent from the LiveView process, not the test process.
+  setup :set_swoosh_global
+
+  setup do
+    %{category: playable_category_fixture(1)}
+  end
+
+  test "home lists playable categories", %{conn: conn, category: category} do
+    {:ok, view, _html} = live(conn, ~p"/")
+    assert has_element?(view, "#category-#{category.id}")
+  end
+
+  test "starting a game validates the players", %{conn: conn, category: category} do
+    {:ok, view, _html} = live(conn, ~p"/categories/#{category.id}/play")
+
+    view |> form("#players-form", %{"names" => ["Ann", "ann"]}) |> render_submit()
+    assert has_element?(view, "#players-error")
+
+    view |> element("#add-player") |> render_click()
+    view |> element("#add-player") |> render_click()
+    assert has_element?(view, "#player-name-3")
+    refute has_element?(view, "#add-player")
+
+    assert has_element?(view, "#mode-free input:checked")
+
+    assert {:error, {:live_redirect, %{to: "/games/" <> id}}} =
+             view
+             |> form("#players-form", %{
+               "names" => ["Ann", "Bob", "Cid", "Dee"],
+               "mode" => "ascending"
+             })
+             |> render_submit()
+
+    assert {:ok, %{game: %{mode: :ascending}}} = Games.fetch_game(id)
+  end
+
+  test "a full Heart of the Cards game", %{conn: conn, category: category} do
+    {:ok, id} = Games.create_game(category.id, ["Ann", "Bob"], mode: :free)
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+
+    # one question per topic, both worth 10 points; the second topic first
+    assert has_element?(view, "#game-mode", "Heart of the Cards")
+    assert has_element?(view, "button#question-0", "10")
+    view |> element("#question-1") |> render_click()
+    assert has_element?(view, "#answer-progress", "1/2")
+    view |> element("#choice-0") |> render_click()
+    assert has_element?(view, "#answer-progress", "2/2")
+    view |> element("#choice-1") |> render_click()
+
+    assert has_element?(view, "#reveal-choice-0.border-success")
+    assert has_element?(view, "#round-results li", "+10")
+    assert has_element?(view, "#round-results li", "+0")
+    view |> element("#next-round") |> render_click()
+
+    refute has_element?(view, "button#question-1")
+    assert has_element?(view, "#question-1", "1/2 right")
+    view |> element("#question-0") |> render_click()
+    view |> element("#choice-1") |> render_click()
+    view |> element("#choice-1") |> render_click()
+    refute has_element?(view, "#round-results li", "+10")
+    view |> element("#next-round", "Show final results") |> render_click()
+
+    assert has_element?(view, "#final")
+    assert has_element?(view, "#final-standings")
+    assert has_element?(view, "#play-again[href*='mode=free']")
+  end
+
+  test "Level Up! lets players choose a topic", %{conn: conn} do
+    category = playable_category_fixture(2)
+    {:ok, id} = Games.create_game(category.id, ["Ann", "Bob"], mode: :ascending)
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+
+    refute has_element?(view, "button#question-1")
+    view |> element("#topic-0") |> render_click()
+    assert has_element?(view, "#question-points", "10 pts")
+    view |> element("#choice-0") |> render_click()
+    view |> element("#choice-0") |> render_click()
+    view |> element("#next-round") |> render_click()
+
+    view |> element("#topic-0") |> render_click()
+    assert has_element?(view, "#question-points", "20 pts")
+  end
+
+  test "pause shows resume options and the game continues in another session",
+       %{conn: conn, category: category} do
+    {:ok, id} = Games.create_game(category.id, ["Ann", "Bob"])
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+    view |> element("#question-0") |> render_click()
+
+    view |> element("#pause-game") |> render_click()
+    assert has_element?(view, "#paused")
+    assert has_element?(view, "#resume-url[value$='/games/#{id}']")
+    assert has_element?(view, "#resume-qr svg")
+
+    view |> form("#email-form", resume: %{email: "nope"}) |> render_submit()
+    assert has_element?(view, "#email-form", "is not a valid email")
+
+    view |> form("#email-form", resume: %{email: "duelist@example.com"}) |> render_submit()
+    assert_email_sent(to: [{"", "duelist@example.com"}])
+
+    # "another device": a fresh connection opening the link
+    {:ok, other, _html} = live(build_conn(), ~p"/games/#{id}")
+    other |> element("#resume-game") |> render_click()
+    assert has_element?(other, "#choice-0")
+
+    # the first screen follows via PubSub
+    assert has_element?(view, "#choice-0")
+    _ = render(view)
+  end
+
+  test "ending asks for confirmation in a modal", %{conn: conn, category: category} do
+    {:ok, id} = Games.create_game(category.id, ["Ann", "Bob"])
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+
+    view |> element("#end-game") |> render_click()
+    assert has_element?(view, "#end-game-modal")
+    view |> element("#cancel-end") |> render_click()
+    refute has_element?(view, "#end-game-modal")
+    assert has_element?(view, "#board")
+
+    view |> element("#end-game") |> render_click()
+    view |> element("#confirm-end") |> render_click()
+    refute has_element?(view, "#end-game-modal")
+    assert has_element?(view, "#final")
+  end
+
+  test "unknown games redirect home", %{conn: conn} do
+    assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/games/#{Ecto.UUID.generate()}")
+  end
+end
