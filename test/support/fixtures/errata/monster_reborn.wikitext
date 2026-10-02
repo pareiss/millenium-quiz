@@ -1,0 +1,83 @@
+{{Navigation}}
+
+== English ==
+{{Errata table
+| card_type0 = [[File:MAGIC.svg|34px]] [ <del>Magic</del> Card ]
+| image0     = MonsterReborn-LOB-NA-UR-1E.png
+| cap0       = [[LOB-118]]<br />[[Legend of Blue Eyes White Dragon]]
+
+| card_type1 = [[File:SPELL.svg|34px]] [ <ins>Spell</ins> Card ]
+| lore1  = Select 1 '''Monster'''<del> Card</del> from either your opponent's<del> or your own</del> Graveyard<del> and place it</del> on the field <del>under your control in Attack or Defense Position (face-up)</del>.<del> This is considered a Special Summon.</del>
+| image1 = MonsterReborn-LOB-NA-UR-UE-Reprint.png
+| cap1   = [[LOB-118]]<br />[[Legend of Blue Eyes White Dragon]]<br />''[[Collectible Tins 2003]]''
+
+| lore2  = <del>Select</del> 1 '''monster''' from either <del><ins>you or </ins>your opponent's</del> Graveyard<del><ins>. Special Summon the selected monster</ins> on</del> <ins>your side of</ins> the field.
+| image2 = MonsterReborn-SYE-EN-C-1E.png
+| cap2   = [[SYE-029]]<br />[[Starter Deck: Yugi Evolution]]
+
+| lore3  = <del><ins>Special Summon</ins></del> 1 monster from either <ins>player's</ins> Graveyard <ins>to</ins> your side of the field.
+| image3 = MonsterReborn-HL07-EN-UPR-UE.png
+| cap3   = [[HL07-EN001]]<br />[[Hobby League 7 participation card A]]
+
+| lore4  = <del><ins>Select</ins></del> 1 monster <del>from</del> either player's Graveyard<ins><del>.</del> Special Summon it</ins> <del>to your side of the field</del>.
+| image4 = MonsterReborn-LOB-NA-UR-UE-Reprint2.png
+| cap4   = [[LOB-118]]<br />[[Legend of Blue Eyes White Dragon]]<br />''[[Legendary Collection]]''
+
+| lore5  = <ins>Target</ins> 1 monster <ins>in</ins> either player's <del>Graveyard</del><ins>;</ins> Special Summon it.
+| image5 = MonsterReborn-LCYW-EN-UR-1E.png
+| cap5   = [[LCYW-EN058]]<br />[[Legendary Collection 3: Yugi's World Mega Pack]]
+
+| lore6  = Target 1 monster in either <del>player's</del> <ins>GY</ins>; Special Summon it.
+| image6 = MonsterReborn-BLRR-EN-ScR-1E.png
+| cap6   = [[BLRR-EN046]]<br />[[Battles of Legend: Relentless Revenge]]
+
+| lore7  = Target 1 monster in either GY; Special Summon it.
+| image7 = MonsterReborn-TN19-EN-PScR-LE.png
+| cap7   = [[TN19-EN011]]<br />[[2019 Gold Sarcophagus Tin]]
+}}
+
+== Japanese ==
+{{Errata table|lang=ja
+| lore0  = 相手か自分の<del>墓場</del>にあるモンスターを、自分のコントロールでフィールド上に出せる。
+| lore0T = If you or your opponent have a monster in the <del>Cemetery</del>, you can put it on the field under your control.
+| image0 = MonsterReborn-V2-JP-SR.png
+| cap0   = [[Vol.2]]
+
+| card_type1 = [[File:SPELL-JP.svg|34px]] 【{{Ruby|魔|<del>ま</del>}}{{Ruby|法|<del>ほう</del>}}カード】
+| lore1  = 相手<del>か自分</del>の<ins>墓地</ins><del>にある</del>モンスターを<del>、</del>自分の<del>コントロールで</del>フィールド上に<del>出せ</del>る。<del><ins>（表示形式は問わないが、表側表示でなければならない）</ins></del>
+| lore1T = <del>If</del> you or your opponent <del>have</del> a monster in the <ins>Graveyard</ins><del>, you can put</del> it <del>on the</del> field <del>under your control</del>. <del>(Any Display Mode is acceptable, but it must be displayed face-up)</del>
+| image1 = MonsterReborn-PG-JP-UR.png
+| cap1   = [[PG-58]]<br />[[Phantom God]]
+
+| card_type2 = [[File:SPELL-JP-2.svg|34px]] 【{{Ruby|魔法|<del><ins>マジック</ins></del>}}カード】
+| lore2  = <ins>自分または</ins>相手の墓地<ins>からモンスターを１体選択する。選択した</ins>モンスターを自分のフィールド上に<ins>特殊召喚す</ins>る。
+| lore2T = <ins>Select</ins> a monster <ins>from</ins> you<ins>r</ins> or your opponent's Graveyard<ins>. Special Summon the selected monster to your</ins> field.
+| image2 = MonsterReborn-DL2-JP-SR.png
+| cap2   = [[DL2-082]]<br />[[Duelist Legacy Volume.2]]
+
+| card_type3 = [[File:SPELL-JP.svg|34px]] 【{{Ruby|魔|<ins>ま</ins>}}{{Ruby|法|<ins>ほう</ins>}}カード】
+| lore3  = 自分または相手の墓地<del>から</del>モンスター<del>を</del>１体選択する。選択した</ins>モンスターを自分<del>の</del>フィールド上に特殊召喚する。
+| lore3T = Select a monster <del>from</del> your or your opponent's Graveyard. Special Summon the selected monster to your field.
+| image3 = MonsterReborn-SDM-JP-C.png
+| cap3   = [[SDM-023]]<br />[[Structure Deck: Marik (OCG)|Structure Deck: Marik]]
+
+| lore4  = 自分または相手の墓地<ins><del>に存在する</del></ins>モンスター１体<ins>を</ins>選択<ins>して発動</ins><del>す</del>る。選択したモンスターを自分フィールド上に特殊召喚する。
+| lore4T = <ins>Activate by</ins> select<ins>ing</ins> a monster <ins><del>that is</del> in either</ins> your or your opponent's Graveyard. Special Summon the selected monster to your field.
+| image4 = MonsterReborn-GS01-JP-C.png
+| cap4   = [[GS01-JP013]]<br />[[Gold Series (OCG)|Gold Series]]
+
+| lore5  = 自分または相手の墓地<ins>の</ins>モンスター１体を<del>選択</del>して発動<ins>でき</ins>る。<del>選択した</del>モンスターを自分フィールド<del>上</del>に特殊召喚する。
+| lore5T = <ins>You can</ins> activate <ins>this effect</ins> by <del>select</del>ing a monster in either your or your opponent's Graveyard. Special Summon <del>the selected</del> monster to your field.
+| image5 = MonsterReborn-ST12-JP-NPR.png
+| cap5   = [[ST12-JPP01]]<br />[[Beginners' Class 2012 promotional cards]]
+
+| lore6  = <ins>①：</ins>自分<del>または</del>相手の墓地のモンスター１体を<ins>対象と</ins>して発動できる。<ins>その</ins>モンスターを自分フィールドに特殊召喚する。
+| lore6T = <ins>①:</ins> You can activate this effect by <ins>target</ins>ing a monster in <del>either</del> your or your opponent's Graveyard. Special Summon <ins>that</ins> monster to your field.
+| image6 = MonsterReborn-TRC1-JP-UtR.png
+| cap6   = [[TRC1-JP002]]<br />[[The Rarity Collection]]
+
+| lore7  = ①：自分<ins>か</ins>相手の墓地のモンスター１体を対象として発動できる。そのモンスターを自分フィールドに特殊召喚する。
+| lore7T = ①: You can activate this effect by targeting a monster in your or your opponent's Graveyard. Special Summon that monster to your field.
+| image7 = MonsterReborn-24EP-JP-C.png
+| cap7   = [[24EP-JP210]]<br />[[Event Pack 2024 Vol.2]]
+}}

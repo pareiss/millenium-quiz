@@ -27,6 +27,19 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
 - **Admin** (`/admin`): username/password login. It covers formats with their 2–6 topics edited inline, questions per topic (2–6 answers, one correct), ↑/↓ difficulty ordering, and managing admins.
 - **Points**: the easiest question in a topic is worth 10, the next 20, then 30 and so on. A custom value on a question overrides this. Moving a question changes its default.
 
+## Card data
+
+| Source | Used for | Notes |
+|---|---|---|
+| [YGOPRODeck API](https://ygoprodeck.com/api-guide/) | card search, TCG release date | 20 requests/s, going over blocks the IP for 1 h, so a search needs 3+ characters |
+| [YAML Yugi](https://github.com/DawnbrandBots/yaml-yugi) | names and current texts in 10+ languages, Konami id, Yugipedia page id | static JSON on jsDelivr |
+| [Yugipedia](https://yugipedia.com) | errata history (`Card Errata:` pages), set release dates | MediaWiki API; text is CC BY-SA 4.0 and must be credited where it is shown |
+
+`MillenniumQuiz.Cards.text_on/3` picks the text for a date: the newest printed
+version released by then. Reprints that bring back an older wording (e.g.
+*Legendary Collection* reproductions) don't count as errata. English follows
+the North American release dates; other languages are stored for later.
+
 ## Architecture
 
 ```
@@ -37,6 +50,7 @@ lib/millennium_quiz/
   games/game_record.ex  the `games` table: JSONB snapshot + status
   quiz.ex, quiz/     formats, topics, questions (admin content)
   accounts.ex, accounts/  admin users, bcrypt, session tokens
+  cards.ex, cards/   card pool, errata parser, remote card sources
 lib/millennium_quiz_web/
   live/home_live.ex, new_game_live.ex, game_live.ex   player UI
   live/admin/…                                      admin UI

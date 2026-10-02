@@ -42,3 +42,8 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Card sources (YGOPRODeck, YAML Yugi, Yugipedia) never hit the network in
+# tests; see MillenniumQuiz.CardSourcesStub.
+config :millennium_quiz, MillenniumQuiz.Cards,
+  req_options: [plug: {Req.Test, MillenniumQuiz.Cards}]
