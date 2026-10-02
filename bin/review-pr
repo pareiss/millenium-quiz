@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# Reviews one pull request in a separate, isolated Claude Code process.
+#
+#   bin/review-pr <number> [--force]
+#
+# The reviewer's instructions and model come from .claude/agents/pr-reviewer.md.
+# It only gets a fixed prompt with the PR number, the base and head commits and
+# a read-only checkout of the head commit. It runs with --restricted (no
+# user/project/local settings, so also no project agents: the instructions are
+# passed with --append-system-prompt), only read-only tools, and without a
+# saved session. Knowledge about the project comes from REVIEWING.md, README.md
+# and AGENTS.md in the repository.
+#
+# Output: reviews/pr-<number>-<short head sha>-<model>.md
+# Exit codes: 0 reviewed, 3 skipped (this commit was already reviewed), 1 failed.
+# Environment: REVIEW_MODEL (default: the model in the agent file).
+set -euo pipefail
+
+usage() { echo "usage: bin/review-pr <number> [--force]" >&2; exit 1; }
+
+number=""
+force=false
+for arg in "$@"; do
+  case "$arg" in
+    --force) force=true ;;
+    [0-9]*) number="$arg" ;;
+    *) usage ;;
+  esac
+done
+[[ -n "$number" ]] || usage
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+
+agent=".claude/agents/pr-reviewer.md"
+[[ -f "$agent" ]] || { echo "review-pr: $agent not found" >&2; exit 1; }
+# Body = everything after the closing "---" of the frontmatter.
+instructions="$(awk 'f>=2 {print} /^---$/ {f++}' "$agent")"
+model="${REVIEW_MODEL:-$(sed -n 's/^model: *//p' "$agent" | head -1)}"
+model="${model:-sonnet}"
+
+for tool in gh claude git; do
+  command -v "$tool" >/dev/null || { echo "review-pr: $tool not found" >&2; exit 1; }
+done
+
+pr=$(gh pr view "$number" --json number,title,headRefOid,baseRefOid,isDraft,url \
+  --jq '[.headRefOid, .baseRefOid, (.isDraft|tostring), .url, .title] | join("\t")') ||
+  { echo "review-pr: PR #$number not found" >&2; exit 1; }
+IFS=$'\t' read -r head base draft url title <<<"$pr"
+
+short="${head:0:7}"
+mkdir -p reviews
+out="reviews/pr-${number}-${short}-${model}.md"
+
+if [[ -e "$out" && "$force" != true ]]; then
+  echo "skipped: PR #$number at $short already reviewed ($out); use --force to review again"
+  exit 3
+fi
+
+# Make sure both commits are here (the PR may come from a branch we never fetched).
+if ! git cat-file -e "${head}^{commit}" 2>/dev/null || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+  git fetch --quiet origin "+refs/pull/${number}/head:refs/remotes/origin/pr/${number}" \
+    "$(gh pr view "$number" --json baseRefName --jq .baseRefName)"
+fi
+
+worktree=".claude/worktrees/pr-${number}-$$"
+tmp="$(mktemp)"
+cleanup() {
+  git worktree remove --force "$worktree" >/dev/null 2>&1 || true
+  rm -f "$tmp"
+}
+trap cleanup EXIT
+
+git worktree add --quiet --detach "$worktree" "$head"
+
+prompt="Review pull request #${number} of this repository.
+Base commit: ${base}
+Head commit: ${head}
+The code at the head commit is checked out read-only at: ${worktree}
+Follow your review procedure and output only the review."
+
+echo "reviewing PR #$number ($short) with $model…"
+if ! claude -p "$prompt" \
+  --append-system-prompt "$instructions" \
+  --model "$model" \
+  --restricted \
+  --no-session-persistence \
+  --tools "Read,Grep,Glob,Bash" \
+  --allowedTools "Read Grep Glob Bash(gh pr view:*) Bash(gh pr diff:*) Bash(git log:*) Bash(git show:*) Bash(git diff:*)" \
+  --output-format text >"$tmp" || [[ ! -s "$tmp" ]]; then
+  echo "review-pr: the reviewer failed for PR #$number" >&2
+  exit 1
+fi
+
+{
+  echo "# Review of PR #${number}: ${title}"
+  echo
+  echo "- PR: ${url}$([[ "$draft" == true ]] && echo " (draft)")"
+  echo "- Base: \`${base}\`"
+  echo "- Head: \`${head}\`"
+  echo "- Reviewer: ${model} (bin/review-pr, isolated process)"
+  echo "- Date: $(date -u +%Y-%m-%dT%H:%MZ)"
+  echo
+  cat "$tmp"
+} >"$out"
+
+# The verdict lines are what the user ticks and /post-review reads; add any the
+# reviewer left out.
+verdict='- **Your verdict:** [ ] valid  [ ] wrong  [ ] unsure — reason:'
+awk -v verdict="$verdict" '
+  function flush() {
+    if (n == 0) return
+    if (finding && !has) {
+      while (n > 0 && buf[n] == "") n--
+      buf[++n] = verdict; buf[++n] = ""
+    }
+    for (i = 1; i <= n; i++) print buf[i]
+    n = 0; has = 0
+  }
+  /^##/ { flush(); finding = ($0 ~ /^### F[0-9]+ /) }
+  { buf[++n] = $0; if (index($0, "Your verdict")) has = 1 }
+  END { flush() }
+' "$out" >"$tmp" && cat "$tmp" >"$out"
+
+count() { grep -cE "^### F[0-9]+ · $1 " "$out" || true; }
+echo "reviewed: $out — blocker $(count blocker), should-fix $(count should-fix), nit $(count nit), question $(count question)"

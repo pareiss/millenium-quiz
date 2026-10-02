@@ -35,3 +35,9 @@ millennium_quiz-*.tar
 npm-debug.log
 /assets/node_modules/
 
+
+# PR reviews are local working notes (see REVIEWING.md); review checkouts and
+# personal Claude Code settings stay local too.
+/reviews/
+/.claude/worktrees/
+/.claude/settings.local.json
