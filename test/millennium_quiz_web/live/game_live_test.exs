@@ -5,7 +5,7 @@ defmodule MillenniumQuizWeb.GameLiveTest do
   import MillenniumQuiz.QuizFixtures
   import Swoosh.TestAssertions
 
-  alias MillenniumQuiz.Games
+  alias MillenniumQuiz.{Cards, CardSourcesStub, Games, Quiz}
 
   # Emails are sent from the LiveView process, not the test process.
   setup :set_swoosh_global
@@ -131,6 +131,54 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     view |> element("#confirm-end") |> render_click()
     refute has_element?(view, "#end-game-modal")
     assert has_element?(view, "#final")
+  end
+
+  test "questions show their cards as printed on the format's date", %{conn: conn} do
+    CardSourcesStub.stub!()
+    {:ok, reborn} = Cards.import(83_764_719)
+
+    format = format_fixture(%{"date" => "2004-06-01"})
+
+    for topic <- format.topics do
+      {:ok, _} =
+        Quiz.create_question(topic, %{"text" => "Who?", "choices" => choices_params()}, [
+          reborn.id
+        ])
+    end
+
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+    view |> element("#question-0") |> render_click()
+
+    assert has_element?(view, "#question-card-0", "Monster Reborn")
+
+    assert has_element?(
+             view,
+             "#question-card-0",
+             "Select 1 monster from either you or your opponent's Graveyard"
+           )
+
+    assert has_element?(view, "#question-card-0", "As printed in Starter Deck: Yugi Evolution")
+
+    # the same card in a later format shows the current text
+    later = format_fixture(%{"date" => "2020-01-01"})
+
+    for topic <- later.topics do
+      {:ok, _} =
+        Quiz.create_question(topic, %{"text" => "Who?", "choices" => choices_params()}, [
+          reborn.id
+        ])
+    end
+
+    {:ok, id} = Games.create_game(later.id, ["Ann", "Bob"])
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+    view |> element("#question-0") |> render_click()
+
+    assert has_element?(
+             view,
+             "#question-card-0",
+             "Target 1 monster in either GY; Special Summon it."
+           )
   end
 
   test "unknown games redirect home", %{conn: conn} do

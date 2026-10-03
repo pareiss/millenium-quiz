@@ -31,6 +31,17 @@ defmodule MillenniumQuiz.QuizTest do
       assert %{date: ["can't be blank"]} = errors_on(cs)
     end
 
+    test "keep the date they were created with" do
+      format = format_fixture(%{"date" => "2005-04-01"})
+
+      assert {:ok, updated} =
+               Quiz.update_format(format, %{"name" => "Renamed", "date" => "2020-01-01"})
+
+      assert updated.name == "Renamed"
+      assert updated.date == ~D[2005-04-01]
+      assert Quiz.get_format!(format.id).date == ~D[2005-04-01]
+    end
+
     test "topics keep the form order as position" do
       format =
         format_fixture(%{"topics" => %{"0" => %{"name" => "B"}, "1" => %{"name" => "A"}}})
@@ -103,6 +114,48 @@ defmodule MillenniumQuiz.QuizTest do
       q2 = question_fixture(topic)
       {:ok, _} = Quiz.delete_question(q1)
       assert Quiz.get_question!(q2.id).position == 0
+    end
+  end
+
+  describe "question cards" do
+    defp card(name, password) do
+      Repo.insert!(%MillenniumQuiz.Cards.Card{
+        name: name,
+        password: password,
+        fetched_at: DateTime.utc_now(:second)
+      })
+    end
+
+    defp card_ids(question) do
+      question.id
+      |> Quiz.get_question!()
+      |> Map.fetch!(:question_cards)
+      |> Enum.map(& &1.card_id)
+    end
+
+    setup do
+      topic = hd(format_fixture().topics)
+      a = card("A", 1)
+      b = card("B", 2)
+      c = card("C", 3)
+
+      {:ok, question} =
+        Quiz.create_question(topic, %{"text" => "Q?", "choices" => choices_params()}, [a.id, b.id])
+
+      %{question: Quiz.get_question!(question.id), a: a, b: b, c: c}
+    end
+
+    test "editing the text keeps the cards", %{question: question, a: a, b: b} do
+      assert {:ok, _} = Quiz.update_question(question, %{"text" => "Edited?"}, [a.id, b.id])
+      assert card_ids(question) == [a.id, b.id]
+    end
+
+    test "cards can be reordered, removed and added", %{question: q, a: a, b: b, c: c} do
+      assert {:ok, _} = Quiz.update_question(q, %{}, [b.id, a.id])
+      assert card_ids(q) == [b.id, a.id]
+
+      assert {:ok, _} = Quiz.update_question(Quiz.get_question!(q.id), %{}, [b.id, c.id])
+      assert card_ids(q) == [b.id, c.id]
     end
   end
 end

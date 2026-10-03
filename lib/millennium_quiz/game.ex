@@ -30,6 +30,7 @@ defmodule MillenniumQuiz.Game do
   content while games are running without breaking them.
   """
 
+  alias MillenniumQuiz.Cards
   alias MillenniumQuiz.Quiz.Question
 
   @min_players 2
@@ -62,8 +63,10 @@ defmodule MillenniumQuiz.Game do
           points: pos_integer(),
           choices: [String.t()],
           correct: non_neg_integer(),
+          cards: [card()],
           result: result() | nil
         }
+  @type card :: %{name: String.t(), text: String.t(), set: String.t() | nil}
   @type t :: %__MODULE__{
           format_id: integer() | nil,
           format_name: String.t() | nil,
@@ -131,7 +134,7 @@ defmodule MillenniumQuiz.Game do
 
       true ->
         {:ok, mode} = mode
-        {topics, questions} = build_board(questions)
+        {topics, questions} = build_board(questions, format.date)
 
         {:ok,
          %__MODULE__{
@@ -149,7 +152,7 @@ defmodule MillenniumQuiz.Game do
   end
 
   # Columns in topic order, each column from easiest to hardest.
-  defp build_board(questions) do
+  defp build_board(questions, date) do
     columns =
       questions
       |> Enum.group_by(& &1.topic_id)
@@ -162,13 +165,13 @@ defmodule MillenniumQuiz.Game do
       Enum.flat_map(columns, fn {{_, column}, index} ->
         column
         |> Enum.sort_by(&{&1.position, &1.id})
-        |> Enum.map(&snapshot_question(&1, index))
+        |> Enum.map(&snapshot_question(&1, index, date))
       end)
 
     {topics, questions}
   end
 
-  defp snapshot_question(%Question{} = q, column) do
+  defp snapshot_question(%Question{} = q, column, date) do
     %{
       id: q.id,
       topic: q.topic.name,
@@ -177,8 +180,19 @@ defmodule MillenniumQuiz.Game do
       points: Question.effective_points(q),
       choices: Enum.map(q.choices, & &1.text),
       correct: Enum.find_index(q.choices, & &1.correct),
+      cards: snapshot_cards(q.question_cards, date),
       result: nil
     }
+  end
+
+  # Card texts as they read on the format's date (English for now).
+  defp snapshot_cards(%Ecto.Association.NotLoaded{}, _date), do: []
+
+  defp snapshot_cards(question_cards, date) do
+    for %{card: card} <- question_cards do
+      %{text: text, set: set} = Cards.text_on(card, date)
+      %{name: card.name, text: text, set: set}
+    end
   end
 
   ## Queries
@@ -373,6 +387,8 @@ defmodule MillenniumQuiz.Game do
             points: q["points"],
             choices: q["choices"],
             correct: q["correct"],
+            cards:
+              Enum.map(q["cards"] || [], &%{name: &1["name"], text: &1["text"], set: &1["set"]}),
             result: q["result"] && result_from_map(q["result"], no_picks)
           }
         end),
