@@ -98,9 +98,29 @@ defmodule MillenniumQuiz.Cards do
         fetched_at: DateTime.utc_now(:second)
       )
       |> Ecto.Changeset.put_assoc(:card_texts, texts)
+      |> Ecto.Changeset.unique_constraint(:password)
+      |> Ecto.Changeset.unique_constraint(:konami_id)
       |> Repo.insert_or_update()
+      |> existing_on_conflict(yaml)
     end
   end
+
+  # Two imports of the same card can race, and the printed password can
+  # already be stored even though the requested id and Konami id were not
+  # found. Importing is idempotent, so the stored card is the answer.
+  defp existing_on_conflict({:error, %Ecto.Changeset{errors: errors}} = error, yaml) do
+    if Keyword.has_key?(errors, :password) or Keyword.has_key?(errors, :konami_id) do
+      case Repo.get_by(Card, password: yaml.password) ||
+             (yaml.konami_id && Repo.get_by(Card, konami_id: yaml.konami_id)) do
+        %Card{} = card -> {:ok, Repo.preload(card, :card_texts)}
+        _ -> error
+      end
+    else
+      error
+    end
+  end
+
+  defp existing_on_conflict(result, _yaml), do: result
 
   defp errata(nil), do: {:ok, %{}}
 
@@ -141,8 +161,10 @@ defmodule MillenniumQuiz.Cards do
   It is the newest printed version released on or before the date. Reprints
   that bring back an older wording (e.g. Legendary Collection reproductions)
   are not errata, so only the first print of each wording counts. Before the
-  first dated version it is the oldest one; without versions in the language,
-  the current text. A nil date means today.
+  first dated version it is the oldest one. If no version of the language has
+  a release date, it is the newest wording with `released_on: nil`, so callers
+  can tell the date is unknown. Without versions in the language, the current
+  text. A nil date means today.
   """
   def text_on(%Card{} = card, date, language \\ "en") do
     versions =
@@ -159,6 +181,11 @@ defmodule MillenniumQuiz.Cards do
     cond do
       eligible != [] ->
         eligible |> Enum.max_by(& &1, &newer?/2) |> as_text()
+
+      # Without any dates the oldest wording is not a better guess than the
+      # newest; return the newest, undated.
+      versions != [] and Enum.all?(versions, &is_nil(&1.released_on)) ->
+        versions |> List.last() |> as_text()
 
       versions != [] and date != nil ->
         versions |> hd() |> as_text()
