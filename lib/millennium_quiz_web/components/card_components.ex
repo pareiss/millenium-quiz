@@ -254,6 +254,7 @@ defmodule MillenniumQuizWeb.CardComponents do
             @on_back && "cursor-zoom-out"
           ]}
           data-frame={frame(@card)}
+          data-pendulum={pendulum?(@card)}
           phx-click={@on_back}
           phx-value-card={@on_back && @back_value}
           title={@on_back && "Back to the card"}
@@ -313,33 +314,35 @@ defmodule MillenniumQuizWeb.CardComponents do
               class="size-8 shrink-0 cursor-help"
             />
           </header>
-          <div class="mq-card-panel__body">
-            <p :if={@card[:monster_type_line]} class="mq-card-panel__type">
-              [{type_line(@card.monster_type_line)}]
-            </p>
-            <p :if={kind(@card) in ["Spell", "Trap"]} class="mq-card-panel__type">
-              [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(
-                @card
-              )}]
-            </p>
-            <section :if={@card[:pendulum_text]} class="mq-card-panel__pendulum">
-              <h3>
-                <span>Pendulum Effect</span>
-                <span class="mq-card-panel__scale" title="Pendulum Scale">
-                  <.scale_gem side="left" class="h-4 w-5" /> Scale {@card[:pendulum_scale]}
-                  <.scale_gem side="right" class="h-4 w-5" />
-                </span>
-              </h3>
-              <p>{@card.pendulum_text}</p>
-            </section>
-            <p class="mq-card-panel__text whitespace-pre-line">{@card.text}</p>
-            <.stats
-              :if={@card[:atk]}
-              class="mq-card-panel__stats"
-              card={@card}
-              link?={@link?}
-              arrows={@arrows}
-            />
+          <div class="mq-card-panel__box">
+            <div class="mq-card-panel__body">
+              <p :if={@card[:monster_type_line]} class="mq-card-panel__type">
+                [{type_line(@card.monster_type_line)}]
+              </p>
+              <p :if={kind(@card) in ["Spell", "Trap"]} class="mq-card-panel__type">
+                [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(
+                  @card
+                )}]
+              </p>
+              <section :if={@card[:pendulum_text]} class="mq-card-panel__pendulum">
+                <h3>
+                  <span>Pendulum Effect</span>
+                  <span class="mq-card-panel__scale" title="Pendulum Scale">
+                    <.scale_gem side="left" class="h-4 w-5" /> Scale {@card[:pendulum_scale]}
+                    <.scale_gem side="right" class="h-4 w-5" />
+                  </span>
+                </h3>
+                <p>{@card.pendulum_text}</p>
+              </section>
+              <p class="mq-card-panel__text whitespace-pre-line">{@card.text}</p>
+              <.stats
+                :if={@card[:atk]}
+                class="mq-card-panel__stats"
+                card={@card}
+                link?={@link?}
+                arrows={@arrows}
+              />
+            </div>
           </div>
         </article>
         <%!-- outside the panel, so its links don't also go back to the card --%>
