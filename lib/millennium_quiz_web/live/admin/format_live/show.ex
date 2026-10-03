@@ -2,7 +2,7 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
   use MillenniumQuizWeb, :live_view
 
   alias MillenniumQuiz.Quiz
-  alias MillenniumQuiz.Quiz.Question
+  alias MillenniumQuiz.Quiz.{CardLinks, Question}
 
   @impl true
   def render(assigns) do
@@ -71,7 +71,7 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
             class="flex items-center gap-3 px-4 py-2.5"
           >
             <span class="w-6 text-sm text-base-content/50 tabular-nums">{i + 1}.</span>
-            <p class="flex-1 min-w-0 truncate">{q.text}</p>
+            <p class="flex-1 min-w-0 truncate">{CardLinks.plain(q.text)}</p>
             <span
               class={["badge badge-sm", if(q.points, do: "badge-secondary", else: "badge-ghost")]}
               title={if q.points, do: "Custom points", else: "Default points from position"}
@@ -200,9 +200,10 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
         {:noreply, question_gone(socket)}
 
       question ->
+        plain = CardLinks.plain(question.text)
+
         label =
-          String.slice(question.text, 0, 80) <>
-            if(String.length(question.text) > 80, do: "…", else: "")
+          String.slice(plain, 0, 80) <> if(String.length(plain) > 80, do: "…", else: "")
 
         {:noreply, assign(socket, :confirm, %{what: :question, id: question.id, label: label})}
     end

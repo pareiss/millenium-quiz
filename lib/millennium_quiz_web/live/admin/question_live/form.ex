@@ -2,7 +2,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   use MillenniumQuizWeb, :live_view
 
   alias MillenniumQuiz.{Cards, Quiz}
-  alias MillenniumQuiz.Quiz.{Choice, Question}
+  alias MillenniumQuiz.Quiz.{CardLinks, Choice, Question}
 
   @impl true
   def render(assigns) do
@@ -281,24 +281,97 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   end
 
   def handle_event("remove_card", %{"id" => id}, socket) do
-    case Integer.parse(id) do
-      {id, ""} ->
-        {:noreply, assign(socket, :cards, Enum.reject(socket.assigns.cards, &(&1.id == id)))}
+    with {id, ""} <- Integer.parse(id),
+         %{} = card <- Enum.find(socket.assigns.cards, &(&1.id == id)) do
+      {:noreply,
+       socket
+       |> assign(:cards, Enum.reject(socket.assigns.cards, &(&1.id == id)))
+       |> unlink_in_text(card)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
 
-      _ ->
-        {:noreply, socket}
+  # Called by the textarea hook while the admin types `[Card Name`.
+  def handle_event("suggest_cards", %{"query" => query}, socket) when is_binary(query) do
+    query = String.trim(query)
+    format = socket.assigns.topic.format
+
+    suggestions =
+      for card <- Cards.suggest(query, before: format.date) do
+        %{id: card.id, name: card.name, source: "pool"}
+      end
+
+    suggestions =
+      if suggestions == [] and String.length(query) >= 3,
+        do: remote_suggestions(query, format),
+        else: suggestions
+
+    {:reply, %{suggestions: suggestions}, socket}
+  end
+
+  def handle_event("suggest_cards", _params, socket),
+    do: {:reply, %{suggestions: []}, socket}
+
+  def handle_event("link_card", %{"id" => id}, socket) when is_binary(id) do
+    with {id, ""} when id in 1..2_147_483_647//1 <- Integer.parse(id),
+         [card] <- Cards.get_cards([id]) do
+      {:noreply, add_to_cards(socket, card)}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "That card is not in the card pool.")}
+    end
+  end
+
+  def handle_event("link_card", %{"password" => password}, socket) when is_binary(password),
+    do: handle_event("add_card", %{"password" => password}, socket)
+
+  def handle_event("link_card", _params, socket), do: {:noreply, socket}
+
+  defp remote_suggestions(query, format) do
+    case Cards.search(query, format) do
+      {:ok, results} ->
+        for r <- Enum.take(results, 5),
+            do: %{password: r.password, name: r.name, source: "remote"}
+
+      {:error, _reason} ->
+        []
+    end
+  end
+
+  defp add_to_cards(socket, card) do
+    cards = socket.assigns.cards
+
+    if Enum.any?(cards, &(&1.id == card.id)),
+      do: socket,
+      else: assign(socket, :cards, cards ++ [card])
+  end
+
+  # Takes the brackets off the card's name in the text as it is right now in
+  # the form (not the loaded question) and keeps the other form params.
+  defp unlink_in_text(socket, card) do
+    form = socket.assigns.form
+    text = Ecto.Changeset.get_field(form.source, :text)
+    new_text = CardLinks.unlink(text, card.name)
+
+    if text in [nil, new_text] do
+      socket
+    else
+      params = Map.put(form.params || %{}, "text", new_text)
+      changeset = Quiz.change_question(socket.assigns.question, params)
+
+      socket
+      |> assign(:form, to_form(changeset, action: form.source.action))
+      # a focused textarea is not patched by LiveView; tell the hook as well
+      |> push_event("card_links:set_text", %{text: new_text})
     end
   end
 
   @impl true
   def handle_async(:import_card, {:ok, {:ok, card}}, socket) do
-    cards = socket.assigns.cards
-    cards = if Enum.any?(cards, &(&1.id == card.id)), do: cards, else: cards ++ [card]
-
     {:noreply,
      socket
      |> assign(:importing, nil)
-     |> assign(:cards, cards)
+     |> add_to_cards(card)
      |> assign(:results, [])
      |> assign(:search_form, to_form(%{"query" => ""}, as: :card_search))}
   end
