@@ -101,6 +101,21 @@ defmodule MillenniumQuiz.CardsTest do
       assert Repo.aggregate(MillenniumQuiz.Cards.CardArtwork, :count) == 1
     end
 
+    test "an import that collides with a stored card returns the stored card" do
+      # The printed password is stored already, under a row the lookups by the
+      # requested id (an artwork id) and by Konami id don't find.
+      stored =
+        Repo.insert!(%Card{
+          password: 83_764_718,
+          name: "Monster Reborn",
+          fetched_at: DateTime.utc_now(:second)
+        })
+
+      assert {:ok, %Card{id: id}} = Cards.import(83_764_719)
+      assert id == stored.id
+      assert Repo.aggregate(Card, :count) == 1
+    end
+
     test "unknown cards are an error" do
       assert {:error, :not_found} = Cards.import(12345)
     end
@@ -161,6 +176,21 @@ defmodule MillenniumQuiz.CardsTest do
       }
 
       assert %{text: "Draw 2 cards.", set: "DPKB"} = Cards.text_on(card, ~D[2011-01-01])
+    end
+
+    test "without any release dates it is the newest wording, undated" do
+      card = %Card{
+        texts: %{"ja" => "current"},
+        card_texts: [
+          %CardText{language: "ja", version: 0, text: "oldest", set: "Vol.2"},
+          %CardText{language: "ja", version: 1, text: "newest", set: "Phantom God"}
+        ]
+      }
+
+      for date <- [~D[2000-01-01], ~D[2020-01-01], nil] do
+        assert %{text: "newest", set: "Phantom God", released_on: nil} =
+                 Cards.text_on(card, date, "ja")
+      end
     end
 
     test "languages without versions use the current text", %{card: card} do
