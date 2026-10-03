@@ -211,14 +211,16 @@ flow stay with the main session. All three run on Sonnet.
 |---|---|---|
 | `db-data` | migrations, schemas and contexts (`quiz`, `cards`, `accounts`), the card pool and its sources, errata parsing, seeds, artwork serving | `game-state` when `games.state` or the card snapshot changes; `graphics-css` when a new field must be drawn |
 | `game-state` | `Game`, `Games`, `Games.Server`, snapshots and `from_map` compatibility, the logic of the game, home and new-game LiveViews | `db-data` for columns and card data; `graphics-css` for markup and styling |
-| `graphics-css` | the card components and icons, core components, layouts, `app.css`, fonts and images, the markup of the LiveViews, and checking it in a browser against real cards | `game-state` for rules and events; `db-data` for data |
+| `graphics-css` | the card components and icons, core components, layouts, `app.css`, fonts and images, the markup of the LiveViews (admin pages included), and checking it in a browser against real cards | `game-state` for rules and events; `db-data` for data |
 
 A new printed-card detail goes through them in order: `db-data` (column and
 `Cards`), then `game-state` (snapshot and a fallback for old games), then
 `graphics-css` (drawing it). `live/game_live.ex` is shared by function (logic:
 `game-state`, templates: `graphics-css`), so don't run both on it at once. The
-admin pages, router, authentication, deployment files and `bin/review-*` stay
-with the main session. `pr-reviewer` (above) is a separate, read-only agent.
+markup and styling of the admin pages go to `graphics-css` too; the router,
+authentication, deployment files, `bin/review-*` and the admin pages' logic and
+event handling stay with the main session. `pr-reviewer` (above) is a separate,
+read-only agent.
 
 ## Container image
 

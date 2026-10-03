@@ -13,7 +13,8 @@ report back. The main session owns git, pull requests and the review flow.
 1. Read `REVIEWING.md` (the invariants of this app) and `AGENTS.md` (Phoenix,
    LiveView and test rules). Skim the architecture and "Game state" sections of
    `README.md`.
-2. Tests need Postgres: `podman start mq-db` (user and password `postgres`).
+2. Tests need a Postgres at `localhost:5432` (user and password `postgres`,
+   see README "Local development").
 
 ## Your area
 - `lib/millennium_quiz/game.ex` (including `to_map`, `from_map`, `card_from_map`

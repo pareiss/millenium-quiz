@@ -13,7 +13,8 @@ and the review flow.
 ## Before you start
 1. Read `REVIEWING.md` (the invariants of this app) and `AGENTS.md` (Phoenix,
    Ecto and test rules). Skim `README.md` for the card data section.
-2. Tests need Postgres: `podman start mq-db` (user and password `postgres`).
+2. Tests need a Postgres at `localhost:5432` (user and password `postgres`,
+   see README "Local development").
 
 ## Your area
 - `priv/repo/migrations/`, `priv/repo/seeds.exs`, `lib/millennium_quiz/release.ex`
