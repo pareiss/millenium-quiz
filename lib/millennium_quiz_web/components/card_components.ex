@@ -451,7 +451,7 @@ defmodule MillenniumQuizWeb.CardComponents do
           <%!-- a flame with three tongues, the middle one tallest; the left
                tongue curves right, the middle and right ones slightly left --%>
           <path
-            d="M12 22.5C7.3 22.5 4.6 19.4 4.6 15.6C4.6 11.8 6.2 8.6 8.6 5.6C8.4 8.6 9 11.2 10.1 13.2C9.6 9.4 9.8 5 11.2 1.2C12.6 4.6 13.4 8.6 13.4 12.6C13.6 10 14.4 7.4 15.6 5.4C18 8.4 19.4 11.8 19.4 15.6C19.4 19.4 16.7 22.5 12 22.5Z"
+            d="M12 22.5C7.3 22.5 4.6 19.4 4.6 15.6C4.6 11.6 5.8 8.4 7.8 5.2C7.2 8.8 7.9 12.4 9.3 15.2Q10 16.4 10.6 15.2C9.9 11 10 5.6 11.6 1.2C13.2 5.4 13.7 10.2 13.5 15.2Q14.1 16.4 14.8 15.2C15.6 12 15.6 8.2 16.4 5C18.4 8 19.4 11.8 19.4 15.6C19.4 19.4 16.7 22.5 12 22.5Z"
             fill="currentColor"
             stroke-width="1"
           />
