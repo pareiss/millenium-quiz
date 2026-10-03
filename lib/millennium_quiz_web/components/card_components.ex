@@ -329,7 +329,7 @@ defmodule MillenniumQuizWeb.CardComponents do
     "FIRE" => {"炎", "FIRE", {"#ff9a7a", "#e1241b", "#650906"}, "#ffb44a", false},
     "WIND" => {"風", "WIND", {"#a8ea96", "#2f9a3a", "#0b3f14"}, "#c6f5b0", false},
     "DIVINE" => {"神", "DIVINE", {"#e2cf98", "#5a4520", "#170f05"}, "#e8c86a", true},
-    "Spell" => {"魔", "SPELL", {"#9fe6e8", "#1f9fb0", "#0a3a52"}, "#0b2f6e", false},
+    "Spell" => {"魔", "SPELL", {"#a6e8f0", "#2a90c0", "#0a2c52"}, "#061c46", false},
     "Trap" => {"罠", "TRAP", {"#ff9ccc", "#c0307e", "#4a0a2c"}, "#2a3fb0", false}
   }
 
@@ -376,16 +376,25 @@ defmodule MillenniumQuizWeb.CardComponents do
           <feTurbulence type="fractalNoise" baseFrequency="0.09 0.16" numOctaves="2" seed="4" />
           <feColorMatrix values={"0 0 0 0 #{rgb(@marble, 0)} 0 0 0 0 #{rgb(@marble, 1)} 0 0 0 0 #{rgb(@marble, 2)} 2.6 0 0 0 -1.15"} />
         </filter>
+        <radialGradient id={"#{@id}-red"} cx="50%" cy="50%" r="50%">
+          <stop offset="0" stop-color="#f22a3a" />
+          <stop offset="0.65" stop-color="#cc1a2e" stop-opacity="0.9" />
+          <stop offset="1" stop-color="#c0182c" stop-opacity="0" />
+        </radialGradient>
         <clipPath id={"#{@id}-clip"}><circle cx="16" cy="16" r="15" /></clipPath>
       </defs>
       <circle cx="16" cy="16" r="15" fill={"url(##{@id}-ball)"} />
       <g clip-path={"url(##{@id}-clip)"}>
         <rect :if={!@stripes?} width="32" height="32" filter={"url(##{@id}-marble)"} opacity="0.7" />
-        <g :if={@stripes?} stroke={@marble} stroke-width="1.5" stroke-opacity="0.75">
-          <path
-            :for={x <- -16..40//4}
-            d={"M#{x} 0 l-12 32"}
-          />
+        <%!-- Spell: curved bands from the top left to the bottom right, arcs
+             around a point beyond the top right of the sphere --%>
+        <g :if={@stripes?} fill="none" stroke={@marble} stroke-width="1.7" stroke-opacity="0.85">
+          <circle :for={r <- 12..54//3} cx="36" cy="-6" r={r} />
+        </g>
+        <%!-- DARK: a crimson top above a dark band --%>
+        <g :if={@attribute == "DARK"}>
+          <ellipse cx="16" cy="6" rx="16" ry="10.5" fill={"url(##{@id}-red)"} />
+          <path d="M0 15 Q16 10 32 13 L32 17 Q16 14 0 19 Z" fill="#12061c" fill-opacity="0.55" />
         </g>
       </g>
       <circle
@@ -409,7 +418,7 @@ defmodule MillenniumQuizWeb.CardComponents do
       <circle cx="16" cy="16" r="15" fill="none" stroke="#120d0a" stroke-width="0.9" />
       <text
         x="16"
-        y="9"
+        y="8.6"
         text-anchor="middle"
         font-family="ui-serif, Georgia, serif"
         font-size={if String.length(@label) > 5, do: "3.9", else: "4.4"}
@@ -424,7 +433,7 @@ defmodule MillenniumQuizWeb.CardComponents do
       </text>
       <text
         x="16"
-        y="25.2"
+        y="23.6"
         text-anchor="middle"
         font-size="14.5"
         font-weight="700"
