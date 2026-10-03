@@ -29,7 +29,6 @@ export const CardLinkInput = {
     this.active = 0
     this.lastQuery = null
     this.dismissed = false
-    this.linked = new Set() // lower-cased names already linked in this form
 
     this.onInput = () => this.update()
     this.onCaret = () => this.update()
@@ -50,7 +49,6 @@ export const CardLinkInput = {
       this.el.value = text
       const pos = Math.max(0, Math.min(text.length, caret - (old.length - text.length)))
       this.el.setSelectionRange(pos, pos)
-      this.forgetUnlinked()
       this.hide()
     })
   },
@@ -61,14 +59,6 @@ export const CardLinkInput = {
     this.el.removeEventListener("click", this.onCaret)
     this.el.removeEventListener("keydown", this.onKeydown)
     this.el.removeEventListener("blur", this.onBlur)
-  },
-
-  // A name removed from the text (card removed) may be linked again later.
-  forgetUnlinked() {
-    const text = this.el.value.toLowerCase()
-    for (const name of [...this.linked]) {
-      if (!text.includes(`[${name}]`)) this.linked.delete(name)
-    }
   },
 
   update() {
@@ -139,9 +129,8 @@ export const CardLinkInput = {
     this.hide()
     this.lastQuery = null
 
-    const key = s.name.toLowerCase()
-    if (this.linked.has(key)) return
-    this.linked.add(key)
+    // always sent: the server ignores a card that is already attached, and a
+    // retry after a failed or dropped import must still go through
     this.pushEvent("link_card", s.source === "remote" ? {password: String(s.password)} : {id: String(s.id)})
   },
 

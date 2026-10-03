@@ -97,8 +97,15 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
               id={"add-card-#{result.password}"}
               disabled={@importing != nil}
             >
-              <span :if={@importing == result.password} class="loading loading-spinner loading-xs" />
-              <.icon :if={@importing != result.password} name="hero-plus" class="size-4" /> Add
+              <span
+                :if={importing_password(@importing) == result.password}
+                class="loading loading-spinner loading-xs"
+              />
+              <.icon
+                :if={importing_password(@importing) != result.password}
+                name="hero-plus"
+                class="size-4"
+              /> Add
             </button>
           </li>
         </ul>
@@ -128,6 +135,17 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
           >
           </ul>
         </div>
+        <p
+          :if={@unlinked_names != []}
+          class="-mt-2 flex items-start gap-2 text-sm text-warning"
+          id="unlinked-names"
+          role="status"
+        >
+          <.icon name="hero-exclamation-triangle" class="mt-0.5 size-4 shrink-0" />
+          <span>
+            No card attached for: {Enum.map_join(@unlinked_names, ", ", &"[#{&1}]")} — they show as plain text to players.
+          </span>
+        </p>
         <p class="-mt-2 text-xs text-base-content/60" id="card-link-hint">
           Type <kbd class="kbd kbd-xs">[</kbd>
           and a card name to link a card; <kbd class="kbd kbd-xs">Tab</kbd>
@@ -245,7 +263,23 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     |> assign(:results, [])
     |> assign(:search_error, nil)
     |> assign(:importing, nil)
+    |> assign_unlinked_names()
   end
+
+  defp importing_password({password, _origin}), do: password
+  defp importing_password(nil), do: nil
+
+  # Bracketed names in the current text that no attached card matches; they
+  # stay plain text for players (see `CardLinks.parse/2`). Never blocks saving.
+  defp assign_unlinked_names(socket) do
+    text = Ecto.Changeset.get_field(socket.assigns.form.source, :text)
+    attached = MapSet.new(socket.assigns.cards, &name_key(&1.name))
+
+    unlinked = Enum.reject(CardLinks.names(text), &MapSet.member?(attached, name_key(&1)))
+    assign(socket, :unlinked_names, unlinked)
+  end
+
+  defp name_key(name), do: name |> String.trim() |> String.downcase()
 
   defp cards_of(%Question{question_cards: question_cards}) when is_list(question_cards),
     do: Enum.map(question_cards, & &1.card)
@@ -255,7 +289,9 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   @impl true
   def handle_event("validate", %{"question" => params}, socket) do
     changeset = Quiz.change_question(socket.assigns.question, params)
-    {:noreply, assign(socket, :form, to_form(changeset, action: :validate))}
+
+    {:noreply,
+     socket |> assign(:form, to_form(changeset, action: :validate)) |> assign_unlinked_names()}
   end
 
   def handle_event("save", %{"question" => params}, socket) do
@@ -275,7 +311,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
          |> push_navigate(to: socket.assigns.return_to)}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
+        {:noreply, socket |> assign(:form, to_form(changeset)) |> assign_unlinked_names()}
     end
   end
 
@@ -294,18 +330,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     end
   end
 
-  def handle_event("add_card", %{"password" => password}, socket) do
-    case Integer.parse(password) do
-      {password, ""} when is_nil(socket.assigns.importing) ->
-        {:noreply,
-         socket
-         |> assign(:importing, password)
-         |> start_async(:import_card, fn -> Cards.import(password) end)}
-
-      _ ->
-        {:noreply, socket}
-    end
-  end
+  def handle_event("add_card", params, socket), do: start_import(socket, params, :search)
 
   def handle_event("remove_card", %{"id" => id}, socket) do
     with {id, ""} <- Integer.parse(id),
@@ -313,7 +338,8 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
       {:noreply,
        socket
        |> assign(:cards, Enum.reject(socket.assigns.cards, &(&1.id == id)))
-       |> unlink_in_text(card)}
+       |> unlink_in_text(card)
+       |> assign_unlinked_names()}
     else
       _ -> {:noreply, socket}
     end
@@ -342,17 +368,47 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
 
   def handle_event("link_card", %{"id" => id}, socket) when is_binary(id) do
     with {id, ""} when id in 1..2_147_483_647//1 <- Integer.parse(id),
-         [card] <- Cards.get_cards([id]) do
-      {:noreply, add_to_cards(socket, card)}
+         [card] <- Cards.get_cards([id]),
+         true <- released_by?(card, socket.assigns.topic.format.date) do
+      {:noreply, socket |> add_to_cards(card) |> assign_unlinked_names()}
     else
       _ -> {:noreply, put_flash(socket, :error, "That card is not in the card pool.")}
     end
   end
 
   def handle_event("link_card", %{"password" => password}, socket) when is_binary(password),
-    do: handle_event("add_card", %{"password" => password}, socket)
+    do: start_import(socket, %{"password" => password}, :text)
 
   def handle_event("link_card", _params, socket), do: {:noreply, socket}
+
+  # Same rule as `Cards.suggest/2`: no release date counts as released.
+  defp released_by?(%{tcg_release_date: nil}, _date), do: true
+  defp released_by?(_card, nil), do: true
+  defp released_by?(%{tcg_release_date: released}, date), do: Date.compare(released, date) != :gt
+
+  # `origin` is where the import was asked for: the search list or the text.
+  defp start_import(socket, %{"password" => password}, origin) when is_binary(password) do
+    with {password, ""} <- Integer.parse(password) do
+      cond do
+        Enum.any?(socket.assigns.cards, &(&1.password == password)) ->
+          {:noreply, socket}
+
+        socket.assigns.importing != nil ->
+          {:noreply,
+           put_flash(socket, :error, "An import is already running, try again in a moment.")}
+
+        true ->
+          {:noreply,
+           socket
+           |> assign(:importing, {password, origin})
+           |> start_async(:import_card, fn -> Cards.import(password) end)}
+      end
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  defp start_import(socket, _params, _origin), do: {:noreply, socket}
 
   defp remote_suggestions(query, format) do
     case Cards.search(query, format) do
@@ -395,19 +451,32 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
 
   @impl true
   def handle_async(:import_card, {:ok, {:ok, card}}, socket) do
-    {:noreply,
-     socket
-     |> assign(:importing, nil)
-     |> add_to_cards(card)
-     |> assign(:results, [])
-     |> assign(:search_form, to_form(%{"query" => ""}, as: :card_search))}
+    origin = socket.assigns.importing && elem(socket.assigns.importing, 1)
+
+    socket =
+      socket
+      |> assign(:importing, nil)
+      |> add_to_cards(card)
+
+    # only an import from the search list resets the search; one from the text
+    # leaves whatever the admin has in the search box
+    socket =
+      if origin == :search,
+        do:
+          socket
+          |> assign(:results, [])
+          |> assign(:search_form, to_form(%{"query" => ""}, as: :card_search)),
+        else: socket
+
+    {:noreply, assign_unlinked_names(socket)}
   end
 
   def handle_async(:import_card, _failed, socket) do
     {:noreply,
      socket
      |> assign(:importing, nil)
-     |> put_flash(:error, "The card could not be loaded. Try again in a moment.")}
+     |> put_flash(:error, "The card could not be loaded. Try again in a moment.")
+     |> assign_unlinked_names()}
   end
 
   defp choice_errors(form) do
