@@ -8,6 +8,9 @@
                                                   prints the models that answered, one per line
   review-tools check-locations <review> <head>    flags cited path:line that don't exist at head
   review-tools selfcheck <stream-json> <inside-token> <outside-token>
+  review-tools post-body <review> <pr-commits.json> <evaluator>
+                                                  PR comment with every finding, its verdict and
+                                                  the commits that address it
 """
 import json
 import re
@@ -115,6 +118,90 @@ def selfcheck(stream_path, inside, outside):
     print("self-check passed: tools are Read, Grep, Glob only; inside read, outside blocked")
 
 
+def parse_review(path):
+    """Header fields and findings (with the human verdict) of a review file."""
+    with open(path) as f:
+        text = f.read()
+    header = dict(re.findall(r"(?m)^- (PR|Branch|Base|Head|Reviewer|CI|Date|Posted): (.*)$", text))
+    findings = []
+    for block in re.split(r"(?m)^(?=### F\d+ · )", text)[1:]:
+        block = re.split(r"(?m)^## ", block)[0]
+        head = re.match(r"### (F\d+) · ([^·]+?) · (.+?) — (.*)", block)
+        if not head:
+            continue
+        field = lambda name: (re.search(rf"(?ms)^- \*\*{name}:\*\* (.*?)(?=^- \*\*|\Z)", block) or [None, ""])[1].strip()
+        verdict_line = field("Your verdict")
+        marked = re.findall(r"\[[xX]\] (valid|wrong|unsure)", verdict_line)
+        reason = verdict_line.split("reason:", 1)[1].strip() if "reason:" in verdict_line else ""
+        findings.append({
+            "id": head.group(1), "severity": head.group(2).strip(),
+            "location": head.group(3).strip(), "title": head.group(4).strip(),
+            "claim": field("Claim"), "evidence": field("Evidence"),
+            "fix": field("Suggested fix"), "confidence": field("Confidence"),
+            "verdict": marked[0] if marked else "unmarked", "reason": reason,
+        })
+    return header, findings
+
+
+def fixing_commits(commits_path, reviewed_at):
+    """Finding id -> short shas of the PR's own commits made after the review
+    that name it (e.g. "F2:"). Uses the PR's commit list from GitHub (`gh pr
+    view --json commits`), not git ranges, so a rebase onto a base branch with
+    other review fixes can't attribute those commits to this PR."""
+    with open(commits_path) as f:
+        commits = json.load(f).get("commits", [])
+    found = {}
+    for c in commits:
+        if reviewed_at and c.get("committedDate", "") <= reviewed_at:
+            continue
+        message = (c.get("messageHeadline") or "") + "\n" + (c.get("messageBody") or "")
+        for fid in sorted(set(re.findall(r"\b(F\d+)\b", message))):
+            found.setdefault(fid, []).append(c["oid"][:7])
+    return found
+
+
+def post_body(review_path, commits_path, evaluator):
+    header, findings = parse_review(review_path)
+    head = re.search(r"[0-9a-f]{40}", header.get("Head", ""))
+    reviewed = head.group(0) if head else ""
+    # Review dates look like 2026-10-03T02:15Z; GitHub's like 2026-10-03T02:20:11Z.
+    date = header.get("Date", "").strip()
+    reviewed_at = date.replace("Z", ":00Z") if re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\dZ", date) else date
+    fixes = fixing_commits(commits_path, reviewed_at)
+    icon = {"valid": "✅ valid", "wrong": "❌ wrong", "unsure": "🤷 unsure", "unmarked": "– not evaluated"}
+    cell = lambda t: t.replace("|", "\\|").replace("\n", " ")
+
+    out = [
+        "## Review, evaluated",
+        "",
+        f"Independent review of `{reviewed[:7]}` by {header.get('Reviewer', 'the reviewer').split(' (')[0]}"
+        f" (`bin/review-pr`, no shared context with the author). CI at review time: {header.get('CI', 'unknown')}.",
+        f"Each finding was judged by @{evaluator}; \"Addressed in\" lists the commits after the review that name the finding.",
+        "",
+        "| # | Severity | Finding | Verdict | Reason | Addressed in |",
+        "|---|---|---|---|---|---|",
+    ]
+    for f in findings:
+        addressed = ", ".join(fixes.get(f["id"], [])) or ("–" if f["verdict"] != "valid" else "not yet")
+        out.append(
+            f"| {f['id']} | {f['severity']} | {cell(f['title'])} | {icon[f['verdict']]} | {cell(f['reason']) or '–'} | {addressed} |"
+        )
+    out += ["", "<details><summary>Findings in full</summary>", ""]
+    for f in findings:
+        out += [
+            f"#### {f['id']} · {f['severity']} · `{f['location']}` — {f['title']}",
+            "",
+            f"- **Claim:** {f['claim']}",
+            f"- **Evidence:** {f['evidence']}",
+            f"- **Suggested fix:** {f['fix']}",
+            f"- **Confidence:** {f['confidence']}",
+            f"- **Verdict:** {icon[f['verdict']]}" + (f" — {f['reason']}" if f["reason"] else ""),
+            "",
+        ]
+    out += ["</details>"]
+    print("\n".join(out))
+
+
 if __name__ == "__main__":
     cmd, args = (sys.argv[1], sys.argv[2:]) if len(sys.argv) > 1 else ("", [])
     commands = {
@@ -124,6 +211,7 @@ if __name__ == "__main__":
         "run-result": run_result,
         "check-locations": check_locations,
         "selfcheck": selfcheck,
+        "post-body": post_body,
     }
     if cmd not in commands:
         sys.exit(__doc__)

@@ -168,9 +168,12 @@ review header shows the CI outcome.
 
 In Claude Code the same is available as `/review-pr <number>` and
 `/review-open-prs`. Each finding in a review file has a "Your verdict" line:
-tick valid, wrong or unsure. `/post-review <number>` then posts only the valid
-findings to the PR and offers rejected ones for the "Decisions and known false
-positives" section of `REVIEWING.md`, so reviews improve over time.
+tick valid, wrong or unsure. `/post-review <number>` (or `bin/review-post <number>`)
+then posts the evaluated review to the PR: every finding with your verdict and
+reason, and the commits after the review that address it (commits whose message
+names the finding, e.g. "F2: ..."). So the PR shows why changes were made.
+Rejected findings can go into the "Decisions and known false positives" section
+of `REVIEWING.md`, so reviews improve over time.
 
 The reviewer is defined in `.claude/agents/pr-reviewer.md`. The scripts need
 `gh`, `claude`, `git` and `python3`. `reviews/` is gitignored.
