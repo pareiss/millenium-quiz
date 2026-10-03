@@ -153,6 +153,62 @@ defmodule MillenniumQuiz.CardsTest do
     end
   end
 
+  describe "printed_on/3" do
+    test "a dated Pendulum Effect is split from the current monster text" do
+      card = %Card{
+        texts: %{"en" => "Double battle damage."},
+        pendulum_texts: %{"en" => "Reduce damage from an attack to 0."},
+        card_texts: [
+          %CardText{
+            language: "en",
+            version: 0,
+            text: "Pendulum Effect: Reduce damage from a battle to 0.",
+            set: "Duelist Alliance",
+            released_on: ~D[2014-08-15]
+          },
+          %CardText{
+            language: "en",
+            version: 1,
+            text: "Pendulum Effect: Reduce damage from an attack to 0.",
+            set: "Star Pack ARC-V",
+            released_on: ~D[2015-06-12]
+          }
+        ]
+      }
+
+      assert Cards.printed_on(card, ~D[2015-01-01]) == %{
+               text: "Double battle damage.",
+               pendulum_text: "Reduce damage from a battle to 0.",
+               set: "Duelist Alliance"
+             }
+
+      assert %{pendulum_text: "Reduce damage from an attack to 0."} =
+               Cards.printed_on(card, ~D[2016-01-01])
+    end
+
+    test "other cards keep their dated text and the current Pendulum Effect" do
+      card = %Card{
+        texts: %{"en" => "New."},
+        pendulum_texts: %{},
+        card_texts: [
+          %CardText{
+            language: "en",
+            version: 0,
+            text: "Old.",
+            set: "S",
+            released_on: ~D[2004-01-01]
+          }
+        ]
+      }
+
+      assert Cards.printed_on(card, ~D[2005-01-01]) == %{
+               text: "Old.",
+               pendulum_text: nil,
+               set: "S"
+             }
+    end
+  end
+
   describe "text_on/3" do
     setup do
       {:ok, card} = Cards.import(83_764_719)

@@ -277,6 +277,25 @@ defmodule MillenniumQuiz.Cards do
     end
   end
 
+  @doc """
+  The texts printed on a card on `date`: `%{text, pendulum_text, set}`.
+
+  Yugipedia lists the errata of a Pendulum card as "Pendulum Effect: …",
+  with the monster text after a rule that `ErrataParser` drops (it is often
+  missing anyway, when only the Pendulum Effect changed). So when the dated
+  text is a Pendulum Effect, it becomes `pendulum_text` and the monster text
+  is the current one. Otherwise the Pendulum Effect is the current one.
+  """
+  def printed_on(%Card{} = card, date, language \\ "en") do
+    %{text: text, set: set} = text_on(card, date, language)
+    current = &(Map.get(&1, language) || Map.get(&1, "en"))
+
+    case Regex.run(~r/\APendulum Effect:\s*(.*)\z/s, text || "") do
+      [_, pendulum] -> %{text: current.(card.texts), pendulum_text: pendulum, set: set}
+      nil -> %{text: text, pendulum_text: current.(card.pendulum_texts), set: set}
+    end
+  end
+
   defp newer?(a, b) do
     case Date.compare(a.released_on, b.released_on) do
       :eq -> a.version >= b.version

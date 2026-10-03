@@ -222,23 +222,15 @@ defmodule MillenniumQuiz.Game do
     }
   end
 
-  # Cards as they read on the format's date (English for now). Only the main
-  # text is dated: the Pendulum Effect is the current one.
+  # Cards as they read on the format's date (English for now).
   defp snapshot_cards(%Ecto.Association.NotLoaded{}, _date), do: []
 
   defp snapshot_cards(question_cards, date) do
     for %{card: card} <- question_cards do
-      %{text: text, set: set} = Cards.text_on(card, date)
-
       card
       |> Map.take(@card_details)
-      |> Map.merge(%{
-        id: card.id,
-        name: card.name,
-        text: text,
-        set: set,
-        pendulum_text: card.pendulum_texts["en"]
-      })
+      |> Map.merge(Cards.printed_on(card, date))
+      |> Map.merge(%{id: card.id, name: card.name})
     end
   end
 

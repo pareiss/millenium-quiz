@@ -31,9 +31,15 @@ defmodule MillenniumQuizWeb.CardComponents do
 
   `size` is `"small"` (the text box is cut off) or `"large"` (it scrolls).
   The width comes from the caller, e.g. `class="w-44"`.
+
+  Long texts are set smaller, like on real cards. With `on_text`, the text
+  box of a long text becomes a button that sends `on_text` (with
+  `phx-value-card={text_value}`) to show it in a bigger panel.
   """
   attr :card, :map, required: true
   attr :size, :string, default: "small", values: ~w(small large)
+  attr :on_text, :string, default: nil, doc: "event that shows a long text in a panel"
+  attr :text_value, :any, default: nil, doc: "sent as `card` with `on_text`"
   attr :class, :any, default: nil
   attr :rest, :global
 
@@ -47,6 +53,7 @@ defmodule MillenniumQuizWeb.CardComponents do
       |> assign(:spell_trap?, spell_trap?(card))
       |> assign(:link?, frame(card) == "link")
       |> assign(:arrows, Enum.map(card[:link_arrows] || [], &String.trim(&1, "\uFE0F")))
+      |> assign(:readable?, assigns.on_text != nil and long_text?(card))
 
     ~H"""
     <div class={["mq-card", "mq-card--#{@size}", @class]} {@rest}>
@@ -62,15 +69,16 @@ defmodule MillenniumQuizWeb.CardComponents do
         </div>
 
         <div :if={@spell_trap?} class="mq-card__line">
-          [{kind(@card)} Card<.property_icon
+          [{kind(@card)} Card<span
             :if={@card[:property] not in [nil, "Normal"]}
-            property={@card.property}
             class="mq-card__property"
-          />]
+            title={"#{@card.property} #{kind(@card)}"}
+          ><.property_icon property={@card.property} label={"#{@card.property} #{kind(@card)}"} /></span>]
         </div>
         <div
           :if={not @spell_trap? and not @link?}
           class={["mq-card__stars", @card[:rank] && "mq-card__stars--rank"]}
+          title={stars_label(@card)}
         >
           <.level_star :for={_ <- stars(@card)} rank={not is_nil(@card[:rank])} />
         </div>
@@ -97,13 +105,25 @@ defmodule MillenniumQuizWeb.CardComponents do
           <span class="mq-card__scale mq-card__scale--left" title="Pendulum Scale">
             {@card[:pendulum_scale]}
           </span>
-          <p class="mq-card__pendulum-text">{@card[:pendulum_text]}</p>
+          <p class={["mq-card__pendulum-text", text_size(@card[:pendulum_text], 90)]}>
+            {@card[:pendulum_text]}
+          </p>
           <span class="mq-card__scale mq-card__scale--right" title="Pendulum Scale">
             {@card[:pendulum_scale]}
           </span>
         </div>
 
-        <div class="mq-card__text">
+        <div
+          class={["mq-card__text", text_size(@card.text, 160), @readable? && "is-readable"]}
+          phx-click={@readable? && @on_text}
+          phx-value-card={@readable? && @text_value}
+          phx-keydown={@readable? && @on_text}
+          phx-key={@readable? && "Enter"}
+          role={@readable? && "button"}
+          tabindex={@readable? && "0"}
+          aria-label={@readable? && "Read the full text of #{@card.name}"}
+          title={@readable? && "Read the full text"}
+        >
           <p :if={@card[:monster_type_line]} class="mq-card__type">[{@card.monster_type_line}]</p>
           <p class="mq-card__body">{@card.text}</p>
           <p :if={@card[:atk]} class="mq-card__stats">
@@ -124,6 +144,8 @@ defmodule MillenniumQuizWeb.CardComponents do
   attr :id, :string, required: true
   attr :card, :map, required: true
   attr :on_close, :string, required: true
+  attr :on_text, :string, default: nil, doc: "see `card/1`"
+  attr :text_value, :any, default: nil
   slot :inner_block, doc: "shown below the card, e.g. credits"
 
   def card_dialog(assigns) do
@@ -149,10 +171,89 @@ defmodule MillenniumQuizWeb.CardComponents do
         >
           <.icon name="hero-x-mark" class="size-4" />
         </button>
-        <.card card={@card} size="large" class="w-full" />
+        <.card
+          card={@card}
+          size="large"
+          class="w-full"
+          on_text={@on_text}
+          text_value={@text_value}
+        />
         <p :if={@card.set} class="text-sm text-white/90">As printed in {@card.set}</p>
         {render_slot(@inner_block)}
       </div>
+    </div>
+    """
+  end
+
+  @doc """
+  The texts of a card in a readable panel: name, type line, Pendulum Effect,
+  text and stats. Esc, the backdrop and the close button send `on_close`.
+  """
+  attr :id, :string, required: true
+  attr :card, :map, required: true
+  attr :on_close, :string, required: true
+  slot :inner_block, doc: "shown below the text, e.g. credits"
+
+  def card_text_dialog(assigns) do
+    assigns = assign(assigns, :link?, frame(assigns.card) == "link")
+
+    ~H"""
+    <div
+      id={@id}
+      class="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={"#{@id}-title"}
+      phx-window-keydown={@on_close}
+      phx-key="escape"
+      phx-mounted={JS.focus(to: "##{@id}-close")}
+    >
+      <div class="fixed inset-0 bg-black/65 backdrop-blur-sm" phx-click={@on_close} />
+      <article
+        class="mq-card-panel relative w-[min(36rem,100%)] reveal-pop"
+        data-frame={frame(@card)}
+      >
+        <button
+          type="button"
+          id={"#{@id}-close"}
+          class="btn btn-circle btn-sm absolute -top-2 -right-2 z-10 shadow"
+          phx-click={@on_close}
+          aria-label="Close"
+        >
+          <.icon name="hero-x-mark" class="size-4" />
+        </button>
+        <header class="mq-card-panel__name">
+          <h2 id={"#{@id}-title"}>{@card.name}</h2>
+          <.attribute_icon
+            :if={@card[:attribute]}
+            attribute={@card.attribute}
+            class="size-8 shrink-0"
+          />
+          <.attribute_icon
+            :if={kind(@card) in ["Spell", "Trap"]}
+            attribute={kind(@card)}
+            class="size-8 shrink-0"
+          />
+        </header>
+        <div class="mq-card-panel__body">
+          <p :if={@card[:monster_type_line]} class="font-bold">[{@card.monster_type_line}]</p>
+          <p :if={kind(@card) in ["Spell", "Trap"]} class="font-bold">
+            [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(@card)}]
+          </p>
+          <section :if={@card[:pendulum_text]} class="mq-card-panel__pendulum">
+            <h3>Pendulum Effect · Scale {@card[:pendulum_scale]}</h3>
+            <p>{@card.pendulum_text}</p>
+          </section>
+          <p class="whitespace-pre-line">{@card.text}</p>
+          <p :if={@card[:atk]} class="mq-card-panel__stats">
+            <span>ATK/{@card.atk}</span>
+            <span :if={@link?}>LINK-{length(@card[:link_arrows] || [])}</span>
+            <span :if={!@link?}>DEF/{@card.def}</span>
+          </p>
+        </div>
+        <p :if={@card.set} class="mt-3 text-sm text-white/90">As printed in {@card.set}</p>
+        {render_slot(@inner_block)}
+      </article>
     </div>
     """
   end
@@ -228,22 +329,25 @@ defmodule MillenniumQuizWeb.CardComponents do
 
   @doc "A Spell/Trap property glyph: Quick-Play, Continuous, Equip, Field, Ritual or Counter."
   attr :property, :string, required: true
+  attr :label, :string, default: nil, doc: "defaults to the property"
   attr :class, :any, default: nil
 
   def property_icon(assigns) do
+    assigns = assign(assigns, :label, assigns.label || assigns.property)
+
     ~H"""
     <svg
       viewBox="0 0 24 24"
       class={@class}
       role="img"
-      aria-label={@property}
+      aria-label={@label}
       fill="none"
       stroke="currentColor"
       stroke-width="2.2"
       stroke-linecap="round"
       stroke-linejoin="round"
     >
-      <title>{@property}</title>
+      <title>{@label}</title>
       <%= case @property do %>
         <% "Quick-Play" -> %>
           <path d="M13.5 2 4.5 13.5h6.5L9.5 22l10-12.5h-6.5z" fill="currentColor" stroke-width="1" />
@@ -252,16 +356,23 @@ defmodule MillenniumQuizWeb.CardComponents do
         <% "Equip" -> %>
           <path d="M12 3.5v17M3.5 12h17" stroke-width="3.4" />
         <% "Field" -> %>
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 4.5 14.2 12 12 19.5 9.8 12z" fill="currentColor" stroke-width="1" />
-        <% "Ritual" -> %>
+          <%!-- a four-pointed star --%>
           <path
-            d="M12 2.5c.8 3.8 6 6 6 11.5a6 6 0 0 1-12 0c0-3 1.8-5 3-6.8.2 2 1 3.2 2.2 3.4C11 8 11 5.2 12 2.5z"
+            d="M12 1.5 14.6 9.4 22.5 12 14.6 14.6 12 22.5 9.4 14.6 1.5 12 9.4 9.4z"
+            fill="currentColor"
+            stroke-width="1"
+          />
+        <% "Ritual" -> %>
+          <%!-- a flame with three tongues, the middle one tallest --%>
+          <path
+            d="M12 22.5c-4.6 0-7.2-3-7.2-6.7 0-3 1.6-5 2.6-7.3.5 2.2 1.4 3.4 2.3 3.8-.3-3.2.9-6.8 2.3-10.3 1.4 3.5 2.6 7.1 2.3 10.3.9-.4 1.8-1.6 2.3-3.8 1 2.3 2.6 4.3 2.6 7.3 0 3.7-2.6 6.7-7.2 6.7z"
             fill="currentColor"
             stroke-width="1"
           />
         <% "Counter" -> %>
-          <path d="M18.5 14.5a6.5 6.5 0 1 1-2-7.2" /><path d="M17.5 3v5h-5" />
+          <%!-- a quarter circle from 3 o'clock, clockwise to 6 o'clock --%>
+          <path d="M20 5a14 14 0 0 1-14 14" stroke-width="2.6" />
+          <path d="M2 19 8.2 14.6v8.8z" fill="currentColor" stroke-width="1" />
         <% _ -> %>
           <circle cx="12" cy="12" r="3" fill="currentColor" />
       <% end %>
@@ -272,6 +383,26 @@ defmodule MillenniumQuizWeb.CardComponents do
   ## Helpers
 
   defp link_arrows, do: @link_arrows
+
+  # Real cards set long texts smaller. `fits` is how many characters fit at
+  # the normal size.
+  defp text_size(nil, _fits), do: nil
+
+  defp text_size(text, fits) do
+    case String.length(text) / fits do
+      r when r <= 1 -> nil
+      r when r <= 1.4 -> "mq-text--s"
+      r when r <= 1.9 -> "mq-text--xs"
+      _ -> "mq-text--xxs"
+    end
+  end
+
+  defp long_text?(card),
+    do: text_size(card.text, 160) != nil or text_size(card[:pendulum_text], 90) != nil
+
+  defp stars_label(%{rank: rank}) when is_integer(rank), do: "Rank #{rank}"
+  defp stars_label(%{level: level}) when is_integer(level), do: "Level #{level}"
+  defp stars_label(_card), do: nil
 
   # Long names get a smaller font, like the condensed names on real cards.
   defp name_size(name) do

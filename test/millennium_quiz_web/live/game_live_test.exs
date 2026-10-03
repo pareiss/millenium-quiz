@@ -173,6 +173,16 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     view |> element("#card-zoom > div[phx-click=close_card]") |> render_click()
     refute has_element?(view, "#card-zoom")
 
+    # the hover texts work on thumbnails: nothing lies over the card
+    refute has_element?(view, "#question-card-0 button.absolute")
+
+    # a long text opens in a readable panel (Monster Reborn's is short, so
+    # the event is sent directly)
+    render_click(view, "read_card", %{"card" => "0"})
+    assert has_element?(view, "#card-text .mq-card-panel__body", "Select 1 monster")
+    view |> element("#card-text-close") |> render_click()
+    refute has_element?(view, "#card-text")
+
     # it is closed by the next answer, and comes back on the reveal
     view |> element("#zoom-card-0") |> render_click()
     view |> element("#choice-0") |> render_click()

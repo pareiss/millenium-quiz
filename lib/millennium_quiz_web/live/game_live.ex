@@ -351,7 +351,7 @@ defmodule MillenniumQuizWeb.GameLive do
   attr :cards, :list, required: true
 
   # The cards a question is about, drawn with their text as of the format's
-  # date. A tap enlarges a card.
+  # date. A tap enlarges a card; a tap on a long text shows it in a panel.
   defp question_cards(assigns) do
     ~H"""
     <div :if={@cards != []} class="flex flex-wrap gap-3" id="question-cards">
@@ -360,17 +360,22 @@ defmodule MillenniumQuizWeb.GameLive do
         id={"question-card-#{i}"}
         class="w-36 sm:w-44"
       >
-        <div class="group relative transition hover:-translate-y-1 hover:drop-shadow-lg">
-          <.card card={card} />
-          <%!-- Over the card, so the card's text stays readable for screen readers --%>
+        <div
+          class="relative cursor-zoom-in transition hover:-translate-y-1 hover:drop-shadow-lg"
+          phx-click="zoom_card"
+          phx-value-card={i}
+        >
+          <.card card={card} on_text="read_card" text_value={i} />
+          <%!-- For keyboards; mice can click anywhere on the card --%>
           <button
             type="button"
             phx-click="zoom_card"
             phx-value-card={i}
             id={"zoom-card-#{i}"}
-            class="absolute inset-0 cursor-zoom-in rounded-[0.4rem] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            aria-label={"Enlarge #{card.name}"}
-          />
+            class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:inset-x-2 focus-visible:top-1/3 focus-visible:rounded-field focus-visible:bg-primary focus-visible:px-2 focus-visible:py-1.5 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-primary-content focus-visible:shadow-lg"
+          >
+            Enlarge {card.name}
+          </button>
         </div>
         <p :if={card.set} class="mt-1.5 text-xs text-base-content/60">As printed in {card.set}</p>
       </article>
@@ -380,16 +385,36 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
-  attr :zoom, :integer, required: true
+  attr :zoom, :any, required: true, doc: "`{:card | :text, index}`"
 
   defp zoomed_card(assigns) do
+    {view, index} = assigns.zoom
     question = Game.current_question(assigns.game)
-    assigns = assign(assigns, :card, question && Enum.at(question.cards, assigns.zoom))
+
+    assigns =
+      assign(assigns,
+        view: view,
+        index: index,
+        card: question && Enum.at(question.cards, index)
+      )
 
     ~H"""
-    <.card_dialog :if={@card} id="card-zoom" card={@card} on_close="close_card">
+    <.card_dialog
+      :if={@card && @view == :card}
+      id="card-zoom"
+      card={@card}
+      on_close="close_card"
+      on_text="read_card"
+      text_value={@index}
+    >
       <p class="text-xs text-white/70 text-center">Tap outside the card or press Esc to close.</p>
     </.card_dialog>
+    <.card_text_dialog
+      :if={@card && @view == :text}
+      id="card-text"
+      card={@card}
+      on_close="close_card"
+    />
     """
   end
 
@@ -656,12 +681,8 @@ defmodule MillenniumQuizWeb.GameLive do
 
   def handle_event("next_round", _params, socket), do: run(socket, &Games.next_round/1)
 
-  def handle_event("zoom_card", %{"card" => index}, socket) do
-    case Integer.parse(index) do
-      {index, ""} when index >= 0 -> {:noreply, assign(socket, :zoom, index)}
-      _ -> {:noreply, socket}
-    end
-  end
+  def handle_event("zoom_card", %{"card" => index}, socket), do: zoom(socket, :card, index)
+  def handle_event("read_card", %{"card" => index}, socket), do: zoom(socket, :text, index)
 
   def handle_event("close_card", _params, socket), do: {:noreply, assign(socket, :zoom, nil)}
 
@@ -698,6 +719,13 @@ defmodule MillenniumQuizWeb.GameLive do
         to_form(%{"email" => email}, as: :resume, errors: [email: {"is not a valid email", []}])
 
       {:noreply, assign(socket, :email_form, form)}
+    end
+  end
+
+  defp zoom(socket, view, index) do
+    case Integer.parse(index) do
+      {index, ""} when index >= 0 -> {:noreply, assign(socket, :zoom, {view, index})}
+      _ -> {:noreply, socket}
     end
   end
 
