@@ -218,6 +218,10 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(doc, "#text .mq-card-panel[data-frame=effect]") == 1
     assert text(doc, "#text-title") == "Odd-Eyes Pendulum Dragon"
     assert text(doc, ".mq-card-panel__pendulum") =~ ~r/Scale 4\s+Reduce damage to 0\./
+    # the scale between its blue and red marker
+    assert count(doc, ".mq-card-panel__scale > svg") == 2
+    assert count(doc, ".mq-card-panel__scale > svg:first-child path[fill='#2563eb']") == 1
+    assert count(doc, ".mq-card-panel__scale > svg:last-child path[fill='#dc2626']") == 1
     assert html =~ "[Dragon / Pendulum / Effect]"
     assert html =~ "Double damage."
     assert text(doc, ".mq-card-panel__stats") =~ ~r/ATK\/2500\s+DEF\/2000/

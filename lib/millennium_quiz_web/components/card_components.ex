@@ -105,20 +105,14 @@ defmodule MillenniumQuizWeb.CardComponents do
         <div class={["mq-card__texts", @read != %{} && "is-readable"]} {@read}>
           <div :if={@pendulum?} class="mq-card__pendulum">
             <span class="mq-card__scale mq-card__scale--left" title="Pendulum Scale">
-              <svg viewBox="0 0 12 10" class="mq-card__gem" aria-hidden="true">
-                <%!-- the outer corner reaches further out, like on real cards --%>
-                <path d="M0 5 7 0.5 10 5 7 9.5z" fill="#2563eb" />
-              </svg>
+              <.scale_gem side="left" class="mq-card__gem" />
               {@card[:pendulum_scale]}
             </span>
             <p class={["mq-card__pendulum-text", text_size(@card[:pendulum_text], 90)]}>
               {@card[:pendulum_text]}
             </p>
             <span class="mq-card__scale mq-card__scale--right" title="Pendulum Scale">
-              <svg viewBox="0 0 12 10" class="mq-card__gem" aria-hidden="true">
-                <%!-- the outer corner reaches further out, like on real cards --%>
-                <path d="M12 5 5 0.5 2 5 5 9.5z" fill="#dc2626" />
-              </svg>
+              <.scale_gem side="right" class="mq-card__gem" />
               {@card[:pendulum_scale]}
             </span>
           </div>
@@ -278,7 +272,13 @@ defmodule MillenniumQuizWeb.CardComponents do
             [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(@card)}]
           </p>
           <section :if={@card[:pendulum_text]} class="mq-card-panel__pendulum">
-            <h3>Pendulum Effect · Scale {@card[:pendulum_scale]}</h3>
+            <h3>
+              <span>Pendulum Effect</span>
+              <span class="mq-card-panel__scale" title="Pendulum Scale">
+                <.scale_gem side="left" class="h-4 w-5" /> Scale {@card[:pendulum_scale]}
+                <.scale_gem side="right" class="h-4 w-5" />
+              </span>
+            </h3>
             <p>{@card.pendulum_text}</p>
           </section>
           <p class="whitespace-pre-line">{@card.text}</p>
@@ -335,6 +335,24 @@ defmodule MillenniumQuizWeb.CardComponents do
       >
         {@glyph}
       </text>
+    </svg>
+    """
+  end
+
+  @doc """
+  A Pendulum Scale marker: blue on the left, red on the right, its outer
+  corner reaching further out like on real cards.
+  """
+  attr :side, :string, required: true, values: ~w(left right)
+  attr :class, :any, default: nil
+
+  def scale_gem(assigns) do
+    ~H"""
+    <svg viewBox="0 0 12 10" class={@class} aria-hidden="true">
+      <path
+        d={if @side == "left", do: "M0 5 7 0.5 10 5 7 9.5z", else: "M12 5 5 0.5 2 5 5 9.5z"}
+        fill={if @side == "left", do: "#2563eb", else: "#dc2626"}
+      />
     </svg>
     """
   end

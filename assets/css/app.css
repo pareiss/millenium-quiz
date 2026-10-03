@@ -400,7 +400,18 @@
   background: color-mix(in oklab, var(--spell) 16%, #fffdf7);
 }
 .mq-card-panel__pendulum p { white-space: pre-line; }
-.mq-card-panel__pendulum h3 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.mq-card-panel__pendulum h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.mq-card-panel__scale { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; cursor: help; }
 .mq-card-panel__stats { display: flex; justify-content: flex-end; gap: 1.2rem; border-top: 2px solid #1c1917; padding-top: 0.3rem; font-weight: 700; }
 .mq-card-panel__stars { display: inline-flex; flex: none; align-items: center; gap: 0.3rem; font-family: ui-sans-serif, system-ui, sans-serif; cursor: help; }
 .mq-card-panel__property { display: inline-flex; flex: none; cursor: help; }
