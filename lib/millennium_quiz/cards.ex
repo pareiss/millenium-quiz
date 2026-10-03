@@ -291,7 +291,8 @@ defmodule MillenniumQuiz.Cards do
     current = &(Map.get(&1, language) || Map.get(&1, "en"))
 
     case Regex.run(~r/\APendulum Effect:\s*(.*)\z/s, text || "") do
-      [_, pendulum] -> %{text: current.(card.texts), pendulum_text: pendulum, set: set}
+      # without a current text in the language, an empty text, not nil
+      [_, pendulum] -> %{text: current.(card.texts) || "", pendulum_text: pendulum, set: set}
       nil -> %{text: text, pendulum_text: current.(card.pendulum_texts), set: set}
     end
   end

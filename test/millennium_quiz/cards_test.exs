@@ -186,6 +186,24 @@ defmodule MillenniumQuiz.CardsTest do
                Cards.printed_on(card, ~D[2016-01-01])
     end
 
+    test "a dated Pendulum Effect without a current monster text gives an empty text" do
+      card = %Card{
+        texts: %{},
+        pendulum_texts: %{},
+        card_texts: [
+          %CardText{
+            language: "en",
+            version: 0,
+            text: "Pendulum Effect: P.",
+            set: "S",
+            released_on: ~D[2014-01-01]
+          }
+        ]
+      }
+
+      assert %{text: "", pendulum_text: "P."} = Cards.printed_on(card, ~D[2015-01-01])
+    end
+
     test "other cards keep their dated text and the current Pendulum Effect" do
       card = %Card{
         texts: %{"en" => "New."},

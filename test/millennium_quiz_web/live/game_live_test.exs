@@ -166,6 +166,8 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     # a tap enlarges the card; Esc and the backdrop close it again
     view |> element("#zoom-card-0") |> render_click()
     assert has_element?(view, "#card-zoom .mq-card--large", "Monster Reborn")
+    # the Yugipedia credit is shown with the enlarged text
+    assert has_element?(view, "#card-zoom a[href='https://yugipedia.com']")
     view |> element("#card-zoom") |> render_keydown(%{"key" => "Escape"})
     refute has_element?(view, "#card-zoom")
 
@@ -173,12 +175,18 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     view |> element("#card-zoom > div[phx-click=close_card]") |> render_click()
     refute has_element?(view, "#card-zoom")
 
+    # a card that the question doesn't have can't be enlarged
+    render_click(view, "zoom_card", %{"card" => "5"})
+    render_click(view, "read_card", %{"card" => "1"})
+    assert :sys.get_state(view.pid).socket.assigns.zoom == nil
+
     # the hover texts work on thumbnails: nothing lies over the card
     refute has_element?(view, "#question-card-0 button.absolute")
 
     # a tap on the text box opens the texts in a readable panel
     view |> element("#question-card-0 .mq-card__texts") |> render_click()
     assert has_element?(view, "#card-text .mq-card-panel__body", "Select 1 monster")
+    assert has_element?(view, "#card-text a[href='https://yugipedia.com']")
     # a click on the panel goes back to the enlarged card
     view |> element("#card-text article") |> render_click()
     refute has_element?(view, "#card-text")

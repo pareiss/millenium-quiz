@@ -377,7 +377,9 @@ defmodule MillenniumQuizWeb.GameLive do
             Enlarge {card.name}
           </button>
         </div>
-        <p :if={card.set} class="mt-1.5 text-xs text-base-content/60">As printed in {card.set}</p>
+        <p :if={card.set} class="mt-1.5 text-center text-xs text-base-content/60">
+          As printed in {card.set}
+        </p>
       </article>
     </div>
     <.card_credit :if={@cards != []} />
@@ -407,6 +409,7 @@ defmodule MillenniumQuizWeb.GameLive do
       on_text="read_card"
       text_value={@index}
     >
+      <.card_credit class="text-center text-white/70" />
       <p class="text-xs text-white/70 text-center">Tap outside the card or press Esc to close.</p>
     </.card_dialog>
     <.card_text_dialog
@@ -416,13 +419,18 @@ defmodule MillenniumQuizWeb.GameLive do
       on_close="close_card"
       on_back="zoom_card"
       back_value={@index}
-    />
+    >
+      <.card_credit class="text-center text-white/70" />
+    </.card_text_dialog>
     """
   end
 
+  attr :class, :any, default: "text-base-content/50"
+
+  # Yugipedia's texts are CC BY-SA: credited wherever card texts are shown.
   defp card_credit(assigns) do
     ~H"""
-    <p class="text-xs text-base-content/50">
+    <p class={["text-xs", @class]}>
       Card texts from
       <a href="https://yugipedia.com" target="_blank" rel="noopener" class="link">Yugipedia</a>
       (CC BY-SA 4.0) and <a
@@ -724,10 +732,17 @@ defmodule MillenniumQuizWeb.GameLive do
     end
   end
 
+  # Only cards of the current question can be enlarged.
   defp zoom(socket, view, index) do
+    question = Game.current_question(socket.assigns.game)
+    cards = if question, do: length(question.cards), else: 0
+
     case Integer.parse(index) do
-      {index, ""} when index >= 0 -> {:noreply, assign(socket, :zoom, {view, index})}
-      _ -> {:noreply, socket}
+      {index, ""} when index in 0..(cards - 1)//1 ->
+        {:noreply, assign(socket, :zoom, {view, index})}
+
+      _ ->
+        {:noreply, socket}
     end
   end
 
