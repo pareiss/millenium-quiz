@@ -6,7 +6,9 @@
 #
 #   bin/review-cleanup
 #
-# bin/review-open-prs runs this first.
+# bin/review-open-prs runs this first. Reviews whose PR state can't be read
+# (gh not logged in, no network, rate limit) are left in place with a warning,
+# and the summary counts them, so "0 archived" never hides a failed check.
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
@@ -14,10 +16,19 @@ cd "$root"
 shopt -s nullglob
 
 moved=0
+unchecked=0
 for file in reviews/pr-*.md; do
   number="$(sed -n 's/^- PR: #\([0-9]*\).*/\1/p' "$file" | head -1)"
-  [[ -n "$number" ]] || continue
-  state="$(gh pr view "$number" --json state --jq .state 2>/dev/null)" || continue
+  if [[ -z "$number" ]]; then
+    echo "review cleanup: skipped $file: no \"- PR: #<number>\" line in its header" >&2
+    unchecked=$((unchecked + 1))
+    continue
+  fi
+  if ! state="$(gh pr view "$number" --json state --jq .state 2>&1)"; then
+    echo "review cleanup: skipped $file: could not read the state of PR #$number: $state" >&2
+    unchecked=$((unchecked + 1))
+    continue
+  fi
   [[ "$state" == OPEN ]] && continue
 
   name="$(basename "$file" .md)"
@@ -31,4 +42,5 @@ for file in reviews/pr-*.md; do
   moved=$((moved + 1))
 done
 
-echo "review cleanup: $moved review(s) of merged or closed PRs archived"
+echo "review cleanup: $moved review(s) of merged or closed PRs archived$(
+  [[ $unchecked -gt 0 ]] && echo ", $unchecked could not be checked (see warnings above)")"
