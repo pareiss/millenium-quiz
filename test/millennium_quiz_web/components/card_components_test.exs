@@ -141,34 +141,46 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(render_card(%{name: "X", rank: 4}), ".mq-card__stars[title='Rank 4']") == 1
   end
 
-  test "long texts are set smaller and, with on_text, open in a panel" do
-    short = render_card(%{name: "X", text: "Draw 2 cards."}, on_text: "read", text_value: 3)
+  test "long texts are set smaller" do
+    short = render_card(%{name: "X", text: "Draw 2 cards."})
     assert count(short, ".mq-card__text") == 1
-    assert count(short, ".mq-text--s, .mq-text--xs, .mq-text--xxs, .is-readable") == 0
-    assert count(short, "[phx-click]") == 0
+    assert count(short, ".mq-text--s, .mq-text--xs, .mq-text--xxs") == 0
 
     # 270 characters: 1.7 times what fits at the normal size
-    text = String.duplicate("Long effect text. ", 15)
-    long = render_card(%{name: "X", text: text}, on_text: "read", text_value: 3)
+    long = render_card(%{name: "X", text: String.duplicate("Long effect text. ", 15)})
+    assert count(long, ".mq-card__text.mq-text--xs") == 1
 
-    assert count(
-             long,
-             ".mq-card__text.mq-text--xs.is-readable[role=button][tabindex='0'][phx-click=read][phx-value-card='3'][phx-keydown=read][phx-key=Enter]"
-           ) == 1
-
-    # without on_text a long text is only smaller
-    plain = render_card(%{name: "X", text: text})
-    assert count(plain, ".mq-card__text.mq-text--xs") == 1
-    assert count(plain, "[phx-click]") == 0
-
-    # a long Pendulum Effect also makes the text readable
     pendulum =
-      render_card(%{name: "X", text: "Short.", pendulum_scale: 4, pendulum_text: text <> text},
-        on_text: "read"
-      )
+      render_card(%{
+        name: "X",
+        text: "Short.",
+        pendulum_scale: 4,
+        pendulum_text: String.duplicate("Long effect text. ", 30)
+      })
 
     assert count(pendulum, ".mq-card__pendulum-text.mq-text--xxs") == 1
-    assert count(pendulum, ".mq-card__text.is-readable") == 1
+  end
+
+  test "with on_text, the text box and the Pendulum box open the texts in a panel" do
+    button =
+      "[role=button][tabindex='0'][phx-click=read][phx-value-card='3'][phx-keydown=read][phx-key=Enter]"
+
+    # every text, however short (Normal Monsters' flavor texts can be long too)
+    short = render_card(%{name: "X", text: "Draw 2 cards."}, on_text: "read", text_value: 3)
+    assert count(short, ".mq-card__text.is-readable#{button}") == 1
+
+    pendulum =
+      render_card(%{name: "X", text: "Short.", pendulum_scale: 4, pendulum_text: "P."},
+        on_text: "read",
+        text_value: 3
+      )
+
+    assert count(pendulum, ".mq-card__pendulum.is-readable#{button}") == 1
+    assert count(pendulum, ".mq-card__text.is-readable#{button}") == 1
+
+    # without on_text nothing is clickable
+    plain = render_card(%{name: "X", text: "Short.", pendulum_scale: 4, pendulum_text: "P."})
+    assert count(plain, "[phx-click], .is-readable") == 0
   end
 
   test "the text panel shows every text of the card in a readable size" do

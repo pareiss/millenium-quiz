@@ -126,7 +126,7 @@
   flex-direction: column;
   gap: 1.2cqw;
   /* name bar, artwork and text box share one width */
-  padding: 3.4cqw 7.5cqw 4.2cqw;
+  padding: 3.4cqw 5cqw 4.2cqw;
   border-radius: 3.2cqw;
   border: 1.8cqw solid #1c1917;
   background:
@@ -256,9 +256,9 @@
 .mq-card__text.mq-text--s   { font-size: 3cqw; }
 .mq-card__text.mq-text--xs  { font-size: 2.6cqw; }
 .mq-card__text.mq-text--xxs { font-size: 2.2cqw; }
-.mq-card__text.is-readable { position: relative; cursor: zoom-in; transition: box-shadow 150ms; }
-.mq-card__text.is-readable:hover,
-.mq-card__text.is-readable:focus-visible { outline: none; box-shadow: 0 0 0 0.8cqw var(--color-primary); }
+.mq-card__face .is-readable { position: relative; cursor: zoom-in; transition: box-shadow 150ms; }
+.mq-card__face .is-readable:hover,
+.mq-card__face .is-readable:focus-visible { outline: none; box-shadow: 0 0 0 0.8cqw var(--color-primary); }
 .mq-card__type { font-weight: 700; }
 .mq-card__body { flex: 1; min-height: 0; overflow: hidden; white-space: pre-line; }
 .mq-card--small .mq-card__body { mask-image: linear-gradient(to bottom, #000 75%, transparent); }

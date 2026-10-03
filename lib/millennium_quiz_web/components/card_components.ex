@@ -33,8 +33,8 @@ defmodule MillenniumQuizWeb.CardComponents do
   The width comes from the caller, e.g. `class="w-44"`.
 
   Long texts are set smaller, like on real cards. With `on_text`, the text
-  box of a long text becomes a button that sends `on_text` (with
-  `phx-value-card={text_value}`) to show it in a bigger panel.
+  box and the Pendulum box become buttons that send `on_text` (with
+  `phx-value-card={text_value}`) to show the texts in a bigger panel.
   """
   attr :card, :map, required: true
   attr :size, :string, default: "small", values: ~w(small large)
@@ -53,7 +53,7 @@ defmodule MillenniumQuizWeb.CardComponents do
       |> assign(:spell_trap?, spell_trap?(card))
       |> assign(:link?, frame(card) == "link")
       |> assign(:arrows, Enum.map(card[:link_arrows] || [], &String.trim(&1, "\uFE0F")))
-      |> assign(:readable?, assigns.on_text != nil and long_text?(card))
+      |> assign(:read, read_attrs(assigns.on_text, assigns.text_value, card.name))
 
     ~H"""
     <div class={["mq-card", "mq-card--#{@size}", @class]} {@rest}>
@@ -101,7 +101,7 @@ defmodule MillenniumQuizWeb.CardComponents do
           />
         </div>
 
-        <div :if={@pendulum?} class="mq-card__pendulum">
+        <div :if={@pendulum?} class={["mq-card__pendulum", @read != %{} && "is-readable"]} {@read}>
           <span class="mq-card__scale mq-card__scale--left" title="Pendulum Scale">
             {@card[:pendulum_scale]}
           </span>
@@ -114,15 +114,8 @@ defmodule MillenniumQuizWeb.CardComponents do
         </div>
 
         <div
-          class={["mq-card__text", text_size(@card.text, 160), @readable? && "is-readable"]}
-          phx-click={@readable? && @on_text}
-          phx-value-card={@readable? && @text_value}
-          phx-keydown={@readable? && @on_text}
-          phx-key={@readable? && "Enter"}
-          role={@readable? && "button"}
-          tabindex={@readable? && "0"}
-          aria-label={@readable? && "Read the full text of #{@card.name}"}
-          title={@readable? && "Read the full text"}
+          class={["mq-card__text", text_size(@card.text, 160), @read != %{} && "is-readable"]}
+          {@read}
         >
           <p :if={@card[:monster_type_line]} class="mq-card__type">[{@card.monster_type_line}]</p>
           <p class="mq-card__body">{@card.text}</p>
@@ -434,8 +427,21 @@ defmodule MillenniumQuizWeb.CardComponents do
     end
   end
 
-  defp long_text?(card),
-    do: text_size(card.text, 160) != nil or text_size(card[:pendulum_text], 90) != nil
+  # Makes an element a button that shows the card's texts in a panel.
+  defp read_attrs(nil, _value, _name), do: %{}
+
+  defp read_attrs(event, value, name) do
+    %{
+      "phx-click" => event,
+      "phx-value-card" => value,
+      "phx-keydown" => event,
+      "phx-key" => "Enter",
+      "role" => "button",
+      "tabindex" => "0",
+      "aria-label" => "Read the texts of #{name}",
+      "title" => "Read the texts"
+    }
+  end
 
   defp stars_label(%{rank: rank}) when is_integer(rank), do: "Rank #{rank}"
   defp stars_label(%{level: level}) when is_integer(level), do: "Level #{level}"
