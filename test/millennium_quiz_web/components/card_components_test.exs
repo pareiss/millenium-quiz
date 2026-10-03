@@ -224,6 +224,10 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert html =~ "[Quick-Play Spell]"
     assert html =~ ~s(title="Quick-Play Spell")
 
+    assert html
+           |> LazyHTML.from_fragment()
+           |> count("header .mq-card-panel__property[title='Quick-Play Spell'] svg") == 1
+
     normal = Map.put(spell, :property, "Normal")
 
     html =
@@ -237,7 +241,37 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     refute html =~ "mq-card-panel__property"
   end
 
-  test "the text panel shows the Level or Rank as a number and a star" do
+  test "with on_back, a click on the text panel goes back" do
+    card = Map.merge(@blank, %{name: "X", text: "Y."})
+
+    without =
+      render_component(&card_text_dialog/1,
+        id: "t",
+        card: card,
+        on_close: "close",
+        inner_block: []
+      )
+
+    assert without |> LazyHTML.from_fragment() |> count("article[phx-click], #t-back") == 0
+
+    doc =
+      render_component(&card_text_dialog/1,
+        id: "t",
+        card: card,
+        on_close: "close",
+        on_back: "zoom",
+        back_value: 2,
+        inner_block: []
+      )
+      |> LazyHTML.from_fragment()
+
+    assert count(doc, "article[phx-click=zoom][phx-value-card='2']") == 1
+    assert count(doc, "#t-back[phx-click=zoom][phx-value-card='2']") == 1
+    # closing still closes
+    assert count(doc, "#t-close[phx-click=close]") == 1
+  end
+
+  test "the text panel's header shows the Level or Rank as a number and a star" do
     panel = fn attrs ->
       card =
         Map.merge(
@@ -255,7 +289,7 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     end
 
     seven = panel.(%{level: 7})
-    assert count(seven, ".mq-card-panel__stars[title='Level 7'] svg") == 1
+    assert count(seven, "header .mq-card-panel__stars[title='Level 7'] svg") == 1
     assert text(seven, ".mq-card-panel__stars span:not(.sr-only)") == "7"
 
     # a single star or Rank has no number

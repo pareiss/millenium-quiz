@@ -180,8 +180,19 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     # the event is sent directly)
     render_click(view, "read_card", %{"card" => "0"})
     assert has_element?(view, "#card-text .mq-card-panel__body", "Select 1 monster")
+    # a click on the panel goes back to the enlarged card
+    view |> element("#card-text article") |> render_click()
+    refute has_element?(view, "#card-text")
+    assert has_element?(view, "#card-zoom .mq-card--large", "Monster Reborn")
+
+    render_click(view, "read_card", %{"card" => "0"})
+    view |> element("#card-text-back") |> render_click()
+    assert has_element?(view, "#card-zoom")
+
+    render_click(view, "read_card", %{"card" => "0"})
     view |> element("#card-text-close") |> render_click()
     refute has_element?(view, "#card-text")
+    refute has_element?(view, "#card-zoom")
 
     # it is closed by the next answer, and comes back on the reveal
     view |> element("#zoom-card-0") |> render_click()

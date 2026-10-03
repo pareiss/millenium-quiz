@@ -414,6 +414,8 @@ defmodule MillenniumQuizWeb.GameLive do
       id="card-text"
       card={@card}
       on_close="close_card"
+      on_back="zoom_card"
+      back_value={@index}
     />
     """
   end

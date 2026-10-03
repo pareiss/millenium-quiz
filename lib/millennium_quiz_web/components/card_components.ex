@@ -188,10 +188,15 @@ defmodule MillenniumQuizWeb.CardComponents do
   @doc """
   The texts of a card in a readable panel: name, type line, Pendulum Effect,
   text and stats. Esc, the backdrop and the close button send `on_close`.
+
+  With `on_back`, a click on the panel sends `on_back` (with
+  `phx-value-card={back_value}`), e.g. to go back to the enlarged card.
   """
   attr :id, :string, required: true
   attr :card, :map, required: true
   attr :on_close, :string, required: true
+  attr :on_back, :string, default: nil
+  attr :back_value, :any, default: nil
   slot :inner_block, doc: "shown below the text, e.g. credits"
 
   def card_text_dialog(assigns) do
@@ -210,9 +215,26 @@ defmodule MillenniumQuizWeb.CardComponents do
     >
       <div class="fixed inset-0 bg-black/65 backdrop-blur-sm" phx-click={@on_close} />
       <article
-        class="mq-card-panel relative w-[min(36rem,100%)] reveal-pop"
+        class={[
+          "mq-card-panel relative w-[min(36rem,100%)] reveal-pop",
+          @on_back && "cursor-zoom-out"
+        ]}
         data-frame={frame(@card)}
+        phx-click={@on_back}
+        phx-value-card={@on_back && @back_value}
+        title={@on_back && "Back to the card"}
       >
+        <%!-- For keyboards; mice can click anywhere on the panel --%>
+        <button
+          :if={@on_back}
+          type="button"
+          id={"#{@id}-back"}
+          phx-click={@on_back}
+          phx-value-card={@back_value}
+          class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:-top-2 focus-visible:left-2 focus-visible:z-10 focus-visible:rounded-field focus-visible:bg-primary focus-visible:px-2 focus-visible:py-1 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-primary-content"
+        >
+          Back to the card
+        </button>
         <button
           type="button"
           id={"#{@id}-close"}
@@ -224,6 +246,20 @@ defmodule MillenniumQuizWeb.CardComponents do
         </button>
         <header class="mq-card-panel__name">
           <h2 id={"#{@id}-title"}>{@card.name}</h2>
+          <p :if={stars_label(@card)} class="mq-card-panel__stars" title={stars_label(@card)}>
+            <span :if={(@card[:level] || @card[:rank]) != 1}>{@card[:level] || @card[:rank]}</span>
+            <.level_star rank={not is_nil(@card[:rank])} class="size-7" />
+            <span class="sr-only">{stars_label(@card)}</span>
+          </p>
+          <span
+            :if={kind(@card) in ["Spell", "Trap"] and @card[:property] not in [nil, "Normal"]}
+            class="mq-card-panel__property"
+            title={"#{@card.property} #{kind(@card)}"}
+          ><.property_icon
+            property={@card.property}
+            label={"#{@card.property} #{kind(@card)}"}
+            class="size-7"
+          /></span>
           <.attribute_icon
             :if={@card[:attribute]}
             attribute={@card.attribute}
@@ -236,29 +272,9 @@ defmodule MillenniumQuizWeb.CardComponents do
           />
         </header>
         <div class="mq-card-panel__body">
-          <div :if={@card[:monster_type_line]} class="mq-card-panel__type">
-            <p>[{@card.monster_type_line}]</p>
-            <p :if={stars_label(@card)} class="mq-card-panel__stars" title={stars_label(@card)}>
-              <span :if={(@card[:level] || @card[:rank]) != 1}>{@card[:level] || @card[:rank]}</span>
-              <.level_star rank={not is_nil(@card[:rank])} class="size-6" />
-              <span class="sr-only">{stars_label(@card)}</span>
-            </p>
-          </div>
-          <p :if={kind(@card) in ["Spell", "Trap"]} class="mq-card-panel__type">
-            <span>
-              [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(
-                @card
-              )}]
-            </span>
-            <span
-              :if={@card[:property] not in [nil, "Normal"]}
-              class="mq-card-panel__property"
-              title={"#{@card.property} #{kind(@card)}"}
-            ><.property_icon
-              property={@card.property}
-              label={"#{@card.property} #{kind(@card)}"}
-              class="size-6"
-            /></span>
+          <p :if={@card[:monster_type_line]} class="font-bold">[{@card.monster_type_line}]</p>
+          <p :if={kind(@card) in ["Spell", "Trap"]} class="font-bold">
+            [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(@card)}]
           </p>
           <section :if={@card[:pendulum_text]} class="mq-card-panel__pendulum">
             <h3>Pendulum Effect · Scale {@card[:pendulum_scale]}</h3>
