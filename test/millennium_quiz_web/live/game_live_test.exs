@@ -496,6 +496,101 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     end
   end
 
+  describe "turn lock" do
+    setup do
+      Application.put_env(:millennium_quiz, :turn_lock_ms, 60_000)
+      on_exit(fn -> Application.put_env(:millennium_quiz, :turn_lock_ms, 0) end)
+    end
+
+    defp turn_key(view), do: :sys.get_state(view.pid).socket.assigns.turn_key
+
+    defp unlock(view), do: send(view.pid, {:unlock_turn, turn_key(view)})
+
+    defp answering_game(conn, format) do
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :free)
+      {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+      # mounting never locks
+      view |> element("#question-0") |> render_click()
+      {id, view}
+    end
+
+    test "answers are ignored right after a turn starts, then work", %{conn: conn, format: format} do
+      {id, view} = answering_game(conn, format)
+
+      assert has_element?(view, "#choice-0[disabled]")
+      render_click(view, "answer", %{"choice" => "0"})
+      assert {:ok, %{game: %{answered: 0}}} = Games.fetch_game(id)
+      assert has_element?(view, "#answer-progress", "1/2")
+
+      unlock(view)
+      refute has_element?(view, "#choice-0[disabled]")
+      view |> element("#choice-0") |> render_click()
+      assert {:ok, %{game: %{answered: 1}}} = Games.fetch_game(id)
+    end
+
+    test "the next player's turn locks again", %{conn: conn, format: format} do
+      {id, view} = answering_game(conn, format)
+      unlock(view)
+      view |> element("#choice-0") |> render_click()
+
+      assert has_element?(view, "#answer-progress", "2/2")
+      assert has_element?(view, "#choice-0[disabled]")
+      render_click(view, "answer", %{"choice" => "1"})
+      assert {:ok, %{game: %{answered: 1}}} = Games.fetch_game(id)
+    end
+
+    test "a stale unlock does not unlock a newer turn", %{conn: conn, format: format} do
+      {_id, view} = answering_game(conn, format)
+      stale = turn_key(view)
+      unlock(view)
+      view |> element("#choice-0") |> render_click()
+
+      send(view.pid, {:unlock_turn, stale})
+      assert has_element?(view, "#choice-0[disabled]")
+    end
+
+    test "the reveal and the board lock too", %{conn: conn, format: format} do
+      {id, view} = answering_game(conn, format)
+      unlock(view)
+      view |> element("#choice-0") |> render_click()
+      unlock(view)
+      view |> element("#choice-1") |> render_click()
+
+      assert has_element?(view, "#next-round[disabled]")
+      render_click(view, "next_round", %{})
+      assert {:ok, %{game: %{phase: :revealed}}} = Games.fetch_game(id)
+
+      unlock(view)
+      view |> element("#next-round") |> render_click()
+      assert has_element?(view, "#question-1[disabled]")
+      render_click(view, "choose", %{"question" => "1"})
+      assert {:ok, %{game: %{phase: :choosing}}} = Games.fetch_game(id)
+    end
+
+    test "a game mounted mid-turn is usable at once", %{conn: conn, format: format} do
+      {id, _view} = answering_game(conn, format)
+      {:ok, other, _html} = live(build_conn(), ~p"/games/#{id}")
+
+      refute has_element?(other, "#choice-0[disabled]")
+      other |> element("#choice-0") |> render_click()
+      assert {:ok, %{game: %{answered: 1}}} = Games.fetch_game(id)
+    end
+
+    test "pause, zoom and ending still work while locked", %{conn: conn, format: format} do
+      {_id, view} = answering_game(conn, format)
+
+      view |> element("#end-game") |> render_click()
+      assert has_element?(view, "#end-game-modal")
+      view |> element("#cancel-end") |> render_click()
+
+      render_click(view, "zoom_card", %{"card" => "0"})
+      view |> element("#pause-game") |> render_click()
+      assert has_element?(view, "#paused")
+      view |> element("#resume-game") |> render_click()
+      assert has_element?(view, "#choice-0[disabled]")
+    end
+  end
+
   test "unknown games redirect home", %{conn: conn} do
     assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/games/#{Ecto.UUID.generate()}")
   end

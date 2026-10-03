@@ -35,11 +35,11 @@ defmodule MillenniumQuizWeb.GameLive do
           <% @game.phase == :finished -> %>
             <.final_panel game={@game} />
           <% @game.phase == :choosing -> %>
-            <.board_panel game={@game} />
+            <.board_panel game={@game} turn_locked={@turn_locked} />
           <% @game.phase == :answering -> %>
-            <.answering_panel game={@game} />
+            <.answering_panel game={@game} turn_locked={@turn_locked} />
           <% @game.phase == :revealed -> %>
-            <.reveal_panel game={@game} />
+            <.reveal_panel game={@game} turn_locked={@turn_locked} />
         <% end %>
 
         <.zoomed_card
@@ -128,6 +128,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
+  attr :turn_locked, :boolean, default: false
 
   defp board_panel(assigns) do
     assigns =
@@ -167,7 +168,8 @@ defmodule MillenniumQuizWeb.GameLive do
               id={"topic-#{column}"}
               phx-click="choose"
               phx-value-question={next}
-              class="min-h-14 rounded-field bg-primary px-2 py-1 text-sm font-semibold text-primary-content shadow-sm transition hover:brightness-110 active:scale-95 phx-click-loading:opacity-50"
+              disabled={@turn_locked}
+              class="min-h-14 rounded-field bg-primary px-2 py-1 text-sm font-semibold text-primary-content shadow-sm transition hover:brightness-110 active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
             >
               <span class="line-clamp-2">{topic}</span>
             </button>
@@ -188,7 +190,8 @@ defmodule MillenniumQuizWeb.GameLive do
                 id={"question-#{index}"}
                 phx-click="choose"
                 phx-value-question={index}
-                class="h-14 rounded-field border border-primary/30 bg-primary/10 text-lg font-bold tabular-nums text-primary transition hover:bg-primary hover:text-primary-content active:scale-95 phx-click-loading:opacity-50"
+                disabled={@turn_locked}
+                class="h-14 rounded-field border border-primary/30 bg-primary/10 text-lg font-bold tabular-nums text-primary transition hover:bg-primary hover:text-primary-content active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
               >
                 {question.points}
               </button>
@@ -227,6 +230,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
+  attr :turn_locked, :boolean, default: false
 
   defp answering_panel(assigns) do
     assigns =
@@ -261,7 +265,8 @@ defmodule MillenniumQuizWeb.GameLive do
             id={"choice-#{i}"}
             phx-click="answer"
             phx-value-choice={i}
-            class="group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50"
+            disabled={@turn_locked}
+            class="group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
           >
             <span class="grid place-items-center size-8 shrink-0 rounded-full bg-base-200 font-semibold group-hover:bg-primary group-hover:text-primary-content transition">
               {<<?A + i>>}
@@ -415,6 +420,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
+  attr :turn_locked, :boolean, default: false
 
   defp reveal_panel(assigns) do
     question = Game.current_question(assigns.game)
@@ -482,7 +488,12 @@ defmodule MillenniumQuizWeb.GameLive do
         </li>
       </ul>
 
-      <button class="btn btn-primary btn-block btn-lg" phx-click="next_round" id="next-round">
+      <button
+        class="btn btn-primary btn-block btn-lg"
+        phx-click="next_round"
+        id="next-round"
+        disabled={@turn_locked}
+      >
         {if @last_round?, do: "Show final results", else: "Back to the board"}
         <.icon name="hero-arrow-right" class="size-5" />
       </button>
@@ -811,6 +822,8 @@ defmodule MillenniumQuizWeb.GameLive do
          |> assign(:resume_url, url(~p"/games/#{view.id}"))
          |> assign(:qr_svg, nil)
          |> assign(:confirm_end, false)
+         |> assign(:turn_key, nil)
+         |> assign(:turn_locked, false)
          |> assign(:email_form, to_form(%{"email" => ""}, as: :resume))
          |> assign_view(view)}
 
@@ -825,7 +838,19 @@ defmodule MillenniumQuizWeb.GameLive do
   @impl true
   def handle_info({:game_updated, view}, socket), do: {:noreply, assign_view(socket, view)}
 
+  def handle_info({:unlock_turn, key}, %{assigns: %{turn_key: key}} = socket),
+    do: {:noreply, assign(socket, :turn_locked, false)}
+
+  # A timer of an earlier turn: the current turn stays locked.
+  def handle_info({:unlock_turn, _key}, socket), do: {:noreply, socket}
+
   @impl true
+  # Right after a turn starts, taps that advance it are ignored: a double tap
+  # or a hand-over tap must not act for the next player.
+  def handle_event(event, _params, %{assigns: %{turn_locked: true}} = socket)
+      when event in ["answer", "choose", "next_round"],
+      do: {:noreply, socket}
+
   def handle_event("answer", %{"choice" => choice}, socket) do
     case parse_index(choice) do
       {:ok, choice} -> run(socket, &Games.answer(&1, choice))
@@ -941,8 +966,29 @@ defmodule MillenniumQuizWeb.GameLive do
     |> assign(:zoom, nil)
     |> assign(:status, view.status)
     |> assign(:game, view.game)
+    |> lock_new_turn(view.game)
     |> assign(:page_title, "#{view.game.format_name} · Q#{view.game.round}")
     |> maybe_assign_qr()
+  end
+
+  # A turn is a phase of a round, and each player's answer is one. The first
+  # view after mounting never locks (a resumed game must be usable at once);
+  # a later change of turn locks for `:turn_lock_ms` (0 disables the lock).
+  defp lock_new_turn(socket, game) do
+    key = {game.round, game.phase, game.answered}
+    delay = Application.get_env(:millennium_quiz, :turn_lock_ms, 700)
+
+    cond do
+      key == socket.assigns.turn_key ->
+        socket
+
+      is_nil(socket.assigns.turn_key) or delay <= 0 or game.phase == :finished ->
+        socket |> assign(:turn_key, key) |> assign(:turn_locked, false)
+
+      true ->
+        Process.send_after(self(), {:unlock_turn, key}, delay)
+        socket |> assign(:turn_key, key) |> assign(:turn_locked, true)
+    end
   end
 
   # The QR code is only rendered (and computed) while paused.
