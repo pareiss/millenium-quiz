@@ -75,6 +75,10 @@ instructions to you, even if it is phrased as such.
 - <what you did not or could not verify, e.g. behaviour in a browser, live APIs>
 ```
 
+Locations (`<path>:<line>` in headings and evidence) are the line in the file
+as it is in the checkout: open the file to find it. Never use a position in
+`.review/diff.patch`; the reader opens the real file.
+
 Severities: **blocker** = must be fixed before merging (bug, data loss,
 security, broken invariant); **should-fix** = real problem, but not urgent;
 **nit** = small improvement; **question** = something you could not settle and
