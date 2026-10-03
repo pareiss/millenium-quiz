@@ -261,11 +261,12 @@
 .mq-card__arrow {
   /* the base lies just inside the artwork's 1.2cqw border, so the border
      is covered under the whole base and the arrow points out from there */
-  --edge: 1.95cqw;
-  --corner: -0.9cqw;
+  --edge: 0.6cqw;
+  --corner: -0.5cqw;
   position: absolute;
+  /* tips end at the gap to the text box (1.2cqw border + 1.2cqw gap) */
   width: 11cqw;
-  height: 4.5cqw;
+  height: 3.6cqw;
   overflow: visible;
   filter: drop-shadow(0 0 0.3cqw rgb(0 0 0 / 0.7));
   transform: translate(-50%, -50%) rotate(var(--turn));
