@@ -274,7 +274,7 @@
 .mq-card__pendulum-text.mq-text--xxs { font-size: 2cqw; }
 .mq-card__scale { display: grid; place-items: center; font-size: 4.6cqw; font-weight: 800; line-height: 1; }
 /* the blue (left) and red (right) diamond above each scale */
-.mq-card__gem { width: 5cqw; height: 5cqw; margin-bottom: 0.4cqw; }
+.mq-card__gem { width: 6cqw; height: 5cqw; margin-bottom: 0.4cqw; }
 
 /* The Pendulum box and the text box: one clickable area. */
 .mq-card__texts {

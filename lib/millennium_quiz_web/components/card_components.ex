@@ -105,8 +105,9 @@ defmodule MillenniumQuizWeb.CardComponents do
         <div class={["mq-card__texts", @read != %{} && "is-readable"]} {@read}>
           <div :if={@pendulum?} class="mq-card__pendulum">
             <span class="mq-card__scale mq-card__scale--left" title="Pendulum Scale">
-              <svg viewBox="0 0 10 10" class="mq-card__gem" aria-hidden="true">
-                <path d="M5 0 10 5 5 10 0 5z" fill="#2563eb" />
+              <svg viewBox="0 0 12 10" class="mq-card__gem" aria-hidden="true">
+                <%!-- the outer corner reaches further out, like on real cards --%>
+                <path d="M0 5 7 0.5 10 5 7 9.5z" fill="#2563eb" />
               </svg>
               {@card[:pendulum_scale]}
             </span>
@@ -114,8 +115,9 @@ defmodule MillenniumQuizWeb.CardComponents do
               {@card[:pendulum_text]}
             </p>
             <span class="mq-card__scale mq-card__scale--right" title="Pendulum Scale">
-              <svg viewBox="0 0 10 10" class="mq-card__gem" aria-hidden="true">
-                <path d="M5 0 10 5 5 10 0 5z" fill="#dc2626" />
+              <svg viewBox="0 0 12 10" class="mq-card__gem" aria-hidden="true">
+                <%!-- the outer corner reaches further out, like on real cards --%>
+                <path d="M12 5 5 0.5 2 5 5 9.5z" fill="#dc2626" />
               </svg>
               {@card[:pendulum_scale]}
             </span>
