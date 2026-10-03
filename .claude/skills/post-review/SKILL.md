@@ -10,7 +10,12 @@ Post a review to GitHub only because the user ran this command. This is the
 only step that publishes anything.
 
 1. Find the review: the file given as second argument, or else the newest
-   `reviews/pr-<number>-*.md`. If none exists, say so and stop.
+   review of the PR's branch. Get the branch with
+   `gh pr view <number> --json headRefName --jq .headRefName`, replace `/` and
+   other characters that are not letters, digits, `.`, `_` or `-` with `-`, and
+   take the newest `reviews/pr-<branch>-<7-character sha>-<model>.md`. Check the
+   `- PR: #<number>` line in the file's header. If no review exists, say so and
+   stop.
 2. Read the findings. A finding counts as:
    - **valid** when its verdict line has `[x] valid`;
    - **wrong** when it has `[x] wrong`;

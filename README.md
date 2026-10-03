@@ -106,7 +106,7 @@ which the change was written, so it doesn't inherit the author's assumptions.
 It runs on a different model than the one that writes the code.
 
 ```sh
-bin/review-pr 12           # one PR -> reviews/pr-12-<sha>-sonnet.md
+bin/review-pr 12           # one PR -> reviews/pr-<branch>-<sha>-sonnet.md
 bin/review-open-prs        # every open PR, one process each, 3 at a time
 REVIEW_MODEL=opus bin/review-pr 12 --force   # another model, review again
 ```

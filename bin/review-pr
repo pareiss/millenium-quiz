@@ -11,7 +11,8 @@
 # saved session. Knowledge about the project comes from REVIEWING.md, README.md
 # and AGENTS.md in the repository.
 #
-# Output: reviews/pr-<number>-<short head sha>-<model>.md
+# Output: reviews/pr-<branch>-<short head sha>-<model>.md (the branch name with
+# characters other than letters, digits, ".", "_" and "-" replaced by "-").
 # Exit codes: 0 reviewed, 3 skipped (this commit was already reviewed), 1 failed.
 # Environment: REVIEW_MODEL (default: the model in the agent file).
 set -euo pipefail
@@ -43,14 +44,15 @@ for tool in gh claude git; do
   command -v "$tool" >/dev/null || { echo "review-pr: $tool not found" >&2; exit 1; }
 done
 
-pr=$(gh pr view "$number" --json number,title,headRefOid,baseRefOid,isDraft,url \
-  --jq '[.headRefOid, .baseRefOid, (.isDraft|tostring), .url, .title] | join("\t")') ||
+pr=$(gh pr view "$number" --json number,title,headRefOid,baseRefOid,headRefName,isDraft,url \
+  --jq '[.headRefOid, .baseRefOid, .headRefName, (.isDraft|tostring), .url, .title] | join("\t")') ||
   { echo "review-pr: PR #$number not found" >&2; exit 1; }
-IFS=$'\t' read -r head base draft url title <<<"$pr"
+IFS=$'\t' read -r head base branch draft url title <<<"$pr"
 
 short="${head:0:7}"
+slug="$(printf '%s' "$branch" | sed 's/[^A-Za-z0-9._-]/-/g')"
 mkdir -p reviews
-out="reviews/pr-${number}-${short}-${model}.md"
+out="reviews/pr-${slug}-${short}-${model}.md"
 
 if [[ -e "$out" && "$force" != true ]]; then
   echo "skipped: PR #$number at $short already reviewed ($out); use --force to review again"
@@ -63,7 +65,7 @@ if ! git cat-file -e "${head}^{commit}" 2>/dev/null || ! git cat-file -e "${base
     "$(gh pr view "$number" --json baseRefName --jq .baseRefName)"
 fi
 
-worktree=".claude/worktrees/pr-${number}-$$"
+worktree=".claude/worktrees/pr-${slug}-$$"
 tmp="$(mktemp)"
 cleanup() {
   git worktree remove --force "$worktree" >/dev/null 2>&1 || true
@@ -95,7 +97,8 @@ fi
 {
   echo "# Review of PR #${number}: ${title}"
   echo
-  echo "- PR: ${url}$([[ "$draft" == true ]] && echo " (draft)")"
+  echo "- PR: #${number} ${url}$([[ "$draft" == true ]] && echo " (draft)")"
+  echo "- Branch: \`${branch}\`"
   echo "- Base: \`${base}\`"
   echo "- Head: \`${head}\`"
   echo "- Reviewer: ${model} (bin/review-pr, isolated process)"

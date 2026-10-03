@@ -16,7 +16,8 @@ The reviews must stay independent of this session:
 
 When it is done, show the summary table the script printed. For each review
 file, quote the first sentence of its "## Summary" section. For a failed PR,
-show the last lines of `reviews/logs/pr-<number>.log`.
+show the last lines of its log, `reviews/logs/pr-<branch>.log` (the branch
+name with `/` and other special characters replaced by `-`).
 
 Do not judge, fix or post the findings. The user evaluates them in the files
 and can then run `/post-review <number>`.

@@ -5,7 +5,7 @@
 #   bin/review-open-prs [--force] [--jobs N]
 #
 # PRs whose head commit already has a review are skipped unless --force.
-# Logs of each run: reviews/logs/pr-<number>.log
+# Logs of each run: reviews/logs/pr-<branch>.log
 set -euo pipefail
 
 jobs=3
@@ -22,7 +22,13 @@ root="$(git rev-parse --show-toplevel)"
 cd "$root"
 mkdir -p reviews/logs
 
-mapfile -t numbers < <(gh pr list --state open --limit 100 --json number --jq '.[].number' | sort -n)
+declare -A slug=()
+numbers=()
+while IFS=$'\t' read -r n branch; do
+  numbers+=("$n")
+  slug[$n]="$(printf '%s' "$branch" | sed 's/[^A-Za-z0-9._-]/-/g')"
+done < <(gh pr list --state open --limit 100 --json number,headRefName \
+  --jq '.[] | "\(.number)\t\(.headRefName)"' | sort -n)
 if [[ ${#numbers[@]} -eq 0 ]]; then
   echo "no open pull requests"
   exit 0
@@ -37,7 +43,7 @@ status_dir="$(mktemp -d)"
 trap 'rm -rf "$status_dir"' EXIT
 
 run() {
-  local n="$1" log="reviews/logs/pr-$1.log" code=0
+  local n="$1" log="reviews/logs/pr-${slug[$1]}.log" code=0
   bin/review-pr "$n" "${force[@]}" >"$log" 2>&1 || code=$?
   echo "$code" >"$status_dir/$n"
   case "$code" in
@@ -58,7 +64,8 @@ printf '%-5s %-9s %-8s %-10s %-4s %-8s %s\n' PR status blocker should-fix nit qu
 failed=0
 for n in "${numbers[@]}"; do
   code="$(cat "$status_dir/$n" 2>/dev/null || echo 1)"
-  file="$(ls -t reviews/pr-"$n"-*.md 2>/dev/null | head -1 || true)"
+  # pr-<branch>-<7 hex>-<model>.md, so "card-pool" doesn't match "card-pool-v2"
+  file="$(ls -t reviews/pr-"${slug[$n]}"-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.md 2>/dev/null | head -1 || true)"
   case "$code" in
     0) status=reviewed ;;
     3) status=skipped ;;
