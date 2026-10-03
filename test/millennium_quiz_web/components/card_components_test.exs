@@ -326,8 +326,9 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
       link
       |> LazyHTML.query(".mq-link-arrow polygon")
       |> Enum.map(&(LazyHTML.attribute(&1, "transform") |> hd()))
+      |> Enum.map(&(Regex.run(~r/rotate\((\d+) /, &1) |> List.last()))
 
-    assert turns == ["rotate(225 12 12)", "rotate(0 12 12)", "rotate(135 12 12)"]
+    assert turns == ["225", "0", "135"]
   end
 
   test "a card from an old snapshot gets a plain frame and no artwork" do

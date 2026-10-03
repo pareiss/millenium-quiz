@@ -376,10 +376,11 @@ defmodule MillenniumQuizWeb.CardComponents do
   def link_arrow(assigns) do
     ~H"""
     <svg viewBox="0 0 24 24" class={["mq-link-arrow", @class]} aria-hidden="true">
-      <%!-- the same triangle as the arrows on the card --%>
+      <%!-- the same triangle as the arrows on the card; each turned arrow is
+           moved so its outline is centred, putting all of them on one line --%>
       <polygon
-        points="12,7.2 22.8,16.8 1.2,16.8"
-        transform={"rotate(#{arrow_turn(@position)} 12 12)"}
+        points="12,5.6 22.8,15.2 1.2,15.2"
+        transform={"#{arrow_centring(@position)} rotate(#{arrow_turn(@position)} 12 12)"}
       />
     </svg>
     """
@@ -507,6 +508,20 @@ defmodule MillenniumQuizWeb.CardComponents do
       "bottom-left" => 225,
       "left" => 270,
       "top-left" => 315
+    }[position]
+  end
+
+  # Moves a turned panel arrow so its outline is centred in the icon.
+  defp arrow_centring(position) do
+    %{
+      "top" => "translate(0.0 1.6)",
+      "top-right" => "translate(2.26 -2.26)",
+      "right" => "translate(-1.6 0.0)",
+      "bottom-right" => "translate(2.26 2.26)",
+      "bottom" => "translate(0.0 -1.6)",
+      "bottom-left" => "translate(-2.26 2.26)",
+      "left" => "translate(1.6 0.0)",
+      "top-left" => "translate(-2.26 -2.26)"
     }[position]
   end
 
