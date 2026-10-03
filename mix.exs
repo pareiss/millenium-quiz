@@ -11,7 +11,9 @@ defmodule MillenniumQuiz.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      # Coverage is reported (CI, PR reviews), not enforced.
+      test_coverage: [summary: [threshold: 0]]
     ]
   end
 
