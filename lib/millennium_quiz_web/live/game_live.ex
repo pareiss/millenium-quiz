@@ -9,6 +9,7 @@ defmodule MillenniumQuizWeb.GameLive do
   import MillenniumQuizWeb.CardComponents
 
   alias MillenniumQuiz.{Game, Games, GameNotifier}
+  alias MillenniumQuiz.Quiz.CardLinks
 
   @impl true
   def render(assigns) do
@@ -250,7 +251,7 @@ defmodule MillenniumQuizWeb.GameLive do
       <div class="p-5 sm:p-6 space-y-5">
         <.question_meta question={@question} />
         <p class="text-xl sm:text-2xl font-semibold leading-snug" id="question-text">
-          {@question.text}
+          <.question_text question={@question} />
         </p>
         <.question_cards cards={@question.cards} />
         <div class="grid gap-3 sm:grid-cols-2">
@@ -275,6 +276,31 @@ defmodule MillenniumQuizWeb.GameLive do
     """
   end
 
+  @doc """
+  The segments of a question's text: `{:text, binary}` and
+  `{:card, name, index}`, where `index` is the position in `question.cards`
+  (the `phx-value-card` of the `zoom_card` event). Resolved against the
+  question as snapshotted in the game, never against the database.
+  """
+  @spec question_segments(map) :: [CardLinks.segment()]
+  def question_segments(%{text: text, cards: cards}), do: CardLinks.parse(text, cards)
+
+  attr :question, :map, required: true
+
+  defp question_text(assigns) do
+    ~H"""
+    <span :for={seg <- question_segments(@question)} data-card-index={card_index(seg)}>{segment_text(
+      seg
+    )}</span>
+    """
+  end
+
+  defp card_index({:card, _name, index}), do: index
+  defp card_index({:text, _text}), do: nil
+
+  defp segment_text({:text, text}), do: text
+  defp segment_text({:card, name, _index}), do: "[#{name}]"
+
   attr :game, Game, required: true
 
   defp reveal_panel(assigns) do
@@ -292,7 +318,9 @@ defmodule MillenniumQuizWeb.GameLive do
       id="reveal"
     >
       <.question_meta question={@question} />
-      <p class="text-xl font-semibold leading-snug">{@question.text}</p>
+      <p class="text-xl font-semibold leading-snug" id="question-text">
+        <.question_text question={@question} />
+      </p>
       <.question_cards cards={@question.cards} />
       <p class="text-sm text-base-content/60">Chosen by {@chooser.name}</p>
 

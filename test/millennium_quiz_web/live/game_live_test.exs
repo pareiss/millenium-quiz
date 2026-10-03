@@ -241,6 +241,88 @@ defmodule MillenniumQuizWeb.GameLiveTest do
            )
   end
 
+  describe "card links in the question text" do
+    @text "Use [Monster Reborn] then [Plain Card] and [Unknown]"
+
+    defp start_with_text(conn, text, card_ids) do
+      format = format_fixture(%{"date" => "2020-01-01"})
+
+      questions =
+        for topic <- format.topics do
+          {:ok, q} =
+            Quiz.create_question(
+              topic,
+              %{"text" => text, "choices" => choices_params()},
+              card_ids
+            )
+
+          q
+        end
+
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+      view |> element("#question-0") |> render_click()
+      {view, id, questions}
+    end
+
+    defp snapshot_question(view),
+      do: MillenniumQuiz.Game.current_question(:sys.get_state(view.pid).socket.assigns.game)
+
+    test "resolve against the snapshot in both views", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {:ok, plain} = Cards.import(11_111_111)
+      {view, _id, _qs} = start_with_text(conn, @text, [reborn.id, plain.id])
+
+      assert [
+               {:text, "Use "},
+               {:card, "Monster Reborn", 0},
+               {:text, " then "},
+               {:card, "Plain Card", 1},
+               {:text, " and [Unknown]"}
+             ] =
+               MillenniumQuizWeb.GameLive.question_segments(snapshot_question(view))
+
+      assert has_element?(view, "#question-text", @text)
+      assert has_element?(view, "#question-text [data-card-index=\"0\"]", "Monster Reborn")
+      assert has_element?(view, "#question-text [data-card-index=\"1\"]", "Plain Card")
+      refute has_element?(view, "#question-text [data-card-index=\"2\"]")
+
+      view |> element("#choice-0") |> render_click()
+      view |> element("#choice-0") |> render_click()
+      assert has_element?(view, "#reveal #question-text", @text)
+      assert has_element?(view, "#reveal #question-text [data-card-index=\"1\"]", "Plain Card")
+    end
+
+    test "plain texts render unchanged", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {view, _id, _qs} = start_with_text(conn, "Who? [sic]", [reborn.id])
+
+      assert [{:text, "Who? [sic]"}] =
+               MillenniumQuizWeb.GameLive.question_segments(snapshot_question(view))
+
+      assert has_element?(view, "#question-text", "Who? [sic]")
+      refute has_element?(view, "#question-text [data-card-index]")
+    end
+
+    test "a running game keeps its markup when the question changes", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {:ok, plain} = Cards.import(11_111_111)
+      {view, id, [q | _]} = start_with_text(conn, @text, [reborn.id, plain.id])
+
+      {:ok, _} = Quiz.update_question(q, %{"text" => "Changed"}, [plain.id])
+      {:ok, _} = Quiz.update_question(Quiz.get_question!(q.id), %{"text" => "Again"}, [])
+
+      {:ok, view2, _html} = live(conn, ~p"/games/#{id}")
+      assert has_element?(view2, "#question-text [data-card-index=\"0\"]", "Monster Reborn")
+      assert has_element?(view2, "#question-text [data-card-index=\"1\"]", "Plain Card")
+      assert has_element?(view2, "#question-text", @text)
+      assert [_, _] = snapshot_question(view).cards
+    end
+  end
+
   describe "cycle_card" do
     defp zoom_of(view), do: :sys.get_state(view.pid).socket.assigns.zoom
 
