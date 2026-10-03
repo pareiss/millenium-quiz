@@ -114,7 +114,7 @@ defmodule MillenniumQuizWeb.CardComponents do
               <.scale_gem side="left" class="mq-card__gem" />
               {@card[:pendulum_scale]}
             </span>
-            <p class={["mq-card__pendulum-text", text_size(@card[:pendulum_text], 90)]}>
+            <p class={["mq-card__pendulum-text", text_size(@card[:pendulum_text], 150)]}>
               {@card[:pendulum_text]}
             </p>
             <span class="mq-card__scale mq-card__scale--right" title="Pendulum Scale">
@@ -124,7 +124,9 @@ defmodule MillenniumQuizWeb.CardComponents do
           </div>
 
           <div class={["mq-card__text", text_size(@card.text, 160)]}>
-            <p :if={@card[:monster_type_line]} class="mq-card__type">[{@card.monster_type_line}]</p>
+            <p :if={@card[:monster_type_line]} class="mq-card__type">
+              [{type_line(@card.monster_type_line)}]
+            </p>
             <p class="mq-card__body">{@card.text}</p>
             <p :if={@card[:atk]} class="mq-card__stats">
               <span>ATK/{@card.atk}</span>
@@ -383,6 +385,11 @@ defmodule MillenniumQuizWeb.CardComponents do
           <stop offset="0.65" stop-color="#cc1a2e" stop-opacity="0.9" />
           <stop offset="1" stop-color="#c0182c" stop-opacity="0" />
         </radialGradient>
+        <radialGradient id={"#{@id}-swirl"} cx="30%" cy="70%" r="70%">
+          <stop offset="0" stop-color="#1c1a6e" stop-opacity="0.95" />
+          <stop offset="0.6" stop-color="#3a248a" stop-opacity="0.85" />
+          <stop offset="1" stop-color="#5a2a9a" stop-opacity="0.5" />
+        </radialGradient>
         <clipPath id={"#{@id}-clip"}><circle cx="16" cy="16" r="15" /></clipPath>
       </defs>
       <circle cx="16" cy="16" r="15" fill={"url(##{@id}-ball)"} />
@@ -392,6 +399,22 @@ defmodule MillenniumQuizWeb.CardComponents do
              around a point beyond the top right of the sphere --%>
         <g :if={@stripes?} fill="none" stroke={@marble} stroke-width="1.7" stroke-opacity="0.85">
           <circle :for={r <- 12..54//3} cx="36" cy="-6" r={r} />
+        </g>
+        <%!-- Trap: a large dark blue-violet swirl over the lower left, and a
+             red-orange glow at the top --%>
+        <g :if={@attribute == "Trap"}>
+          <ellipse cx="16" cy="3" rx="13" ry="6" fill="#ff6a3c" fill-opacity="0.45" />
+          <path
+            d="M-2 12 C6 8 14 12 15 18 C16 24 22 26 30 23 L34 34 L-2 34 Z"
+            fill={"url(##{@id}-swirl)"}
+          />
+          <path
+            d="M2 15 C8 13 12 16 12 20 C12 25 18 29 27 27"
+            fill="none"
+            stroke="#8fa0ff"
+            stroke-width="0.9"
+            stroke-opacity="0.55"
+          />
         </g>
         <%!-- DARK: a crimson top above a dark band --%>
         <g :if={@attribute == "DARK"}>
@@ -435,9 +458,9 @@ defmodule MillenniumQuizWeb.CardComponents do
       </text>
       <text
         x="16"
-        y="23.6"
+        y="26.2"
         text-anchor="middle"
-        font-size="14.5"
+        font-size="18.5"
         font-weight="700"
         fill="#fff"
         stroke="#1c1917"
@@ -753,6 +776,9 @@ defmodule MillenniumQuizWeb.CardComponents do
 
     "Link #{length(arrows)}: #{Enum.join(names, ", ")}"
   end
+
+  # Real cards print the type line without spaces: "Dragon/Pendulum/Effect".
+  defp type_line(line), do: String.replace(line, ~r/\s*\/\s*/, "/")
 
   defp stars_label(%{rank: rank}) when is_integer(rank), do: "Rank #{rank}"
   defp stars_label(%{level: level}) when is_integer(level), do: "Level #{level}"

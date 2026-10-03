@@ -53,7 +53,7 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(doc, ".mq-card__stars .mq-card__star") == 7
     assert count(doc, ".mq-card__stars--rank") == 0
     assert count(doc, ".mq-card__art img[src='/cards/12/artwork']") == 1
-    assert text(doc, ".mq-card__type") == "[Spellcaster / Normal]"
+    assert text(doc, ".mq-card__type") == "[Spellcaster/Normal]"
     assert text(doc, ".mq-card__body") == "The ultimate wizard."
     assert text(doc, ".mq-card__stats") =~ ~r/ATK\/2500\s+DEF\/2100/
   end
