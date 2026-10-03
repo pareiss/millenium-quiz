@@ -247,11 +247,28 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 1.4cqw 2.2cqw;
-  /* a whitish version of the frame colour */
-  border: 0.6cqw solid color-mix(in oklab, var(--frame) 55%, #1c1917);
+  position: relative;
+  padding: 1.6cqw 2.4cqw;
+  /* the bronze frame of a card's text box, around a whitish version of
+     the frame colour */
+  border: 0.9cqw solid #b0612a;
+  border-color: #d08a4a #8c4a1c #7a3f16 #c47a3c;
+  box-shadow: inset 0 0 0 0.25cqw rgb(60 25 5 / 0.35);
   background: color-mix(in oklab, var(--frame) 16%, #fffdf7);
   font-size: 3.5cqw;
+}
+/* a small bronze square on each corner of the frame */
+.mq-card__text::before {
+  --sq: linear-gradient(135deg, #f3b06a, #a2531d 55%, #5e2c0c);
+  content: "";
+  position: absolute;
+  inset: -1.45cqw;
+  background:
+    var(--sq) left top / 2cqw 2cqw no-repeat,
+    var(--sq) right top / 2cqw 2cqw no-repeat,
+    var(--sq) left bottom / 2cqw 2cqw no-repeat,
+    var(--sq) right bottom / 2cqw 2cqw no-repeat;
+  pointer-events: none;
 }
 .mq-card__text.mq-text--s   { font-size: 3cqw; }
 .mq-card__text.mq-text--xs  { font-size: 2.6cqw; }
@@ -259,6 +276,10 @@
 .mq-card__face .is-readable { position: relative; cursor: zoom-in; transition: box-shadow 150ms; }
 .mq-card__face .is-readable:hover,
 .mq-card__face .is-readable:focus-visible { outline: none; box-shadow: 0 0 0 0.8cqw var(--color-primary); }
+.mq-card__text.is-readable:hover,
+.mq-card__text.is-readable:focus-visible {
+  box-shadow: inset 0 0 0 0.25cqw rgb(60 25 5 / 0.35), 0 0 0 1.6cqw var(--color-primary);
+}
 .mq-card__type { font-weight: 700; }
 .mq-card__body { flex: 1; min-height: 0; overflow: hidden; white-space: pre-line; }
 .mq-card--small .mq-card__body { mask-image: linear-gradient(to bottom, #000 75%, transparent); }
