@@ -136,8 +136,11 @@
   display: flex;
   flex-direction: column;
   gap: 1.2cqw;
-  /* name bar, artwork and text box share one width */
-  padding: 3.4cqw 5cqw 4.2cqw;
+  /* one margin around the name bar and the text box, so both are as wide
+     and sit as far from the edge as from the top/bottom; the artwork is
+     inset by --art-inset */
+  --art-inset: 1.4cqw;
+  padding: 3.6cqw;
   border-radius: 3.2cqw;
   border: 1.8cqw solid #1c1917;
   background:
@@ -188,7 +191,7 @@
 .mq-card__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mq-card__attr { flex: none; width: 9.5cqw; height: 9.5cqw; }
 
-.mq-card__stars { display: flex; justify-content: flex-end; gap: 0.6cqw; min-height: 6.4cqw; padding: 0 1cqw; }
+.mq-card__stars { display: flex; justify-content: flex-end; gap: 0.6cqw; min-height: 6.4cqw; padding: 0 calc(var(--art-inset) + 1cqw); }
 .mq-card__stars--rank { justify-content: flex-start; }
 .mq-card__star { width: 6.4cqw; height: 6.4cqw; flex: none; }
 
@@ -198,7 +201,7 @@
   justify-content: flex-end;
   gap: 0.4cqw;
   min-height: 6.4cqw;
-  padding: 0 1cqw;
+  padding: 0 calc(var(--art-inset) + 1cqw);
   color: #1c1917;
   font-size: 4.8cqw;
   font-weight: 700;
@@ -209,7 +212,8 @@
 
 .mq-card__art {
   position: relative;
-  width: 100%;
+  align-self: center;
+  width: calc(100% - 2 * var(--art-inset));
   aspect-ratio: 1;
   flex: none;
   border: 1.2cqw solid #2a221b;
