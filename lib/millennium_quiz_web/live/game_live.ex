@@ -20,6 +20,7 @@ defmodule MillenniumQuizWeb.GameLive do
         phx-hook=".RememberGame"
         data-game-id={@game_id}
         data-finished={to_string(@status == :finished)}
+        data-turn-key={turn_key_attr(@turn_key)}
         class="space-y-5"
       >
         <.game_header game={@game} status={@status} />
@@ -35,11 +36,11 @@ defmodule MillenniumQuizWeb.GameLive do
           <% @game.phase == :finished -> %>
             <.final_panel game={@game} />
           <% @game.phase == :choosing -> %>
-            <.board_panel game={@game} />
+            <.board_panel game={@game} turn_locked={@turn_locked} />
           <% @game.phase == :answering -> %>
-            <.answering_panel game={@game} />
+            <.answering_panel game={@game} turn_locked={@turn_locked} />
           <% @game.phase == :revealed -> %>
-            <.reveal_panel game={@game} />
+            <.reveal_panel game={@game} turn_locked={@turn_locked} />
         <% end %>
 
         <.zoomed_card
@@ -56,8 +57,24 @@ defmodule MillenniumQuizWeb.GameLive do
         const KEY = "mq:games"
         const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || "[]") } catch (_e) { return [] } }
         export default {
-          mounted() { this.sync() },
-          updated() { this.sync() },
+          mounted() { this.turnKey = this.el.dataset.turnKey; this.sync() },
+          updated() { this.sync(); this.newTurn() },
+          // A new turn (next player, next phase) starts at its panel, not where
+          // the last player left the page: the "Pass the device" bar shows.
+          // Not while a dialog is open; pauses and re-renders keep the key.
+          newTurn() {
+            const key = this.el.dataset.turnKey
+            if (key === this.turnKey) return
+            this.turnKey = key
+            if (document.querySelector('[role="dialog"]')) return
+            const panel = this.el.querySelector("[data-turn-panel]")
+            if (!panel) return
+            const header = document.querySelector("header")
+            const offset = (header ? header.getBoundingClientRect().height : 0) + 12
+            const top = Math.max(0, panel.getBoundingClientRect().top + window.scrollY - offset)
+            const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            window.scrollTo({top, behavior: calm ? "auto" : "smooth"})
+          },
           sync() {
             const id = this.el.dataset.gameId
             let ids = read().filter(x => x !== id)
@@ -107,7 +124,7 @@ defmodule MillenniumQuizWeb.GameLive do
         value={Enum.count(@game.questions, & &1.result)}
         max={Game.total_rounds(@game)}
       />
-      <ul class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="scoreboard">
+      <ul class="mq-nosel grid grid-cols-2 sm:grid-cols-4 gap-2" id="scoreboard">
         <li
           :for={{player, index} <- Enum.with_index(@game.players)}
           id={"score-#{index}"}
@@ -128,6 +145,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
+  attr :turn_locked, :boolean, default: false
 
   defp board_panel(assigns) do
     assigns =
@@ -142,6 +160,7 @@ defmodule MillenniumQuizWeb.GameLive do
     ~H"""
     <div
       id={"board-panel-#{@game.round}"}
+      data-turn-panel
       class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden"
     >
       <div class="bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
@@ -153,7 +172,7 @@ defmodule MillenniumQuizWeb.GameLive do
       <div class="p-3 sm:p-5 overflow-x-auto">
         <div
           id="board"
-          class="grid gap-2"
+          class="mq-nosel grid gap-2"
           style={"grid-template-columns: repeat(#{length(@board)}, minmax(4.5rem, 1fr))"}
         >
           <div
@@ -167,7 +186,8 @@ defmodule MillenniumQuizWeb.GameLive do
               id={"topic-#{column}"}
               phx-click="choose"
               phx-value-question={next}
-              class="min-h-14 rounded-field bg-primary px-2 py-1 text-sm font-semibold text-primary-content shadow-sm transition hover:brightness-110 active:scale-95 phx-click-loading:opacity-50"
+              disabled={@turn_locked}
+              class="min-h-14 rounded-field bg-primary px-2 py-1 text-sm font-semibold text-primary-content shadow-sm transition hover:brightness-110 active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
             >
               <span class="line-clamp-2">{topic}</span>
             </button>
@@ -188,7 +208,8 @@ defmodule MillenniumQuizWeb.GameLive do
                 id={"question-#{index}"}
                 phx-click="choose"
                 phx-value-question={index}
-                class="h-14 rounded-field border border-primary/30 bg-primary/10 text-lg font-bold tabular-nums text-primary transition hover:bg-primary hover:text-primary-content active:scale-95 phx-click-loading:opacity-50"
+                disabled={@turn_locked}
+                class="h-14 rounded-field border border-primary/30 bg-primary/10 text-lg font-bold tabular-nums text-primary transition hover:bg-primary hover:text-primary-content active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
               >
                 {question.points}
               </button>
@@ -227,6 +248,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
+  attr :turn_locked, :boolean, default: false
 
   defp answering_panel(assigns) do
     assigns =
@@ -237,6 +259,7 @@ defmodule MillenniumQuizWeb.GameLive do
     ~H"""
     <div
       id={"turn-#{@game.round}-#{@game.answered}"}
+      data-turn-panel
       class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden reveal-pop"
     >
       <div class="bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
@@ -261,7 +284,8 @@ defmodule MillenniumQuizWeb.GameLive do
             id={"choice-#{i}"}
             phx-click="answer"
             phx-value-choice={i}
-            class="group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50"
+            disabled={@turn_locked}
+            class="mq-nosel group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
           >
             <span class="grid place-items-center size-8 shrink-0 rounded-full bg-base-200 font-semibold group-hover:bg-primary group-hover:text-primary-content transition">
               {<<?A + i>>}
@@ -415,6 +439,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
+  attr :turn_locked, :boolean, default: false
 
   defp reveal_panel(assigns) do
     question = Game.current_question(assigns.game)
@@ -482,7 +507,12 @@ defmodule MillenniumQuizWeb.GameLive do
         </li>
       </ul>
 
-      <button class="btn btn-primary btn-block btn-lg" phx-click="next_round" id="next-round">
+      <button
+        class="btn btn-primary btn-block btn-lg"
+        phx-click="next_round"
+        id="next-round"
+        disabled={@turn_locked}
+      >
         {if @last_round?, do: "Show final results", else: "Back to the board"}
         <.icon name="hero-arrow-right" class="size-5" />
       </button>
@@ -503,7 +533,7 @@ defmodule MillenniumQuizWeb.GameLive do
         class="w-36 sm:w-44"
       >
         <div
-          class="relative cursor-zoom-in transition hover:-translate-y-1 hover:drop-shadow-lg"
+          class="mq-nosel relative cursor-zoom-in transition hover:-translate-y-1 hover:drop-shadow-lg"
           phx-click="zoom_card"
           phx-value-card={i}
         >
@@ -557,7 +587,12 @@ defmodule MillenniumQuizWeb.GameLive do
       names={@names}
     >
       <.card_credit class="text-center text-white/70" />
-      <p class="text-xs text-white/70 text-center">Tap outside the card or press Esc to close.</p>
+      <p class="text-xs text-white/70 text-center" id="card-zoom-hint">
+        <span class="[@media(hover:hover)]:hidden">Tap outside the card to close.</span>
+        <span class="hidden [@media(hover:hover)]:inline">
+          Click outside the card or press Esc to close.
+        </span>
+      </p>
     </.card_dialog>
     <.card_text_dialog
       :if={@card && @view == :text}
@@ -583,12 +618,17 @@ defmodule MillenniumQuizWeb.GameLive do
     ~H"""
     <p class={["text-xs", @class]}>
       Card texts from
-      <a href="https://yugipedia.com" target="_blank" rel="noopener" class="link">Yugipedia</a>
+      <a
+        href="https://yugipedia.com"
+        target="_blank"
+        rel="noopener"
+        class="link pointer-coarse:-my-3.5 pointer-coarse:inline-block pointer-coarse:py-3.5"
+      >Yugipedia</a>
       (CC BY-SA 4.0) and <a
         href="https://github.com/DawnbrandBots/yaml-yugi"
         target="_blank"
         rel="noopener"
-        class="link"
+        class="link pointer-coarse:-my-3.5 pointer-coarse:inline-block pointer-coarse:py-3.5"
       >YAML Yugi</a>.
       Yu-Gi-Oh! card names and texts © Konami.
     </p>
@@ -811,6 +851,8 @@ defmodule MillenniumQuizWeb.GameLive do
          |> assign(:resume_url, url(~p"/games/#{view.id}"))
          |> assign(:qr_svg, nil)
          |> assign(:confirm_end, false)
+         |> assign(:turn_key, nil)
+         |> assign(:turn_locked, false)
          |> assign(:email_form, to_form(%{"email" => ""}, as: :resume))
          |> assign_view(view)}
 
@@ -825,7 +867,19 @@ defmodule MillenniumQuizWeb.GameLive do
   @impl true
   def handle_info({:game_updated, view}, socket), do: {:noreply, assign_view(socket, view)}
 
+  def handle_info({:unlock_turn, key}, %{assigns: %{turn_key: key}} = socket),
+    do: {:noreply, assign(socket, :turn_locked, false)}
+
+  # A timer of an earlier turn: the current turn stays locked.
+  def handle_info({:unlock_turn, _key}, socket), do: {:noreply, socket}
+
   @impl true
+  # Right after a turn starts, taps that advance it are ignored: a double tap
+  # or a hand-over tap must not act for the next player.
+  def handle_event(event, _params, %{assigns: %{turn_locked: true}} = socket)
+      when event in ["answer", "choose", "next_round"],
+      do: {:noreply, socket}
+
   def handle_event("answer", %{"choice" => choice}, socket) do
     case parse_index(choice) do
       {:ok, choice} -> run(socket, &Games.answer(&1, choice))
@@ -941,9 +995,33 @@ defmodule MillenniumQuizWeb.GameLive do
     |> assign(:zoom, nil)
     |> assign(:status, view.status)
     |> assign(:game, view.game)
+    |> lock_new_turn(view.game)
     |> assign(:page_title, "#{view.game.format_name} · Q#{view.game.round}")
     |> maybe_assign_qr()
   end
+
+  # A turn is a phase of a round, and each player's answer is one. The first
+  # view after mounting never locks (a resumed game must be usable at once);
+  # a later change of turn locks for `:turn_lock_ms` (0 disables the lock).
+  defp lock_new_turn(socket, game) do
+    key = {game.round, game.phase, game.answered}
+    delay = Application.get_env(:millennium_quiz, :turn_lock_ms, 700)
+
+    cond do
+      key == socket.assigns.turn_key ->
+        socket
+
+      is_nil(socket.assigns.turn_key) or delay <= 0 or game.phase == :finished ->
+        socket |> assign(:turn_key, key) |> assign(:turn_locked, false)
+
+      true ->
+        Process.send_after(self(), {:unlock_turn, key}, delay)
+        socket |> assign(:turn_key, key) |> assign(:turn_locked, true)
+    end
+  end
+
+  defp turn_key_attr(nil), do: nil
+  defp turn_key_attr({round, phase, answered}), do: "#{round}-#{phase}-#{answered}"
 
   # The QR code is only rendered (and computed) while paused.
   defp maybe_assign_qr(%{assigns: %{status: :paused, qr_svg: nil}} = socket) do

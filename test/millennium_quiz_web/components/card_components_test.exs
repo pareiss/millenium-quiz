@@ -441,6 +441,21 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert html =~ "As printed in Starter Deck"
   end
 
+  test "touch safety: artwork can't be dragged, dialogs contain their scroll" do
+    card = Map.merge(@blank, %{id: 7, name: "Monster Reborn", text: "Revive."})
+
+    doc = LazyHTML.from_fragment(render_component(&card/1, card: card))
+    assert count(doc, ".mq-card__art img[draggable=false]") == 1
+
+    for {fun, extra} <- [{&card_dialog/1, []}, {&card_text_dialog/1, []}] do
+      doc =
+        render_component(fun, [id: "d", card: card, on_close: "close", inner_block: []] ++ extra)
+        |> LazyHTML.from_fragment()
+
+      assert count(doc, "#d.mq-dialog") == 1
+    end
+  end
+
   describe "carousel controls" do
     @names ["Alpha", "Beta", "Gamma"]
 

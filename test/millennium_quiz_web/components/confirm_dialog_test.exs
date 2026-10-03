@@ -34,6 +34,11 @@ defmodule MillenniumQuizWeb.ConfirmDialogTest do
     assert focus =~ "#thing-cancel"
   end
 
+  test "is a scroll container that doesn't chain to the page" do
+    doc = LazyHTML.from_fragment(render_component(&dialog/1, cancel_id: nil))
+    assert count(doc, "#thing.mq-dialog.overflow-y-auto") == 1
+  end
+
   test "focuses a custom cancel button" do
     html = render_component(&dialog/1, cancel_id: "keep-playing")
 
