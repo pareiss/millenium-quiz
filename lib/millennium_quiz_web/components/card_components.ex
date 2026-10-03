@@ -54,6 +54,8 @@ defmodule MillenniumQuizWeb.CardComponents do
       |> assign(:link?, frame(card) == "link")
       |> assign(:arrows, Enum.map(card[:link_arrows] || [], &String.trim(&1, "\uFE0F")))
       |> assign(:read, read_attrs(assigns.on_text, assigns.text_value, card.name))
+      # 150, not the 90 of the old, wider font: the Pendulum box is 17cqw high
+      # and fits about 150 characters at 3.4cqw; longer texts step down in size
       |> assign(:pendulum_class, ["mq-card__pendulum-text", text_size(card[:pendulum_text], 150)])
 
     ~H"""
@@ -354,7 +356,11 @@ defmodule MillenniumQuizWeb.CardComponents do
 
     assigns =
       assign(assigns,
-        # gradient ids must be unique on the page (a card can be shown twice)
+        # gradient ids must be unique on the page (a card can be shown twice).
+        # They cannot be derived from the card or the icon: the same card
+        # (thumbnail and enlarged view) and the same attribute on many cards
+        # share a value, so a unique integer is the only safe id, even though
+        # it changes on every render.
         id: "mq-attr-#{String.downcase(label)}-#{System.unique_integer([:positive])}",
         glyph: glyph,
         label: label,

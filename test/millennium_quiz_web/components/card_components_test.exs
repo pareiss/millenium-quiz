@@ -341,7 +341,12 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     attr = fn -> render_component(&attribute_icon/1, attribute: "DARK") end
     star = fn -> render_component(&level_star/1, rank: false) end
 
-    all = ids.(attr.()) ++ ids.(attr.()) ++ ids.(star.()) ++ ids.(star.())
+    prop = fn -> render_component(&property_icon/1, property: "Field") end
+
+    all =
+      ids.(attr.()) ++
+        ids.(attr.()) ++ ids.(star.()) ++ ids.(star.()) ++ ids.(prop.()) ++ ids.(prop.())
+
     assert all != []
     assert length(all) == length(Enum.uniq(all))
   end
