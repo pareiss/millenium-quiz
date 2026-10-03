@@ -1,7 +1,7 @@
 # Millennium Quiz
 
 A hot-seat trivia game for 2–4 players on one device, built with Elixir,
-Phoenix 1.8 and LiveView. Admins manage categories, their 2–6 topics and
+Phoenix 1.8 and LiveView. Admins manage formats, their 2–6 topics and
 the questions in each topic, ordered by difficulty. It is meant as a base
 for a Yu-Gi-Oh! themed quiz (card previews, board-state questions).
 
@@ -9,7 +9,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
 
 ## Features
 
-- **Players** (`/`): pick a category, enter 2–4 names, choose a mode, and play on a board:
+- **Players** (`/`): pick a format, enter 2–4 names, choose a mode, and play on a board:
   - the topics are the columns and every question is a cell that only shows its points
   - players take turns choosing a question, in a random order fixed at the start
   - every player then answers it, starting with the chooser; picks stay hidden until the reveal
@@ -23,7 +23,8 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
   - a QR code
   - an email with the link
   - the "Continue a game" list on the home page of the same device
-- **Admin** (`/admin`): username/password login. It covers categories with their 2–6 topics edited inline, questions per topic (2–6 answers, one correct), ↑/↓ difficulty ordering, and managing admins.
+- **Formats**: a format is a point in time with a **date**. Only cards released in the TCG by that date can be attached to its questions, and every card shows the text (errata) it had on that date.
+- **Admin** (`/admin`): username/password login. It covers formats with their 2–6 topics edited inline, questions per topic (2–6 answers, one correct), ↑/↓ difficulty ordering, and managing admins.
 - **Points**: the easiest question in a topic is worth 10, the next 20, then 30 and so on. A custom value on a question overrides this. Moving a question changes its default.
 
 ## Architecture
@@ -34,7 +35,7 @@ lib/millennium_quiz/
   games.ex           public API: create / answer / next_round / pause / resume
   games/server.ex    one GenServer per running game
   games/game_record.ex  the `games` table: JSONB snapshot + status
-  quiz.ex, quiz/     categories, topics, questions (admin content)
+  quiz.ex, quiz/     formats, topics, questions (admin content)
   accounts.ex, accounts/  admin users, bcrypt, session tokens
 lib/millennium_quiz_web/
   live/home_live.ex, new_game_live.ex, game_live.ex   player UI
@@ -167,7 +168,7 @@ Release commands (run them in the pod with `kubectl exec`):
 ```sh
 bin/migrate                                   # migrations + bootstrap admin from ADMIN_* env
 bin/millennium_quiz eval 'MillenniumQuiz.Release.create_admin("name", "a long password")'
-bin/millennium_quiz eval 'MillenniumQuiz.Release.seed()'   # sample category
+bin/millennium_quiz eval 'MillenniumQuiz.Release.seed()'   # sample format
 ```
 
 ### Runtime environment

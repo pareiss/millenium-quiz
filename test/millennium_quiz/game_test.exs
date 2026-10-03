@@ -4,7 +4,7 @@ defmodule MillenniumQuiz.GameTest do
   alias MillenniumQuiz.Game
   alias MillenniumQuiz.Quiz.{Choice, Question, Topic}
 
-  @category %{id: 1, name: "Test"}
+  @format %{id: 1, name: "Test", date: ~D[2005-04-01]}
   @no_shuffle [shuffle: &Function.identity/1]
   @topics %{"A" => {1, 0}, "B" => {2, 1}}
 
@@ -32,7 +32,7 @@ defmodule MillenniumQuiz.GameTest do
   end
 
   defp new_game(opts \\ [], names \\ ["Ann", "Bob"]) do
-    {:ok, game} = Game.new(@category, names, questions(), Keyword.merge(@no_shuffle, opts))
+    {:ok, game} = Game.new(@format, names, questions(), Keyword.merge(@no_shuffle, opts))
     game
   end
 
@@ -48,13 +48,13 @@ defmodule MillenniumQuiz.GameTest do
 
   describe "new/4" do
     test "validates players, questions and mode" do
-      assert {:error, :invalid_player_count} = Game.new(@category, ["Solo"], questions())
-      assert {:error, :invalid_player_count} = Game.new(@category, ~w(a b c d e), questions())
-      assert {:error, :blank_player_name} = Game.new(@category, ["Ann", "  "], questions())
-      assert {:error, :no_questions} = Game.new(@category, ["Ann", "Bob"], [])
+      assert {:error, :invalid_player_count} = Game.new(@format, ["Solo"], questions())
+      assert {:error, :invalid_player_count} = Game.new(@format, ~w(a b c d e), questions())
+      assert {:error, :blank_player_name} = Game.new(@format, ["Ann", "  "], questions())
+      assert {:error, :no_questions} = Game.new(@format, ["Ann", "Bob"], [])
 
       assert {:error, :invalid_mode} =
-               Game.new(@category, ["Ann", "Bob"], questions(), mode: "nope")
+               Game.new(@format, ["Ann", "Bob"], questions(), mode: "nope")
     end
 
     test "builds the board: topics as columns, each from easiest to hardest" do
@@ -155,10 +155,22 @@ defmodule MillenniumQuiz.GameTest do
     assert Game.from_map(json) == game
   end
 
+  test "snapshots from before formats keep their category name" do
+    map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+
+    legacy =
+      map
+      |> Map.drop(["format_id", "format_name", "format_date"])
+      |> Map.merge(%{"category_id" => 1, "category_name" => "Old"})
+
+    assert %Game{format_id: 1, format_name: "Old", format_date: nil} = Game.from_map(legacy)
+    assert Game.from_map(map).format_date == ~D[2005-04-01]
+  end
+
   test "snapshots from before the board modes open as finished" do
     legacy = %{
-      "category_id" => 1,
-      "category_name" => "Old",
+      "format_id" => 1,
+      "format_name" => "Old",
       "players" => [%{"name" => "Ann", "score" => 10}],
       "questions" => [%{"topic" => "A"}],
       "round" => 1,

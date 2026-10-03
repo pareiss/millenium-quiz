@@ -1,71 +1,71 @@
 defmodule MillenniumQuiz.Quiz do
   @moduledoc """
-  Admin-managed quiz content: categories, their 2-6 topics and the
+  Admin-managed quiz content: formats, their 2-6 topics and the
   difficulty-ordered questions of each topic.
   """
 
   import Ecto.Query, warn: false
 
   alias MillenniumQuiz.Repo
-  alias MillenniumQuiz.Quiz.{Category, Topic, Question}
+  alias MillenniumQuiz.Quiz.{Format, Topic, Question}
 
-  ## Categories
+  ## Formats
 
-  def list_categories do
-    Repo.all(from c in Category, order_by: c.name, preload: [topics: :questions])
+  def list_formats do
+    Repo.all(from f in Format, order_by: f.name, preload: [topics: :questions])
   end
 
-  @doc "Categories that can be played: at least 2 topics and 1 question."
-  def list_playable_categories do
+  @doc "Formats that can be played: at least 2 topics and 1 question."
+  def list_playable_formats do
     question_counts =
       from t in Topic,
         left_join: q in assoc(t, :questions),
-        group_by: t.category_id,
+        group_by: t.format_id,
         select: %{
-          category_id: t.category_id,
+          format_id: t.format_id,
           topics: count(t.id, :distinct),
           questions: count(q.id)
         }
 
     Repo.all(
-      from c in Category,
+      from f in Format,
         join: s in subquery(question_counts),
-        on: s.category_id == c.id,
-        where: s.topics >= ^Category.min_topics() and s.questions > 0,
-        order_by: c.name,
-        select: %{category: c, topics: s.topics, questions: s.questions}
+        on: s.format_id == f.id,
+        where: s.topics >= ^Format.min_topics() and s.questions > 0,
+        order_by: f.name,
+        select: %{format: f, topics: s.topics, questions: s.questions}
     )
   end
 
-  def get_category!(id) do
-    Category
+  def get_format!(id) do
+    Format
     |> Repo.get!(id)
     |> Repo.preload(topics: :questions)
   end
 
-  def create_category(attrs) do
-    %Category{topics: []}
-    |> Category.changeset(attrs)
+  def create_format(attrs) do
+    %Format{topics: []}
+    |> Format.changeset(attrs)
     |> Repo.insert()
   end
 
-  def update_category(%Category{} = category, attrs) do
-    category
-    |> Category.changeset(attrs)
+  def update_format(%Format{} = format, attrs) do
+    format
+    |> Format.changeset(attrs)
     |> Repo.update()
   end
 
-  def delete_category(%Category{} = category), do: Repo.delete(category)
+  def delete_format(%Format{} = format), do: Repo.delete(format)
 
-  def change_category(%Category{} = category, attrs \\ %{}) do
-    Category.changeset(category, attrs)
+  def change_format(%Format{} = format, attrs \\ %{}) do
+    Format.changeset(format, attrs)
   end
 
   ## Questions
 
   def get_question!(id), do: Question |> Repo.get!(id) |> Repo.preload(:topic)
 
-  def get_topic!(id), do: Topic |> Repo.get!(id) |> Repo.preload(:category)
+  def get_topic!(id), do: Topic |> Repo.get!(id) |> Repo.preload(:format)
 
   @doc "Position a new question gets: the end of the list, i.e. the hardest."
   def next_question_position(%Topic{} = topic) do
@@ -145,12 +145,12 @@ defmodule MillenniumQuiz.Quiz do
     end)
   end
 
-  @doc "All questions of a category with their topic, used to build a game."
-  def questions_for_category(category_id) do
+  @doc "All questions of a format with their topic, used to build a game."
+  def questions_for_format(format_id) do
     Repo.all(
       from q in Question,
         join: t in assoc(q, :topic),
-        where: t.category_id == ^category_id,
+        where: t.format_id == ^format_id,
         preload: [topic: t]
     )
   end

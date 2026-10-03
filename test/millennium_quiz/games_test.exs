@@ -7,8 +7,8 @@ defmodule MillenniumQuiz.GamesTest do
   alias MillenniumQuiz.Games.{GameRecord, Server}
 
   setup do
-    category = playable_category_fixture(1)
-    {:ok, id} = Games.create_game(category.id, ["Ann", "Bob"])
+    format = playable_format_fixture(1)
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
     %{id: id}
   end
 

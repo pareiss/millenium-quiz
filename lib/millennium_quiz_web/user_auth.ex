@@ -11,7 +11,7 @@ defmodule MillenniumQuizWeb.UserAuth do
   alias MillenniumQuiz.Accounts
   alias MillenniumQuiz.Accounts.Scope
 
-  @signed_in_path "/admin/categories"
+  @signed_in_path "/admin/formats"
 
   @doc """
   Logs the user in: renews the session id (prevents fixation attacks),

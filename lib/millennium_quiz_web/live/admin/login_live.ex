@@ -8,7 +8,7 @@ defmodule MillenniumQuizWeb.Admin.LoginLive do
       <div class="mx-auto max-w-sm rounded-box border border-base-300 bg-base-100 p-6 shadow-sm space-y-4">
         <div class="text-center">
           <h1 class="text-2xl font-bold">Admin login</h1>
-          <p class="text-sm text-base-content/60">Manage categories, topics and questions.</p>
+          <p class="text-sm text-base-content/60">Manage formats, topics and questions.</p>
         </div>
         <%!-- Posted to a controller because only a plain request can set the session cookie. --%>
         <.form for={@form} id="login-form" action={~p"/admin/login"}>

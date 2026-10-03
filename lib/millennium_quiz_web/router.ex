@@ -20,9 +20,12 @@ defmodule MillenniumQuizWeb.Router do
 
     live_session :public, on_mount: [{MillenniumQuizWeb.UserAuth, :mount_current_scope}] do
       live "/", HomeLive
-      live "/categories/:id/play", NewGameLive
+      live "/formats/:id/play", NewGameLive
       live "/games/:id", GameLive
     end
+
+    get "/categories/*path", LegacyRedirectController, :formats
+    get "/admin/categories/*path", LegacyRedirectController, :formats
   end
 
   ## Admin
@@ -43,10 +46,10 @@ defmodule MillenniumQuizWeb.Router do
 
     live_session :admin,
       on_mount: [{MillenniumQuizWeb.UserAuth, :require_authenticated}] do
-      live "/categories", CategoryLive.Index, :index
-      live "/categories/new", CategoryLive.Form, :new
-      live "/categories/:id", CategoryLive.Show, :show
-      live "/categories/:id/edit", CategoryLive.Form, :edit
+      live "/formats", FormatLive.Index, :index
+      live "/formats/new", FormatLive.Form, :new
+      live "/formats/:id", FormatLive.Show, :show
+      live "/formats/:id/edit", FormatLive.Form, :edit
       live "/topics/:topic_id/questions/new", QuestionLive.Form, :new
       live "/questions/:id/edit", QuestionLive.Form, :edit
       live "/users", UserLive.Index, :index

@@ -8,15 +8,16 @@ defmodule MillenniumQuizWeb.NewGameLive do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.link navigate={~p"/"} class="text-sm text-base-content/60 hover:text-base-content">
-        <span aria-hidden="true">&larr;</span> All categories
+        <span aria-hidden="true">&larr;</span> All formats
       </.link>
 
       <div class="rounded-box border border-base-300 bg-base-100 p-6 sm:p-8 shadow-sm space-y-6">
         <div>
           <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">New game</p>
-          <h1 class="text-3xl font-bold tracking-tight">{@category.name}</h1>
+          <h1 class="text-3xl font-bold tracking-tight">{@format.name}</h1>
+          <p class="text-sm text-base-content/60">Card texts as of {display_date(@format.date)}</p>
           <p class="mt-1 text-base-content/70">
-            {length(@category.topics)} topics: {Enum.map_join(@category.topics, ", ", & &1.name)}
+            {length(@format.topics)} topics: {Enum.map_join(@format.topics, ", ", & &1.name)}
           </p>
         </div>
 
@@ -105,12 +106,12 @@ defmodule MillenniumQuizWeb.NewGameLive do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    category = Quiz.get_category!(id)
+    format = Quiz.get_format!(id)
 
     {:ok,
      socket
-     |> assign(:page_title, "New game · #{category.name}")
-     |> assign(:category, category)
+     |> assign(:page_title, "New game · #{format.name}")
+     |> assign(:format, format)
      |> assign(:min, Game.min_players())
      |> assign(:max, Game.max_players())
      |> assign(:modes, Game.modes())
@@ -121,7 +122,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    # "Play again" passes the previous names: /categories/1/play?players[]=A&players[]=B
+    # "Play again" passes the previous names: /formats/1/play?players[]=A&players[]=B
     socket = assign_mode(socket, params["mode"])
 
     case params do
@@ -158,7 +159,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
 
     with :ok <- validate_unique(names),
          {:ok, game_id} <-
-           Games.create_game(socket.assigns.category.id, names, mode: socket.assigns.mode) do
+           Games.create_game(socket.assigns.format.id, names, mode: socket.assigns.mode) do
       {:noreply, push_navigate(socket, to: ~p"/games/#{game_id}")}
     else
       {:error, reason} -> {:noreply, assign(socket, :error, error_message(reason))}
@@ -176,7 +177,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
   defp error_message(:duplicate_names), do: "Player names must be different."
   defp error_message(:invalid_player_count), do: "A game needs 2 to 4 players."
   defp error_message(:invalid_mode), do: "Choose a game mode."
-  defp error_message(:no_questions), do: "This category has no questions yet."
+  defp error_message(:no_questions), do: "This format has no questions yet."
   defp error_message(_), do: "The game could not be started."
 
   defp assign_mode(socket, mode) do

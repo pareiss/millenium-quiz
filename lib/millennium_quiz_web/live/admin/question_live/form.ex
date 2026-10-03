@@ -9,7 +9,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.link navigate={@return_to} class="text-sm text-base-content/60 hover:text-base-content">
-        <span aria-hidden="true">&larr;</span> {@topic.category.name}
+        <span aria-hidden="true">&larr;</span> {@topic.format.name}
       </.link>
       <.header>
         {@page_title}
@@ -123,7 +123,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     |> assign(:topic, topic)
     |> assign(:question, question)
     |> assign(:default_points, Question.default_points(question.position))
-    |> assign(:return_to, ~p"/admin/categories/#{topic.category_id}")
+    |> assign(:return_to, ~p"/admin/formats/#{topic.format_id}")
     |> assign(:form, to_form(Quiz.change_question(question)))
   end
 

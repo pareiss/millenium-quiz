@@ -1,14 +1,16 @@
 # Sample content: mix run priv/repo/seeds.exs (or Release.seed() in a release).
-# Running it twice does nothing, the category name is unique.
+# Running it twice does nothing, the format name is unique.
 alias MillenniumQuiz.{Quiz, Repo}
-alias MillenniumQuiz.Quiz.Category
+alias MillenniumQuiz.Quiz.Format
 
-if Repo.get_by(Category, name: "Duel Monsters Basics") do
-  IO.puts("Seed category already exists, skipping.")
+if Repo.get_by(Format, name: "Duel Monsters Basics") do
+  IO.puts("Seed format already exists, skipping.")
 else
-  {:ok, category} =
-    Quiz.create_category(%{
+  {:ok, format} =
+    Quiz.create_format(%{
       "name" => "Duel Monsters Basics",
+      # timeless basics: card texts as they read today
+      "date" => Date.utc_today(),
       "description" =>
         "Warm-up questions about the card game: monsters, spells & traps and the rules.",
       "topics" => %{
@@ -46,10 +48,10 @@ else
     ]
   }
 
-  for topic <- category.topics, {text, correct, wrong} <- Map.fetch!(questions, topic.name) do
+  for topic <- format.topics, {text, correct, wrong} <- Map.fetch!(questions, topic.name) do
     {:ok, _} =
       Quiz.create_question(topic, %{"text" => text, "choices" => choices.(correct, wrong)})
   end
 
-  IO.puts("Seeded category #{category.name}.")
+  IO.puts("Seeded format #{format.name}.")
 end

@@ -502,4 +502,8 @@ defmodule MillenniumQuizWeb.CoreComponents do
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
+
+  @doc "A date for display, e.g. `Apr 1, 2005`."
+  def display_date(nil), do: nil
+  def display_date(%Date{} = date), do: Calendar.strftime(date, "%b %-d, %Y")
 end
