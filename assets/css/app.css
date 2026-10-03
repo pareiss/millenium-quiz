@@ -116,17 +116,44 @@
    piece. Cards look the same in light and dark mode: they are objects. */
 .mq-card { container-type: inline-size; }
 
-/* Old paper for the card and its boxes: fine grain, darker and lighter
-   stains (SVG noise) and a light patch. All neutral, so they only shade
-   the colour underneath; each element adds its own tint. */
+/* Card fonts: free lookalikes of the fonts on real cards, served from
+   priv/static/fonts (SIL Open Font License, see the OFL files there).
+   Cinzel draws lowercase as small capitals, like card names. */
+@font-face {
+  font-family: "Cinzel";
+  src: url("/fonts/Cinzel.ttf") format("truetype");
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Crimson Pro";
+  src: url("/fonts/CrimsonPro.ttf") format("truetype");
+  font-weight: 200 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Crimson Pro";
+  src: url("/fonts/CrimsonPro-Italic.ttf") format("truetype");
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Old paper, after real cards: soft, round clouds of lighter and darker
+   colour (isotropic noise in a fixed-size tile, never stretched) and a fine
+   grain. Neutral, so they only shade the colour underneath. The frame has
+   strong clouds and grain; text boxes only faint clouds.
+   Tuned against real cards (frame/box stains, mottle and grain measured
+   at 813 px); noise parameters: {"tile": 45, "freq": 0.018, "octaves": 3, "k_frame": 0.45, "k_box": 0.17, "grain": 0.16, "box_grain": 0.022, "bias": 0.25} */
 .mq-card__face {
   --paper-grain:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' preserveAspectRatio='none'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0.14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E") 0 0 / 40cqw 40cqw;
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url%28%23g%29'/%3E%3C/svg%3E") 0 0 / 20cqw 20cqw;
   --paper:
     var(--paper-grain),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' preserveAspectRatio='none'%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.02' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0.5 -0.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23d)'/%3E%3C/svg%3E") 0 0 / 100% 100%,
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' preserveAspectRatio='none'%3E%3Cfilter id='l'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018 0.012' numOctaves='3' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 -0.25'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23l)'/%3E%3C/svg%3E") 0 0 / 100% 100%,
-    radial-gradient(ellipse 60% 50% at 35% 30%, rgb(255 255 255 / 0.25), transparent 70%);
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='l' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1.125 0 0 0 -0.562'/%3E%3C/filter%3E%3Cfilter id='d' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -0.675 0 0 0 0.338'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url%28%23l%29'/%3E%3Crect width='300' height='300' filter='url%28%23d%29'/%3E%3C/svg%3E") 0 0 / 45cqw 45cqw;
+  --paper-soft:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0.022 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url%28%23g%29'/%3E%3C/svg%3E") 0 0 / 20cqw 20cqw,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='l' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='3' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.425 0 0 0 -0.213'/%3E%3C/filter%3E%3Cfilter id='d' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='3' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -0.255 0 0 0 0.128'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url%28%23l%29'/%3E%3Crect width='300' height='300' filter='url%28%23d%29'/%3E%3C/svg%3E") 0 0 / 45cqw 45cqw;
 }
 
 .mq-card__face {
@@ -148,7 +175,7 @@
   /* what lies on the frame colour: the paper, a gloss, and (for Xyz)
      a night sky */
   --frame-paper: var(--paper);
-  --frame-gloss: linear-gradient(155deg, rgb(255 255 255 / 0.28), transparent 38%, rgb(0 0 0 / 0.14));
+  --frame-gloss: linear-gradient(155deg, rgb(255 255 255 / 0.12), transparent 38%, rgb(0 0 0 / 0.08));
   --frame-sky: none;
   background: var(--frame-sky), var(--frame-paper), var(--frame-gloss), var(--frame);
   box-shadow: 0 0.6cqw 2.4cqw rgb(0 0 0 / 0.35);
@@ -175,12 +202,17 @@
 :is(.mq-card__face, .mq-card-panel)[data-frame="token"]   { --frame: #807c7b; --box: #d8d7d8; }
 :is(.mq-card__face, .mq-card-panel)[data-frame="spell"]   { --frame: var(--spell); --box: var(--spell-box); --name-color: #fafaf9; }
 :is(.mq-card__face, .mq-card-panel)[data-frame="trap"]    { --frame: #ab2e7a; --box: #e6c0d7; --name-color: #fafaf9; }
-/* Xyz: deep black with short blue streaks around the centre and a few
-   faint stars, no old-paper texture. */
+/* Synchro: the white frame only has faint clouds; grain would show as dirt */
+.mq-card__face[data-frame="synchro"] { --frame-paper: var(--paper-soft); }
+
+/* Xyz: deep black with short blue streaks around the centre, small glowing
+   dots of "space dust" as on real Xyz cards, no old-paper texture. */
 .mq-card__face[data-frame="xyz"] {
   --frame-paper: none;
   --frame-gloss: linear-gradient(155deg, rgb(255 255 255 / 0.1), transparent 38%);
   --frame-sky:
+    /* "space dust": small glowing green, white and blue dots */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 59 86' preserveAspectRatio='none'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23d8ffe6'/%3E%3Cstop offset='.35' stop-color='%236dff9e' stop-opacity='.8'/%3E%3Cstop offset='1' stop-color='%233cff7a' stop-opacity='0'/%3E%3C/radialGradient%3E%3CradialGradient id='w'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.35' stop-color='%23fff' stop-opacity='.75'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='0'/%3E%3C/radialGradient%3E%3CradialGradient id='b'%3E%3Cstop offset='0' stop-color='%23eef6ff'/%3E%3Cstop offset='.35' stop-color='%23a8ccff' stop-opacity='.75'/%3E%3Cstop offset='1' stop-color='%23a8ccff' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='27.77' cy='62.40' r='0.56' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='31.42' cy='54.57' r='0.48' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='31.09' cy='52.83' r='0.7' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='30.62' cy='62.67' r='0.4' fill='url%28%23b%29' opacity='1'/%3E%3Ccircle cx='54.13' cy='71.18' r='0.7' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='50.81' cy='83.73' r='0.56' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='7.70' cy='63.70' r='0.56' fill='url%28%23w%29' opacity='0.85'/%3E%3Ccircle cx='20.53' cy='17.60' r='0.48' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='52.99' cy='35.09' r='0.4' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='56.82' cy='22.50' r='0.7' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='36.09' cy='28.65' r='0.4' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='58.22' cy='31.59' r='0.56' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='15.69' cy='53.51' r='0.56' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='40.18' cy='65.76' r='0.4' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='6.18' cy='72.20' r='0.4' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='41.32' cy='30.27' r='0.48' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='40.81' cy='51.64' r='0.56' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='12.15' cy='6.52' r='0.4' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='31.08' cy='42.59' r='0.56' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='30.39' cy='19.48' r='0.32' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='54.80' cy='61.74' r='0.32' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='3.73' cy='11.17' r='0.7' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='55.39' cy='15.27' r='0.4' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='5.53' cy='53.01' r='0.7' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='35.03' cy='48.10' r='0.48' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='7.63' cy='2.96' r='0.7' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='34.09' cy='55.29' r='0.56' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='16.32' cy='39.08' r='0.4' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='34.51' cy='38.64' r='0.4' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='9.80' cy='34.32' r='0.48' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='40.32' cy='10.64' r='0.4' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='38.70' cy='3.70' r='0.7' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='32.24' cy='4.75' r='0.7' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='32.58' cy='77.00' r='0.4' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='35.56' cy='9.64' r='0.56' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='56.01' cy='11.82' r='0.48' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='55.44' cy='21.96' r='0.56' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='55.27' cy='52.63' r='0.32' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='21.58' cy='54.62' r='0.32' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='38.76' cy='76.44' r='0.48' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='7.32' cy='46.69' r='0.4' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='25.52' cy='80.68' r='0.48' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='32.91' cy='65.42' r='0.7' fill='url%28%23b%29' opacity='0.55'/%3E%3Ccircle cx='12.03' cy='46.01' r='0.7' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='48.62' cy='79.12' r='0.48' fill='url%28%23w%29' opacity='0.85'/%3E%3Ccircle cx='34.80' cy='38.74' r='0.56' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='18.96' cy='44.88' r='0.48' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='24.93' cy='40.23' r='0.4' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='37.92' cy='5.07' r='0.4' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='24.49' cy='11.94' r='0.7' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='44.82' cy='43.44' r='0.48' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='14.85' cy='44.57' r='0.4' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='47.33' cy='82.75' r='0.56' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='44.33' cy='77.28' r='0.7' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='11.57' cy='65.72' r='0.7' fill='url%28%23b%29' opacity='0.85'/%3E%3Ccircle cx='2.40' cy='54.91' r='0.7' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='55.11' cy='68.54' r='0.56' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='4.52' cy='11.06' r='0.4' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='45.92' cy='50.58' r='0.4' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='10.03' cy='55.74' r='0.56' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='57.12' cy='29.27' r='0.48' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='1.67' cy='24.20' r='0.48' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='29.85' cy='76.99' r='0.7' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='41.26' cy='63.46' r='0.4' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='15.16' cy='54.73' r='0.56' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='2.45' cy='13.74' r='0.56' fill='url%28%23w%29' opacity='0.85'/%3E%3Ccircle cx='17.39' cy='75.88' r='0.7' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='40.01' cy='24.61' r='0.56' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='29.68' cy='31.42' r='0.7' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='11.92' cy='37.87' r='0.32' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='43.14' cy='36.46' r='0.32' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='39.42' cy='39.82' r='0.7' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='39.37' cy='56.81' r='0.48' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='17.51' cy='5.25' r='0.7' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='41.82' cy='26.75' r='0.48' fill='url%28%23b%29' opacity='0.85'/%3E%3Ccircle cx='2.77' cy='53.41' r='0.48' fill='url%28%23w%29' opacity='0.85'/%3E%3Ccircle cx='20.53' cy='5.02' r='0.48' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='11.86' cy='79.99' r='0.7' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='57.59' cy='8.97' r='0.48' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='3.62' cy='17.50' r='0.48' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='26.74' cy='64.26' r='0.32' fill='url%28%23b%29' opacity='0.85'/%3E%3Ccircle cx='50.04' cy='38.77' r='0.7' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='41.96' cy='66.36' r='0.32' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='29.22' cy='34.19' r='0.4' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='49.69' cy='82.86' r='0.7' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='56.01' cy='76.84' r='0.48' fill='url%28%23w%29' opacity='0.85'/%3E%3Ccircle cx='4.57' cy='76.11' r='0.7' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='50.38' cy='66.77' r='0.48' fill='url%28%23b%29' opacity='1'/%3E%3Ccircle cx='42.49' cy='32.39' r='0.32' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='14.99' cy='45.09' r='0.56' fill='url%28%23b%29' opacity='0.7'/%3E%3Ccircle cx='44.20' cy='16.55' r='0.48' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='6.71' cy='14.33' r='0.7' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='45.71' cy='13.69' r='0.32' fill='url%28%23w%29' opacity='0.85'/%3E%3Ccircle cx='53.67' cy='70.03' r='0.7' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='32.90' cy='9.69' r='0.32' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='26.33' cy='64.49' r='0.4' fill='url%28%23w%29' opacity='0.85'/%3E%3Ccircle cx='15.95' cy='0.76' r='0.4' fill='url%28%23b%29' opacity='0.85'/%3E%3Ccircle cx='25.95' cy='12.85' r='0.7' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='27.17' cy='67.11' r='0.32' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='52.48' cy='14.24' r='0.4' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='27.82' cy='35.23' r='0.32' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='44.49' cy='64.46' r='0.4' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='21.44' cy='17.15' r='0.4' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='24.43' cy='78.00' r='0.56' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='48.60' cy='13.91' r='0.7' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='42.70' cy='46.65' r='0.48' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='37.10' cy='31.19' r='0.32' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='7.78' cy='12.44' r='0.7' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='27.48' cy='65.70' r='0.56' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='19.20' cy='49.23' r='0.7' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='49.24' cy='83.47' r='0.56' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='30.05' cy='63.69' r='0.48' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='40.53' cy='76.71' r='0.4' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='55.53' cy='80.83' r='0.48' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='27.15' cy='44.90' r='0.32' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='43.94' cy='82.17' r='0.56' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='30.31' cy='7.59' r='0.7' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='17.88' cy='43.20' r='0.32' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='11.44' cy='46.44' r='0.32' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='39.62' cy='72.83' r='0.4' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='5.36' cy='34.38' r='0.7' fill='url%28%23b%29' opacity='0.85'/%3E%3Ccircle cx='18.55' cy='73.48' r='0.48' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='56.55' cy='37.96' r='0.56' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='30.34' cy='64.86' r='0.48' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='40.29' cy='72.42' r='0.32' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='37.29' cy='79.29' r='0.4' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='6.44' cy='1.85' r='0.4' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='11.65' cy='17.56' r='0.48' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='44.91' cy='24.32' r='0.7' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='22.00' cy='35.09' r='0.56' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='5.89' cy='63.81' r='0.4' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='36.53' cy='79.42' r='0.4' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='10.21' cy='30.58' r='0.56' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='11.19' cy='71.79' r='0.32' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='29.33' cy='57.08' r='0.4' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='57.90' cy='5.57' r='0.48' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='36.41' cy='74.32' r='0.32' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='5.38' cy='20.99' r='0.56' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='37.21' cy='31.73' r='0.32' fill='url%28%23w%29' opacity='1'/%3E%3Ccircle cx='38.07' cy='27.64' r='0.32' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='18.73' cy='70.13' r='0.48' fill='url%28%23w%29' opacity='0.7'/%3E%3Ccircle cx='48.02' cy='64.73' r='0.7' fill='url%28%23w%29' opacity='0.85'/%3E%3Ccircle cx='29.34' cy='19.96' r='0.4' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='22.23' cy='5.67' r='0.48' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='13.51' cy='56.51' r='0.48' fill='url%28%23b%29' opacity='0.7'/%3E%3Ccircle cx='18.21' cy='1.09' r='0.56' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='36.01' cy='1.71' r='0.32' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='30.61' cy='52.62' r='0.4' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='43.49' cy='6.88' r='0.56' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='47.12' cy='74.23' r='0.56' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='44.89' cy='43.22' r='0.32' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='33.63' cy='74.78' r='0.32' fill='url%28%23g%29' opacity='0.85'/%3E%3Ccircle cx='57.60' cy='8.79' r='0.32' fill='url%28%23g%29' opacity='0.55'/%3E%3Ccircle cx='47.09' cy='49.26' r='0.7' fill='url%28%23w%29' opacity='0.55'/%3E%3Ccircle cx='52.22' cy='40.97' r='0.56' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='30.49' cy='16.58' r='0.56' fill='url%28%23g%29' opacity='0.7'/%3E%3Ccircle cx='12.19' cy='18.43' r='0.48' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='42.33' cy='74.55' r='0.32' fill='url%28%23g%29' opacity='1'/%3E%3Ccircle cx='49.04' cy='5.15' r='0.48' fill='url%28%23b%29' opacity='0.85'/%3E%3Ccircle cx='50.53' cy='31.61' r='0.4' fill='url%28%23g%29' opacity='0.85'/%3E%3C/svg%3E") 0 0 / 100% 100%,
     /* short, faint blue streaks pointing away from the centre in every
        direction (some inside the title region, some behind the
        see-through text box) and a few soft stars, at scattered spots */
@@ -211,19 +243,37 @@
   align-items: center;
   gap: 2cqw;
   min-height: 10.5cqw;
-  padding: 0.6cqw 1cqw 0.6cqw 2.4cqw;
-  border-radius: 1cqw;
-  background: rgb(255 255 255 / 0.14);
-  box-shadow: inset 0.4cqw 0.4cqw 0.8cqw rgb(0 0 0 / 0.35), inset -0.3cqw -0.3cqw 0.6cqw rgb(255 255 255 / 0.25);
+  padding: 0.4cqw 0.8cqw 0.4cqw 2cqw;
+  /* a raised bevel in the card colour, as on real cards: light on the top
+     and left, dark on the bottom and right, plain inside */
+  border: 1.2cqw solid;
+  border-color:
+    color-mix(in oklab, var(--frame) 55%, #fff)
+    color-mix(in oklab, var(--frame) 70%, #000)
+    color-mix(in oklab, var(--frame) 60%, #000)
+    color-mix(in oklab, var(--frame) 65%, #fff);
   color: var(--name-color);
-  font-family: ui-serif, Georgia, "Times New Roman", serif;
-  font-size: 6.4cqw;
+  font-family: "Cinzel", ui-serif, Georgia, serif;
+  font-size: 7.4cqw;
   font-weight: 700;
-  text-shadow: 0 0 0.6cqw rgb(0 0 0 / 0.25);
+  line-height: 1;
 }
-.mq-card__name--long { font-size: 5.2cqw; letter-spacing: -0.02em; }
-.mq-card__name--longer { font-size: 4.4cqw; letter-spacing: -0.03em; }
-.mq-card__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* white names get a faint dark edge, like the printed ones */
+.mq-card__face:is([data-frame="xyz"], [data-frame="link"], [data-frame="spell"], [data-frame="trap"]) .mq-card__name {
+  text-shadow: 0 0.25cqw 0.4cqw rgb(0 0 0 / 0.45);
+}
+.mq-card__title { flex: 1; min-width: 0; overflow: hidden; }
+/* the name is laid out wider and squeezed back by --squeeze (set per name),
+   like the condensed names on real cards */
+.mq-card__title > span {
+  display: block;
+  width: calc(100% / var(--squeeze, 1));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: scaleX(var(--squeeze, 1));
+  transform-origin: left center;
+}
 .mq-card__attr { flex: none; width: 9.5cqw; height: 9.5cqw; }
 
 .mq-card__stars { display: flex; justify-content: flex-end; gap: 0.6cqw; min-height: 6.4cqw; padding: 0 calc(var(--art-inset) + 1cqw); }
@@ -238,7 +288,8 @@
   min-height: 6.4cqw;
   padding: 0 calc(var(--art-inset) + 1cqw);
   color: #1c1917;
-  font-size: 4.8cqw;
+  font-family: "Cinzel", ui-serif, Georgia, serif;
+  font-size: 4.4cqw;
   font-weight: 700;
 }
 .mq-card__property { display: inline-flex; margin-left: 0.8cqw; color: #1c1917; cursor: help; }
@@ -321,22 +372,54 @@
 
 .mq-card__pendulum {
   display: grid;
-  grid-template-columns: 7cqw 1fr 7cqw;
+  grid-template-columns: 8cqw 1fr 8cqw;
   align-items: center;
   gap: 1cqw;
   height: var(--pendulum-h);
   flex: none;
-  padding: 1cqw;
+  padding: 0.6cqw 1cqw;
   background:
-    var(--paper),
-    radial-gradient(ellipse at center, transparent 50%, color-mix(in oklab, var(--spell) 30%, transparent) 100%),
+    var(--paper-soft),
     color-mix(in oklab, var(--spell-box) 80%, transparent);
 }
-.mq-card__pendulum-text { max-height: 14cqw; overflow: hidden; font-size: 3.2cqw; white-space: pre-line; }
-.mq-card__pendulum-text.mq-text--s   { font-size: 2.7cqw; }
-.mq-card__pendulum-text.mq-text--xs  { font-size: 2.3cqw; }
-.mq-card__pendulum-text.mq-text--xxs { font-size: 2cqw; }
-.mq-card__scale { display: grid; place-items: center; font-size: 4.6cqw; font-weight: 800; line-height: 1; }
+.mq-card__pendulum-text {
+  /* starts at the top of the box, like on real cards */
+  align-self: start;
+  max-height: 100%;
+  overflow: hidden;
+  font-family: "Crimson Pro", ui-serif, Georgia, serif;
+  font-size: 3.4cqw;
+  line-height: 1.08;
+  text-align: justify;
+  white-space: pre-line;
+}
+.mq-card__pendulum-text.mq-text--s   { font-size: 3cqw; }
+.mq-card__pendulum-text.mq-text--xs  { font-size: 2.65cqw; }
+.mq-card__pendulum-text.mq-text--xxs { font-size: 2.3cqw; }
+.mq-card__scale { display: grid; place-items: center; align-self: stretch; font-size: 4.6cqw; font-weight: 800; line-height: 1; }
+/* the two lines between the scales and the Pendulum Effect */
+.mq-card__scale--left,
+.mq-card__scale--right {
+  /* the same worn braid as the frame, reaching from the frame above to the
+     line below (through the box's vertical padding) */
+  border: 0 solid var(--rim-mid);
+  border-image: repeating-linear-gradient(
+      135deg,
+      var(--rim-mid) 0,
+      var(--rim-hi) 0.18cqw,
+      var(--rim-mid) 0.36cqw,
+      var(--rim-lo) 0.52cqw,
+      var(--rim-mid) 0.66cqw,
+      var(--rim-hi2) 0.8cqw,
+      var(--rim-mid) 0.95cqw
+    ) 1;
+  margin-block: -0.6cqw;
+  padding-block: 0.6cqw;
+}
+.mq-card__scale--left,
+.mq-card__scale--right { position: relative; }
+.mq-card__scale--left { border-right-width: 0.7cqw; padding-right: 0.4cqw; }
+.mq-card__scale--right { border-left-width: 0.7cqw; padding-left: 0.4cqw; }
 /* the blue (left) and red (right) diamond above each scale */
 .mq-card__gem { width: 6cqw; height: 5cqw; margin-bottom: 0.4cqw; }
 
@@ -348,27 +431,60 @@
   min-height: 0;
 }
 
-/* The bronze frame of the text and Pendulum boxes, around a whitish
-   version of their colour. */
+/* The frame of the text and Pendulum boxes, as on real cards: a braided
+   golden bronze, or grey stone on Pendulum monsters. */
+.mq-card__face {
+  --rim-mid: #b95e26;
+  /* braid shades, precomputed: Firefox drops a border-image with color-mix */
+  /* corner square: a raised rim with a smaller square indented in it */
+  --rim-sq: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect width='10' height='10' fill='%23b45a2a'/%3E%3Cpath d='M0 0H10L9 1H1V9L0 10Z' fill='%23e0a54c'/%3E%3Cpath d='M10 10H0L1 9H9V1L10 0Z' fill='%236e340c'/%3E%3Crect x='2.6' y='2.6' width='4.8' height='4.8' fill='%239c4622'/%3E%3Cpath d='M2.6 2.6H7.4L6.7 3.3H3.3V6.7L2.6 7.4Z' fill='%236e340c'/%3E%3Cpath d='M7.4 7.4H2.6L3.3 6.7H6.7V3.3L7.4 2.6Z' fill='%23e0a54c'/%3E%3C/svg%3E");
+  --rim-hi: #cd8638;
+  --rim-lo: #a1511c;
+  --rim-hi2: #c67731;
+}
+.mq-card__face[data-pendulum] {
+  --rim-mid: #4f5f6f;
+  --rim-sq: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect width='10' height='10' fill='%2355606c'/%3E%3Cpath d='M0 0H10L9 1H1V9L0 10Z' fill='%237e8f9c'/%3E%3Cpath d='M10 10H0L1 9H9V1L10 0Z' fill='%232b343d'/%3E%3Crect x='2.6' y='2.6' width='4.8' height='4.8' fill='%234a545f'/%3E%3Cpath d='M2.6 2.6H7.4L6.7 3.3H3.3V6.7L2.6 7.4Z' fill='%232b343d'/%3E%3Cpath d='M7.4 7.4H2.6L3.3 6.7H6.7V3.3L7.4 2.6Z' fill='%237e8f9c'/%3E%3C/svg%3E");
+  --rim-hi: #5f707f;
+  --rim-lo: #42505e;
+  --rim-hi2: #596a79;
+}
 .mq-card__text,
 .mq-card__pendulum {
   position: relative;
-  border: 0.9cqw solid #b0612a;
-  border-color: #d08a4a #8c4a1c #7a3f16 #c47a3c;
-  box-shadow: inset 0 0 0 0.25cqw rgb(60 25 5 / 0.35);
+  border: 0.7cqw solid var(--rim-mid);
+  /* a worn, faint braid: low-contrast diagonal bands over the base colour,
+     with a soft lighter outer and darker inner edge */
+  border-image: repeating-linear-gradient(
+      135deg,
+      var(--rim-mid) 0,
+      var(--rim-hi) 0.18cqw,
+      var(--rim-mid) 0.36cqw,
+      var(--rim-lo) 0.52cqw,
+      var(--rim-mid) 0.66cqw,
+      var(--rim-hi2) 0.8cqw,
+      var(--rim-mid) 0.95cqw
+    ) 1;
+  box-shadow: inset 0 0 0 0.25cqw rgb(30 15 5 / 0.35);
 }
 .mq-card__text {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 1.6cqw 2.4cqw;
+  /* the text sits close to the frame, as on real cards */
+  padding: 0.9cqw 1.3cqw 1cqw;
   background:
-    var(--box-paper, var(--paper)),
-    radial-gradient(ellipse at center, transparent 50%, color-mix(in oklab, var(--box-color, var(--frame)) 30%, transparent) 100%),
+    var(--box-paper, var(--paper-soft)),
     var(--box-base, var(--box));
-  font-size: 3.5cqw;
+  /* a narrow, justified book serif as on real cards */
+  font-family: "Crimson Pro", ui-serif, Georgia, serif;
+  font-size: 3.4cqw;
+  line-height: 1.12;
+  text-align: justify;
 }
+/* Normal Monsters' texts are flavour texts, set in italics */
+.mq-card__face[data-frame="normal"] .mq-card__body { font-style: italic; }
 /* Xyz: a plain grey text box (no old paper) that lets the streaks and
    stars behind it show through */
 .mq-card__face[data-frame="xyz"] {
@@ -379,7 +495,6 @@
    Spell's, so the text box is a Spell's: solid whitish green on old paper.
    `initial` drops the Xyz overrides above, back to the defaults. */
 .mq-card__face[data-pendulum] {
-  --box-color: var(--spell);
   --box: var(--spell-box);
   --box-paper: initial;
   --box-base: initial;
@@ -387,10 +502,12 @@
 /* a small bronze square on each corner of the frame */
 .mq-card__text::before,
 .mq-card__pendulum::before {
-  --sq: linear-gradient(135deg, #f3b06a, #a2531d 55%, #5e2c0c);
+  --sq: var(--rim-sq);
   content: "";
   position: absolute;
-  inset: -1.45cqw;
+  /* as on real cards: the frame line's outer edge runs in just inside the
+     square's outer edge (0.37cqw), the square reaching further inwards; lines are 0.7cqw */
+  inset: -1.07cqw;
   background:
     var(--sq) left top / 2cqw 2cqw no-repeat,
     var(--sq) right top / 2cqw 2cqw no-repeat,
@@ -407,13 +524,15 @@
     var(--sq) right top / 2cqw 2cqw no-repeat;
 }
 .mq-card__text.mq-text--s   { font-size: 3cqw; }
-.mq-card__text.mq-text--xs  { font-size: 2.6cqw; }
-.mq-card__text.mq-text--xxs { font-size: 2.2cqw; }
+.mq-card__text.mq-text--xs  { font-size: 2.65cqw; }
+.mq-card__text.mq-text--xxs { font-size: 2.3cqw; }
 .mq-card__texts.is-readable { position: relative; cursor: zoom-in; border-radius: 0.4cqw; transition: box-shadow 150ms; }
 /* the ring goes around the boxes' corner squares, inside the outer border */
 .mq-card__texts.is-readable:hover,
 .mq-card__texts.is-readable:focus-visible { outline: none; box-shadow: 0 0 0 1.7cqw var(--color-primary); }
-.mq-card__type { font-weight: 700; }
+/* the type line keeps its size when a long text is set smaller, as on real
+   cards */
+.mq-card__type { font-family: "Cinzel", ui-serif, Georgia, serif; font-weight: 700; font-size: 3.5cqw; line-height: 1.15; text-align: left; }
 .mq-card__body { flex: 1; min-height: 0; overflow: hidden; white-space: pre-line; }
 .mq-card--small .mq-card__body { mask-image: linear-gradient(to bottom, #000 75%, transparent); }
 .mq-card--large .mq-card__body,
@@ -421,10 +540,30 @@
 .mq-card__stats {
   display: flex;
   justify-content: flex-end;
-  gap: 3cqw;
-  margin-top: 0.8cqw;
+  align-items: baseline;
+  gap: 2.4cqw;
+  margin-top: 0.6cqw;
   border-top: 0.35cqw solid #1c1917;
+  /* a tall, condensed bold serif at a fixed size, as on real cards */
+  font-family: "Crimson Pro", ui-serif, Georgia, serif;
+  font-size: 4.3cqw;
   font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.mq-stat { display: inline-flex; align-items: baseline; white-space: nowrap; }
+/* a fixed field of up to four digits: ATK/ and DEF/ keep their place */
+.mq-stat__value { display: inline-block; width: 2.04em; text-align: right; }
+/* LINK-n is set in a heavy, blocky sans-serif, in the same fixed width as
+   the DEF block, so ATK/ stays in place on Link monsters too */
+.mq-stat--link {
+  justify-content: flex-end;
+  width: 3.85em;
+  font-family: "Arial Black", "Helvetica Neue", Arial, ui-sans-serif, sans-serif;
+  font-size: 1.05em;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  -webkit-text-stroke: 0.03em currentColor;
 }
 
 /* A card's texts in a readable panel, tinted like its text box. */
@@ -440,7 +579,7 @@
   border-radius: 0.6rem 0.6rem 0 0;
   background: var(--frame);
   color: #1c1917;
-  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-family: "Cinzel", ui-serif, Georgia, serif;
   font-size: 1.35rem;
   font-weight: 700;
 }
