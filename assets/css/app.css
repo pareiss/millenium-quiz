@@ -418,8 +418,8 @@
 }
 .mq-card__scale--left,
 .mq-card__scale--right { position: relative; }
-.mq-card__scale--left { border-right-width: 0.9cqw; padding-right: 0.4cqw; }
-.mq-card__scale--right { border-left-width: 0.9cqw; padding-left: 0.4cqw; }
+.mq-card__scale--left { border-right-width: 0.7cqw; padding-right: 0.4cqw; }
+.mq-card__scale--right { border-left-width: 0.7cqw; padding-left: 0.4cqw; }
 /* the blue (left) and red (right) diamond above each scale */
 .mq-card__gem { width: 6cqw; height: 5cqw; margin-bottom: 0.4cqw; }
 
@@ -460,7 +460,7 @@
 .mq-card__text,
 .mq-card__pendulum {
   position: relative;
-  border: 0.9cqw solid var(--rim-mid);
+  border: 0.7cqw solid var(--rim-mid);
   /* a worn, faint braid: low-contrast diagonal bands over the base colour,
      with a soft lighter outer and darker inner edge */
   border-image: repeating-linear-gradient(
@@ -513,13 +513,14 @@
   --sq: var(--rim-sq);
   content: "";
   position: absolute;
-  /* each square centred on the corner of the frame line (0.9cqw wide) */
-  inset: -1.55cqw;
+  /* as on real cards: the frame line's outer edge runs in just inside the
+     square's outer edge (0.37cqw), the square reaching further inwards; lines are 0.7cqw */
+  inset: -1.07cqw;
   background:
-    var(--sq) left top / 2.2cqw 2.2cqw no-repeat,
-    var(--sq) right top / 2.2cqw 2.2cqw no-repeat,
-    var(--sq) left bottom / 2.2cqw 2.2cqw no-repeat,
-    var(--sq) right bottom / 2.2cqw 2.2cqw no-repeat;
+    var(--sq) left top / 2cqw 2cqw no-repeat,
+    var(--sq) right top / 2cqw 2cqw no-repeat,
+    var(--sq) left bottom / 2cqw 2cqw no-repeat,
+    var(--sq) right bottom / 2cqw 2cqw no-repeat;
   pointer-events: none;
 }
 /* Together they form one frame: the text box's top border is the shared
@@ -527,8 +528,8 @@
 .mq-card__pendulum { border-bottom: 0; }
 .mq-card__pendulum::before {
   background:
-    var(--sq) left top / 2.2cqw 2.2cqw no-repeat,
-    var(--sq) right top / 2.2cqw 2.2cqw no-repeat;
+    var(--sq) left top / 2cqw 2cqw no-repeat,
+    var(--sq) right top / 2cqw 2cqw no-repeat;
 }
 .mq-card__text.mq-text--s   { font-size: 3cqw; }
 .mq-card__text.mq-text--xs  { font-size: 2.65cqw; }
