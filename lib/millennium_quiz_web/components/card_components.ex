@@ -463,9 +463,13 @@ defmodule MillenniumQuizWeb.CardComponents do
             stroke-width="1"
           />
         <% "Counter" -> %>
-          <%!-- a quarter circle from 3 o'clock, clockwise to 6 o'clock --%>
-          <path d="M20 5a14 14 0 0 1-14 14" stroke-width="2.6" />
-          <path d="M2 19 8.2 14.6v8.8z" fill="currentColor" stroke-width="1" />
+          <%!-- a thick arrow: it starts as a point at the top right, runs
+               down and hooks sharply to the left into a large head --%>
+          <path
+            d="M19.6 2.8C21.7 5.6 22.1 10.2 20.6 13.8C19.2 17.2 15.9 19.6 12.4 20L12.6 22.6L2.4 15.4L12.4 8.4L12.3 12.3C15 12.2 17.3 11.3 18.6 9.4C19.6 7.8 19.9 5.6 19.6 2.8Z"
+            fill="currentColor"
+            stroke="none"
+          />
         <% _ -> %>
           <circle cx="12" cy="12" r="3" fill="currentColor" />
       <% end %>
