@@ -1,5 +1,6 @@
 # The checks of `mix precommit`, without rewriting files: compile with warnings
-# as errors, unused deps, formatting, and the tests with coverage. The outputs
+# as errors, unused deps, formatting, and the tests with coverage; plus the
+# tests of the PR review helpers (bin/review-tools). The outputs
 # are uploaded as the "ci-results" artifact, which bin/review-pr hands to the
 # reviewer.
 name: CI
@@ -75,6 +76,7 @@ jobs:
           check unused-deps mix deps.unlock --check-unused
           check format mix format --check-formatted
           check tests mix test --cover
+          check review-tools python3 -m unittest discover -s test/review
           cat ci-results/summary.md
           cat ci-results/tests.txt
           exit $status

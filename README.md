@@ -170,13 +170,17 @@ In Claude Code the same is available as `/review-pr <number>` and
 `/review-open-prs`. Each finding in a review file has a "Your verdict" line:
 tick valid, wrong or unsure. `/post-review <number>` (or `bin/review-post <number>`)
 then posts the evaluated review to the PR: every finding with your verdict and
-reason, and the commits after the review that address it (commits whose message
-names the finding, e.g. "F2: ..."). So the PR shows why changes were made.
+reason, and the commits after the review that address it. So the PR shows why
+changes were made. A fix commit names its findings at the start of a line of
+its message, e.g. `- F2: ...` or `- F1, F5: ...`; a mention elsewhere in the
+text doesn't count. Posting again updates the same comment, and commits after
+the review that address no finding are listed for confirmation first.
 Rejected findings can go into the "Decisions and known false positives" section
 of `REVIEWING.md`, so reviews improve over time.
 
 The reviewer is defined in `.claude/agents/pr-reviewer.md`. The scripts need
-`gh`, `claude`, `git` and `python3`. `reviews/` is gitignored.
+`gh`, `claude`, `git` and `python3`; `python3 -m unittest discover -s test/review`
+tests the review helpers (CI runs it too). `reviews/` is gitignored.
 
 ## Container image
 

@@ -24,6 +24,7 @@ cd "$root"
 mkdir -p reviews/logs
 
 bin/review-cleanup
+export REVIEW_CLEANED=1
 
 declare -A slug=()
 numbers=()

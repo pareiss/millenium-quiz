@@ -29,6 +29,7 @@
 # Exit codes: 0 reviewed, 3 skipped (the current review is of this commit), 1 failed.
 # Environment: REVIEW_MODEL (default: the model in the agent file),
 # REVIEW_SELFCHECKED=1 to skip the self-check (bin/review-open-prs runs it once),
+# REVIEW_CLEANED=1 to skip archiving reviews of merged/closed PRs (likewise),
 # REVIEW_CI_WAIT (default 900): seconds to wait for a CI run still in progress.
 set -euo pipefail
 
@@ -93,6 +94,11 @@ reviewer_family="$(bin/review-tools family "$model")"
 if [[ " $authors " == *" $reviewer_family "* ]]; then
   echo "review-pr: PR #$number was written with Claude ${authors// /, }; the reviewer must be another model than $model (e.g. REVIEW_MODEL=$( [[ $reviewer_family == sonnet ]] && echo fable || echo sonnet))" >&2
   exit 1
+fi
+
+# Reviews of PRs that are merged or closed don't belong in reviews/ anymore.
+if [[ "${REVIEW_CLEANED:-}" != 1 ]]; then
+  bin/review-cleanup
 fi
 
 if [[ "${REVIEW_SELFCHECKED:-}" != 1 ]]; then
