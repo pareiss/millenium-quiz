@@ -59,6 +59,13 @@ defmodule MillenniumQuizWeb.Router do
     delete "/logout", SessionController, :delete
   end
 
+  ## Card pool
+
+  # Artworks are plain images: no session, no CSRF.
+  scope "/cards", MillenniumQuizWeb do
+    get "/:id/artwork", CardArtworkController, :show
+  end
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:millennium_quiz, :dev_routes) do
     import Phoenix.LiveDashboard.Router

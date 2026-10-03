@@ -46,4 +46,5 @@ config :phoenix,
 # Card sources (YGOPRODeck, YAML Yugi, Yugipedia) never hit the network in
 # tests; see MillenniumQuiz.CardSourcesStub.
 config :millennium_quiz, MillenniumQuiz.Cards,
-  req_options: [plug: {Req.Test, MillenniumQuiz.Cards}]
+  req_options: [plug: {Req.Test, MillenniumQuiz.Cards}],
+  refresh_pause_ms: 0

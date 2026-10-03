@@ -1,6 +1,9 @@
 defmodule MillenniumQuiz.CardsTest do
   use MillenniumQuiz.DataCase, async: true
 
+  # Plain Card has no artwork on purpose; the import logs a warning.
+  @moduletag :capture_log
+
   alias MillenniumQuiz.{Cards, CardSourcesStub}
   alias MillenniumQuiz.Cards.{Card, CardText}
 
@@ -57,6 +60,47 @@ defmodule MillenniumQuiz.CardsTest do
       assert hd(card.card_texts).released_on == ~D[2015-05-05]
     end
 
+    test "stores what is printed besides the text, and the artwork" do
+      {:ok, reborn} = Cards.import(83_764_719)
+      assert %{kind: "Spell", property: "Normal", frame_type: "spell"} = reborn
+
+      artwork = Cards.get_artwork(reborn.id)
+      assert artwork.artwork_id == 83_764_718
+      assert artwork.data == CardSourcesStub.artwork()
+      assert artwork.content_type == "image/jpeg"
+
+      {:ok, plain} = Cards.import(11_111_111)
+
+      assert %{
+               kind: "Monster",
+               frame_type: "xyz_pendulum",
+               monster_type_line: "Dragon / Xyz / Pendulum / Effect",
+               attribute: "DARK",
+               rank: 7,
+               level: nil,
+               atk: "3000",
+               def: "?",
+               pendulum_scale: 4,
+               materials: "2 Level 7 monsters",
+               archetypes: ["Plain"]
+             } = plain
+
+      assert plain.pendulum_texts["en"] == "Once per turn: You can draw 1 card."
+      # a missing artwork doesn't stop the import
+      assert Cards.get_artwork(plain.id) == nil
+    end
+
+    test "refresh/1 fetches the card again and replaces texts and artwork" do
+      {:ok, card} = Cards.import(83_764_719)
+      Repo.update_all(Card, set: [property: "Old"])
+
+      assert {:ok, refreshed} = Cards.refresh(Cards.get_card!(card.id))
+      assert refreshed.id == card.id
+      assert refreshed.property == "Normal"
+      assert Repo.aggregate(CardText, :count) == length(card.card_texts)
+      assert Repo.aggregate(MillenniumQuiz.Cards.CardArtwork, :count) == 1
+    end
+
     test "an import that collides with a stored card returns the stored card" do
       # The printed password is stored already, under a row the lookups by the
       # requested id (an artwork id) and by Konami id don't find.
@@ -70,6 +114,38 @@ defmodule MillenniumQuiz.CardsTest do
       assert {:ok, %Card{id: id}} = Cards.import(83_764_719)
       assert id == stored.id
       assert Repo.aggregate(Card, :count) == 1
+    end
+
+    test "the artwork is downloaded once: a refresh keeps it" do
+      test = self()
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        if conn.host == "images.ygoprodeck.com", do: send(test, :image_request)
+        CardSourcesStub.handle(conn)
+      end)
+
+      {:ok, card} = Cards.import(83_764_719)
+      assert_received :image_request
+      stored = Cards.get_artwork(card.id)
+
+      {:ok, _} = Cards.refresh(Cards.get_card!(card.id))
+      refute_received :image_request
+      assert Cards.get_artwork(card.id) == stored
+    end
+
+    test "a downloaded artwork that is not a plain image is not stored" do
+      Req.Test.stub(MillenniumQuiz.Cards, fn
+        %{host: "images.ygoprodeck.com"} = conn ->
+          conn
+          |> Plug.Conn.put_resp_content_type("text/html")
+          |> Plug.Conn.send_resp(200, "<script>alert(1)</script>")
+
+        conn ->
+          CardSourcesStub.handle(conn)
+      end)
+
+      assert {:ok, card} = Cards.import(83_764_719)
+      assert Cards.get_artwork(card.id) == nil
     end
 
     test "unknown cards are an error" do
