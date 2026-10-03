@@ -553,12 +553,12 @@
 }
 .mq-stat { display: inline-flex; align-items: baseline; white-space: nowrap; }
 /* a fixed field of up to four digits: ATK/ and DEF/ keep their place */
-.mq-stat__value { display: inline-block; width: 2.04em; text-align: right; }
+.mq-stat__value { display: inline-block; width: 2.2em; text-align: right; }
 /* LINK-n is set in a heavy, blocky sans-serif, in the same fixed width as
    the DEF block, so ATK/ stays in place on Link monsters too */
 .mq-stat--link {
   justify-content: flex-end;
-  width: 3.85em;
+  width: 4.14em;
   font-family: "Arial Black", "Helvetica Neue", Arial, ui-sans-serif, sans-serif;
   font-size: 1.05em;
   font-weight: 900;
@@ -598,9 +598,15 @@
   border-radius: 0 0 0.6rem 0.6rem;
   background: var(--box);
   color: #1c1917;
-  font-size: 1rem;
-  line-height: 1.55;
+  /* the card's book serif; Crimson Pro runs small, so a size up from 1rem */
+  font-family: "Crimson Pro", ui-serif, Georgia, serif;
+  font-size: 1.2rem;
+  line-height: 1.35;
 }
+.mq-card-panel__text,
+.mq-card-panel__pendulum p { text-align: justify; hyphens: auto; }
+/* Normal Monsters' texts are flavour texts, set in italics, as on the card */
+.mq-card-panel[data-frame="normal"] .mq-card-panel__text { font-style: italic; }
 .mq-card-panel__pendulum {
   padding: 0.6rem 0.8rem;
   border: 2px solid color-mix(in oklab, var(--spell) 55%, #1c1917);
@@ -620,7 +626,23 @@
   letter-spacing: 0.06em;
 }
 .mq-card-panel__scale { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; cursor: help; }
-.mq-card-panel__stats { display: flex; justify-content: flex-end; gap: 1.2rem; border-top: 2px solid #1c1917; padding-top: 0.3rem; font-weight: 700; }
+.mq-card-panel__type { font-family: "Cinzel", ui-serif, Georgia, serif; font-weight: 700; font-size: 1.05rem; line-height: 1.2; text-align: left; }
+/* same proportions as .mq-card__stats (4.3cqw type, 2.4cqw gap), in rem */
+.mq-card-panel__stats {
+  text-align: left;
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 1.4rem;
+  margin-top: 0.2rem;
+  border-top: 2px solid #1c1917;
+  padding-top: 0.2rem;
+  font-family: "Crimson Pro", ui-serif, Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
 .mq-card-panel__stars { display: inline-flex; flex: none; align-items: center; gap: 0.3rem; font-family: ui-sans-serif, system-ui, sans-serif; cursor: help; }
 .mq-card-panel__property { display: inline-flex; flex: none; cursor: help; }
 .mq-link-arrow polygon { fill: #ef3b24; stroke: #d6d3d1; stroke-width: 1.6; stroke-linejoin: round; }

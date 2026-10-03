@@ -224,7 +224,7 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(doc, ".mq-card-panel__scale > svg") == 2
     assert count(doc, ".mq-card-panel__scale > svg:first-child polygon[fill='#3d84f0']") == 1
     assert count(doc, ".mq-card-panel__scale > svg:last-child polygon[fill='#e8364c']") == 1
-    assert html =~ "[Dragon / Pendulum / Effect]"
+    assert html =~ "[Dragon/Pendulum/Effect]"
     assert html =~ "Double damage."
     assert text(doc, ".mq-card-panel__stats") =~ ~r/ATK\/2500\s+DEF\/2000/
     assert html =~ "As printed in Starter Deck"
@@ -258,6 +258,35 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
       )
 
     refute html =~ "mq-card-panel__property"
+  end
+
+  test "the text panel shows LINK-n for a Link monster and no stats for a Spell" do
+    link =
+      Map.merge(@blank, %{
+        name: "Link",
+        frame_type: "link",
+        monster_type_line: "Cyberse / Link / Effect",
+        atk: "2300",
+        link_arrows: ["↙", "⬆\uFE0F", "↘"]
+      })
+
+    doc = fn card ->
+      render_component(&card_text_dialog/1,
+        id: "t",
+        card: card,
+        on_close: "close",
+        inner_block: []
+      )
+      |> LazyHTML.from_fragment()
+    end
+
+    link_doc = doc.(link)
+    assert text(link_doc, ".mq-card-panel__stats .mq-stat--link") == "LINK-3"
+    assert text(link_doc, ".mq-card-panel__stats") =~ ~r/ATK\/2300\s+LINK-3/
+    refute text(link_doc, ".mq-card-panel__stats") =~ "DEF"
+
+    spell = Map.merge(@blank, %{name: "MST", kind: "Spell", property: "Normal", text: "Hi."})
+    assert count(doc.(spell), ".mq-card-panel__stats") == 0
   end
 
   test "with on_back, a click on the text panel goes back" do
