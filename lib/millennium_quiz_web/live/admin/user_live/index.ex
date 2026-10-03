@@ -145,11 +145,11 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
 
   # Removing an admin asks first, in an in-app dialog (see confirm_dialog/1).
   def handle_event("confirm_delete", %{"id" => id}, socket) do
-    user = Accounts.get_user!(id)
-
-    if user.id == socket.assigns.current_scope.user.id,
-      do: {:noreply, socket},
-      else: {:noreply, assign(socket, :confirm, %{id: user.id, username: user.username})}
+    case Accounts.get_user(id) do
+      nil -> {:noreply, user_gone(socket)}
+      %{id: id} when id == socket.assigns.current_scope.user.id -> {:noreply, socket}
+      user -> {:noreply, assign(socket, :confirm, %{id: user.id, username: user.username})}
+    end
   end
 
   def handle_event("cancel_confirm", _params, socket) do
@@ -157,18 +157,26 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
-    user = Accounts.get_user!(id)
+    case Accounts.get_user(id) do
+      nil ->
+        {:noreply, user_gone(socket)}
 
-    if user.id != socket.assigns.current_scope.user.id do
-      {:ok, _} = Accounts.delete_user(user)
-      MillenniumQuizWeb.UserAuth.disconnect_sessions(user)
+      %{id: id} when id == socket.assigns.current_scope.user.id ->
+        {:noreply,
+         socket
+         |> assign(:confirm, nil)
+         |> put_flash(:error, "You can't remove yourself.")}
+
+      user ->
+        {:ok, _} = Accounts.delete_user(user)
+        MillenniumQuizWeb.UserAuth.disconnect_sessions(user)
+
+        {:noreply,
+         socket
+         |> assign(:confirm, nil)
+         |> put_flash(:info, "Admin #{user.username} removed.")
+         |> assign(:users, Accounts.list_users())}
     end
-
-    {:noreply,
-     socket
-     |> assign(:confirm, nil)
-     |> put_flash(:info, "Admin #{user.username} removed.")
-     |> assign(:users, Accounts.list_users())}
   end
 
   def handle_event(
@@ -211,5 +219,13 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
          |> assign(:current_password_errors, [])
          |> assign(:trigger_password, true)}
     end
+  end
+
+  # E.g. removed by another admin in the meantime: say so instead of crashing.
+  defp user_gone(socket) do
+    socket
+    |> assign(:confirm, nil)
+    |> put_flash(:error, "That admin doesn't exist anymore.")
+    |> assign(:users, Accounts.list_users())
   end
 end

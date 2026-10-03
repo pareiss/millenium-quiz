@@ -195,13 +195,17 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
   end
 
   def handle_event("confirm_delete", %{"what" => "question", "id" => id}, socket) do
-    question = Quiz.get_question!(id)
+    case Quiz.get_question(id) do
+      nil ->
+        {:noreply, question_gone(socket)}
 
-    label =
-      String.slice(question.text, 0, 80) <>
-        if(String.length(question.text) > 80, do: "…", else: "")
+      question ->
+        label =
+          String.slice(question.text, 0, 80) <>
+            if(String.length(question.text) > 80, do: "…", else: "")
 
-    {:noreply, assign(socket, :confirm, %{what: :question, id: question.id, label: label})}
+        {:noreply, assign(socket, :confirm, %{what: :question, id: question.id, label: label})}
+    end
   end
 
   def handle_event("cancel_confirm", _params, socket) do
@@ -209,13 +213,19 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
   end
 
   def handle_event("delete_question", %{"id" => id}, socket) do
-    {:ok, _} = id |> Quiz.get_question!() |> Quiz.delete_question()
+    case Quiz.get_question(id) do
+      nil ->
+        {:noreply, question_gone(socket)}
 
-    {:noreply,
-     socket
-     |> assign(:confirm, nil)
-     |> put_flash(:info, "Question deleted.")
-     |> assign_format(socket.assigns.format.id)}
+      question ->
+        {:ok, _} = Quiz.delete_question(question)
+
+        {:noreply,
+         socket
+         |> assign(:confirm, nil)
+         |> put_flash(:info, "Question deleted.")
+         |> assign_format(socket.assigns.format.id)}
+    end
   end
 
   def handle_event("delete_format", _params, socket) do
@@ -233,5 +243,13 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
     socket
     |> assign(:page_title, format.name)
     |> assign(:format, format)
+  end
+
+  # E.g. deleted by another admin in the meantime: say so instead of crashing.
+  defp question_gone(socket) do
+    socket
+    |> assign(:confirm, nil)
+    |> put_flash(:error, "That question doesn't exist anymore.")
+    |> assign_format(socket.assigns.format.id)
   end
 end
