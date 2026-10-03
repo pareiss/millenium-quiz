@@ -116,17 +116,21 @@
    piece. Cards look the same in light and dark mode: they are objects. */
 .mq-card { container-type: inline-size; }
 
-/* Old paper for the card and its boxes: fine grain, darker and lighter
-   stains (SVG noise) and a light patch. All neutral, so they only shade
-   the colour underneath; each element adds its own tint. */
+/* Old paper, after real cards: soft, round clouds of lighter and darker
+   colour (isotropic noise in a fixed-size tile, never stretched) and a fine
+   grain. Neutral, so they only shade the colour underneath. The frame has
+   strong clouds and grain; text boxes only faint clouds.
+   Tuned against real cards (frame/box stains, mottle and grain measured
+   at 813 px); noise parameters: {"tile": 45, "freq": 0.018, "octaves": 3, "k_frame": 0.45, "k_box": 0.17, "grain": 0.16, "box_grain": 0.022, "bias": 0.25} */
 .mq-card__face {
   --paper-grain:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' preserveAspectRatio='none'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0.14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E") 0 0 / 40cqw 40cqw;
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url%28%23g%29'/%3E%3C/svg%3E") 0 0 / 20cqw 20cqw;
   --paper:
     var(--paper-grain),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' preserveAspectRatio='none'%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.02' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0 0.1 0 0 0 0.5 -0.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23d)'/%3E%3C/svg%3E") 0 0 / 100% 100%,
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' preserveAspectRatio='none'%3E%3Cfilter id='l'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018 0.012' numOctaves='3' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 -0.25'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23l)'/%3E%3C/svg%3E") 0 0 / 100% 100%,
-    radial-gradient(ellipse 60% 50% at 35% 30%, rgb(255 255 255 / 0.25), transparent 70%);
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='l' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1.125 0 0 0 -0.562'/%3E%3C/filter%3E%3Cfilter id='d' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -0.675 0 0 0 0.338'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url%28%23l%29'/%3E%3Crect width='300' height='300' filter='url%28%23d%29'/%3E%3C/svg%3E") 0 0 / 45cqw 45cqw;
+  --paper-soft:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0.022 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url%28%23g%29'/%3E%3C/svg%3E") 0 0 / 20cqw 20cqw,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='l' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='3' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.425 0 0 0 -0.213'/%3E%3C/filter%3E%3Cfilter id='d' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='3' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -0.255 0 0 0 0.128'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url%28%23l%29'/%3E%3Crect width='300' height='300' filter='url%28%23d%29'/%3E%3C/svg%3E") 0 0 / 45cqw 45cqw;
 }
 
 .mq-card__face {
@@ -148,7 +152,7 @@
   /* what lies on the frame colour: the paper, a gloss, and (for Xyz)
      a night sky */
   --frame-paper: var(--paper);
-  --frame-gloss: linear-gradient(155deg, rgb(255 255 255 / 0.28), transparent 38%, rgb(0 0 0 / 0.14));
+  --frame-gloss: linear-gradient(155deg, rgb(255 255 255 / 0.12), transparent 38%, rgb(0 0 0 / 0.08));
   --frame-sky: none;
   background: var(--frame-sky), var(--frame-paper), var(--frame-gloss), var(--frame);
   box-shadow: 0 0.6cqw 2.4cqw rgb(0 0 0 / 0.35);
@@ -175,6 +179,9 @@
 :is(.mq-card__face, .mq-card-panel)[data-frame="token"]   { --frame: #807c7b; --box: #d8d7d8; }
 :is(.mq-card__face, .mq-card-panel)[data-frame="spell"]   { --frame: var(--spell); --box: var(--spell-box); --name-color: #fafaf9; }
 :is(.mq-card__face, .mq-card-panel)[data-frame="trap"]    { --frame: #ab2e7a; --box: #e6c0d7; --name-color: #fafaf9; }
+/* Synchro: the white frame only has faint clouds; grain would show as dirt */
+.mq-card__face[data-frame="synchro"] { --frame-paper: var(--paper-soft); }
+
 /* Xyz: deep black with short blue streaks around the centre and a few
    faint stars, no old-paper texture. */
 .mq-card__face[data-frame="xyz"] {
@@ -328,8 +335,7 @@
   flex: none;
   padding: 1cqw;
   background:
-    var(--paper),
-    radial-gradient(ellipse at center, transparent 50%, color-mix(in oklab, var(--spell) 30%, transparent) 100%),
+    var(--paper-soft),
     color-mix(in oklab, var(--spell-box) 80%, transparent);
 }
 .mq-card__pendulum-text { max-height: 14cqw; overflow: hidden; font-size: 3.2cqw; white-space: pre-line; }
@@ -364,8 +370,7 @@
   min-height: 0;
   padding: 1.6cqw 2.4cqw;
   background:
-    var(--box-paper, var(--paper)),
-    radial-gradient(ellipse at center, transparent 50%, color-mix(in oklab, var(--box-color, var(--frame)) 30%, transparent) 100%),
+    var(--box-paper, var(--paper-soft)),
     var(--box-base, var(--box));
   font-size: 3.5cqw;
 }
@@ -379,7 +384,6 @@
    Spell's, so the text box is a Spell's: solid whitish green on old paper.
    `initial` drops the Xyz overrides above, back to the defaults. */
 .mq-card__face[data-pendulum] {
-  --box-color: var(--spell);
   --box: var(--spell-box);
   --box-paper: initial;
   --box-base: initial;

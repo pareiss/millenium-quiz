@@ -56,8 +56,8 @@ frame, Attribute, Level/Rank stars, Link Arrows, Pendulum Scales, artwork,
 type line, the texts of the format's date and ATK/DEF. Long texts are set
 smaller. A tap enlarges a card, and a tap on its text shows the texts in a
 readable panel; both show the Yugipedia/YAML Yugi credit. The frames are CSS
-(`.mq-card` in `app.css`), with colours, borders and margins taken from real
-cards, and the icons are SVGs drawn for this app; no Konami card templates or
+(`.mq-card` in `app.css`), with colours, borders, margins and paper textures
+taken from real cards, and the icons are SVGs drawn for this app; no Konami card templates or
 icons are used. Yugipedia's errata of a Pendulum card only cover its Pendulum
 Effect, so `Cards.printed_on/3` dates the Pendulum Effect and shows the
 current monster text. Known limitation: an older wording of a Pendulum
