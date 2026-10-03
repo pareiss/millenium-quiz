@@ -344,6 +344,22 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert length(all) == length(Enum.uniq(all))
   end
 
+  test "long names are squeezed horizontally instead of shrunk" do
+    squeeze = fn name ->
+      render_card(%{name: name})
+      |> LazyHTML.query(".mq-card__title > span")
+      |> LazyHTML.attribute("style")
+      |> hd()
+    end
+
+    assert squeeze.("Dark Magician") == "--squeeze: 1"
+    # capitals count wider than small caps, spaces narrower
+    assert squeeze.("Mystical Space Typhoon") == "--squeeze: 0.647"
+    assert squeeze.("Odd-Eyes Pendulum Dragon") == "--squeeze: 0.6"
+    # never narrower than half width
+    assert squeeze.(String.duplicate("Long name ", 8)) == "--squeeze: 0.5"
+  end
+
   test "a card from an old snapshot gets a plain frame and no artwork" do
     doc = render_card(%{name: "Monster Reborn", text: "Revive."})
 

@@ -116,6 +116,29 @@
    piece. Cards look the same in light and dark mode: they are objects. */
 .mq-card { container-type: inline-size; }
 
+/* Card fonts: free lookalikes of the fonts on real cards, served from
+   priv/static/fonts (SIL Open Font License, see the OFL files there).
+   Cinzel draws lowercase as small capitals, like card names. */
+@font-face {
+  font-family: "Cinzel";
+  src: url("/fonts/Cinzel.ttf") format("truetype");
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Crimson Pro";
+  src: url("/fonts/CrimsonPro.ttf") format("truetype");
+  font-weight: 200 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Crimson Pro";
+  src: url("/fonts/CrimsonPro-Italic.ttf") format("truetype");
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* Old paper, after real cards: soft, round clouds of lighter and darker
    colour (isotropic noise in a fixed-size tile, never stretched) and a fine
    grain. Neutral, so they only shade the colour underneath. The frame has
@@ -220,19 +243,37 @@
   align-items: center;
   gap: 2cqw;
   min-height: 10.5cqw;
-  padding: 0.6cqw 1cqw 0.6cqw 2.4cqw;
-  border-radius: 1cqw;
-  background: rgb(255 255 255 / 0.14);
-  box-shadow: inset 0.4cqw 0.4cqw 0.8cqw rgb(0 0 0 / 0.35), inset -0.3cqw -0.3cqw 0.6cqw rgb(255 255 255 / 0.25);
+  padding: 0.4cqw 0.8cqw 0.4cqw 2cqw;
+  /* a raised bevel in the card colour, as on real cards: light on the top
+     and left, dark on the bottom and right, plain inside */
+  border: 1.2cqw solid;
+  border-color:
+    color-mix(in oklab, var(--frame) 55%, #fff)
+    color-mix(in oklab, var(--frame) 70%, #000)
+    color-mix(in oklab, var(--frame) 60%, #000)
+    color-mix(in oklab, var(--frame) 65%, #fff);
   color: var(--name-color);
-  font-family: ui-serif, Georgia, "Times New Roman", serif;
-  font-size: 6.4cqw;
+  font-family: "Cinzel", ui-serif, Georgia, serif;
+  font-size: 7.4cqw;
   font-weight: 700;
-  text-shadow: 0 0 0.6cqw rgb(0 0 0 / 0.25);
+  line-height: 1;
 }
-.mq-card__name--long { font-size: 5.2cqw; letter-spacing: -0.02em; }
-.mq-card__name--longer { font-size: 4.4cqw; letter-spacing: -0.03em; }
-.mq-card__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* white names get a faint dark edge, like the printed ones */
+.mq-card__face:is([data-frame="xyz"], [data-frame="link"], [data-frame="spell"], [data-frame="trap"]) .mq-card__name {
+  text-shadow: 0 0.25cqw 0.4cqw rgb(0 0 0 / 0.45);
+}
+.mq-card__title { flex: 1; min-width: 0; overflow: hidden; }
+/* the name is laid out wider and squeezed back by --squeeze (set per name),
+   like the condensed names on real cards */
+.mq-card__title > span {
+  display: block;
+  width: calc(100% / var(--squeeze, 1));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: scaleX(var(--squeeze, 1));
+  transform-origin: left center;
+}
 .mq-card__attr { flex: none; width: 9.5cqw; height: 9.5cqw; }
 
 .mq-card__stars { display: flex; justify-content: flex-end; gap: 0.6cqw; min-height: 6.4cqw; padding: 0 calc(var(--art-inset) + 1cqw); }
@@ -247,7 +288,8 @@
   min-height: 6.4cqw;
   padding: 0 calc(var(--art-inset) + 1cqw);
   color: #1c1917;
-  font-size: 4.8cqw;
+  font-family: "Cinzel", ui-serif, Georgia, serif;
+  font-size: 4.4cqw;
   font-weight: 700;
 }
 .mq-card__property { display: inline-flex; margin-left: 0.8cqw; color: #1c1917; cursor: help; }
@@ -340,7 +382,15 @@
     var(--paper-soft),
     color-mix(in oklab, var(--spell-box) 80%, transparent);
 }
-.mq-card__pendulum-text { max-height: 14cqw; overflow: hidden; font-size: 3.2cqw; white-space: pre-line; }
+.mq-card__pendulum-text {
+  max-height: 14cqw;
+  overflow: hidden;
+  font-family: "Crimson Pro", ui-serif, Georgia, serif;
+  font-size: 3.2cqw;
+  line-height: 1.12;
+  text-align: justify;
+  white-space: pre-line;
+}
 .mq-card__pendulum-text.mq-text--s   { font-size: 2.7cqw; }
 .mq-card__pendulum-text.mq-text--xs  { font-size: 2.3cqw; }
 .mq-card__pendulum-text.mq-text--xxs { font-size: 2cqw; }
@@ -374,8 +424,14 @@
   background:
     var(--box-paper, var(--paper-soft)),
     var(--box-base, var(--box));
-  font-size: 3.5cqw;
+  /* a narrow, justified book serif as on real cards */
+  font-family: "Crimson Pro", ui-serif, Georgia, serif;
+  font-size: 3.4cqw;
+  line-height: 1.12;
+  text-align: justify;
 }
+/* Normal Monsters' texts are flavour texts, set in italics */
+.mq-card__face[data-frame="normal"] .mq-card__body { font-style: italic; }
 /* Xyz: a plain grey text box (no old paper) that lets the streaks and
    stars behind it show through */
 .mq-card__face[data-frame="xyz"] {
@@ -413,13 +469,13 @@
     var(--sq) right top / 2cqw 2cqw no-repeat;
 }
 .mq-card__text.mq-text--s   { font-size: 3cqw; }
-.mq-card__text.mq-text--xs  { font-size: 2.6cqw; }
-.mq-card__text.mq-text--xxs { font-size: 2.2cqw; }
+.mq-card__text.mq-text--xs  { font-size: 2.65cqw; }
+.mq-card__text.mq-text--xxs { font-size: 2.3cqw; }
 .mq-card__texts.is-readable { position: relative; cursor: zoom-in; border-radius: 0.4cqw; transition: box-shadow 150ms; }
 /* the ring goes around the boxes' corner squares, inside the outer border */
 .mq-card__texts.is-readable:hover,
 .mq-card__texts.is-readable:focus-visible { outline: none; box-shadow: 0 0 0 1.7cqw var(--color-primary); }
-.mq-card__type { font-weight: 700; }
+.mq-card__type { font-family: "Cinzel", ui-serif, Georgia, serif; font-weight: 700; font-size: 0.82em; text-align: left; }
 .mq-card__body { flex: 1; min-height: 0; overflow: hidden; white-space: pre-line; }
 .mq-card--small .mq-card__body { mask-image: linear-gradient(to bottom, #000 75%, transparent); }
 .mq-card--large .mq-card__body,
@@ -430,6 +486,8 @@
   gap: 3cqw;
   margin-top: 0.8cqw;
   border-top: 0.35cqw solid #1c1917;
+  font-family: "Crimson Pro", ui-serif, Georgia, serif;
+  font-size: 1.12em;
   font-weight: 700;
 }
 
@@ -446,7 +504,7 @@
   border-radius: 0.6rem 0.6rem 0 0;
   background: var(--frame);
   color: #1c1917;
-  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-family: "Cinzel", ui-serif, Georgia, serif;
   font-size: 1.35rem;
   font-weight: 700;
 }

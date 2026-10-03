@@ -62,8 +62,10 @@ defmodule MillenniumQuizWeb.CardComponents do
         data-frame={@frame}
         data-pendulum={@pendulum?}
       >
-        <div class={["mq-card__name", name_size(@card.name)]}>
-          <span class="mq-card__title" title={@card.name}>{@card.name}</span>
+        <div class="mq-card__name">
+          <span class="mq-card__title" title={@card.name}>
+            <span style={"--squeeze: #{squeeze(@card.name)}"}>{@card.name}</span>
+          </span>
           <.attribute_icon :if={@card[:attribute]} attribute={@card.attribute} class="mq-card__attr" />
           <.attribute_icon :if={@spell_trap?} attribute={kind(@card)} class="mq-card__attr" />
         </div>
@@ -756,13 +758,23 @@ defmodule MillenniumQuizWeb.CardComponents do
   defp stars_label(%{level: level}) when is_integer(level), do: "Level #{level}"
   defp stars_label(_card), do: nil
 
-  # Long names get a smaller font, like the condensed names on real cards.
-  defp name_size(name) do
-    case String.length(name || "") do
-      n when n > 28 -> "mq-card__name--longer"
-      n when n > 20 -> "mq-card__name--long"
-      _ -> nil
-    end
+  # Real cards squeeze long names horizontally instead of cutting them. The
+  # name's width is estimated in small-cap widths (capitals and digits are
+  # wider, spaces and punctuation narrower); about 14 fit the name bar at
+  # full width. Longer names are narrowed in proportion, down to half width
+  # (beyond that they are cut with "…").
+  defp squeeze(name) do
+    width =
+      (name || "")
+      |> String.graphemes()
+      |> Enum.map(fn
+        c when c in [" ", "'", ".", ",", ":", "!", "-"] -> 0.45
+        "/" -> 0.6
+        c -> if c =~ ~r/^[A-Z0-9]$/, do: 1.25, else: 1.0
+      end)
+      |> Enum.sum()
+
+    if width <= 14, do: 1, else: max(0.5, Float.round(14 / width, 3))
   end
 
   # "effect_pendulum" -> "effect"; old snapshots fall back on the card kind.
