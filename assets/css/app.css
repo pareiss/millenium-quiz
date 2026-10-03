@@ -558,7 +558,7 @@
    the DEF block, so ATK/ stays in place on Link monsters too */
 .mq-stat--link {
   justify-content: flex-end;
-  width: 3.85em;
+  width: 4.14em;
   font-family: "Arial Black", "Helvetica Neue", Arial, ui-sans-serif, sans-serif;
   font-size: 1.05em;
   font-weight: 900;
@@ -603,7 +603,8 @@
   font-size: 1.2rem;
   line-height: 1.35;
 }
-.mq-card-panel__body p { text-align: justify; hyphens: auto; }
+.mq-card-panel__text,
+.mq-card-panel__pendulum p { text-align: justify; hyphens: auto; }
 /* Normal Monsters' texts are flavour texts, set in italics, as on the card */
 .mq-card-panel[data-frame="normal"] .mq-card-panel__text { font-style: italic; }
 .mq-card-panel__pendulum {
