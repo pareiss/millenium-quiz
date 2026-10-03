@@ -232,6 +232,8 @@
 
 .mq-card__art {
   position: relative;
+  /* above the text box, so the bottom Link Arrows aren't covered by it */
+  z-index: 1;
   align-self: center;
   width: calc(100% - 2 * var(--art-inset));
   aspect-ratio: 1;
@@ -257,10 +259,13 @@
    centred on its spot and turned outward. Lit arrows are red with a light
    grey edge, unlit ones dark with a darker grey edge. */
 .mq-card__arrow {
-  --edge: 0.6cqw; /* the middle of the artwork's 1.2cqw border */
+  /* the base lies just inside the artwork's 1.2cqw border, so the border
+     is covered under the whole base and the arrow points out from there */
+  --edge: 1.95cqw;
+  --corner: -0.9cqw;
   position: absolute;
-  width: 8.5cqw;
-  height: 4.25cqw;
+  width: 11cqw;
+  height: 4.5cqw;
   overflow: visible;
   filter: drop-shadow(0 0 0.3cqw rgb(0 0 0 / 0.7));
   transform: translate(-50%, -50%) rotate(var(--turn));
@@ -271,10 +276,10 @@
 .mq-card__arrow--bottom       { left: 50%; top: calc(100% + var(--edge)); --turn: 180deg; }
 .mq-card__arrow--left         { left: calc(-1 * var(--edge)); top: 50%; --turn: -90deg; }
 .mq-card__arrow--right        { left: calc(100% + var(--edge)); top: 50%; --turn: 90deg; }
-.mq-card__arrow--top-left     { left: 0.6cqw; top: 0.6cqw; --turn: -45deg; }
-.mq-card__arrow--top-right    { left: calc(100% - 0.6cqw); top: 0.6cqw; --turn: 45deg; }
-.mq-card__arrow--bottom-left  { left: 0.6cqw; top: calc(100% - 0.6cqw); --turn: -135deg; }
-.mq-card__arrow--bottom-right { left: calc(100% - 0.6cqw); top: calc(100% - 0.6cqw); --turn: 135deg; }
+.mq-card__arrow--top-left     { left: var(--corner); top: var(--corner); --turn: -45deg; }
+.mq-card__arrow--top-right    { left: calc(100% - var(--corner)); top: var(--corner); --turn: 45deg; }
+.mq-card__arrow--bottom-left  { left: var(--corner); top: calc(100% - var(--corner)); --turn: -135deg; }
+.mq-card__arrow--bottom-right { left: calc(100% - var(--corner)); top: calc(100% - var(--corner)); --turn: 135deg; }
 
 .mq-card__pendulum {
   display: grid;
