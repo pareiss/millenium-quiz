@@ -105,7 +105,34 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
       </section>
 
       <.form for={@form} id="question-form" phx-change="validate" phx-submit="save" class="space-y-4">
-        <.input field={@form[:text]} type="textarea" label="Question" rows="3" maxlength="1000" />
+        <div class="relative">
+          <.input
+            field={@form[:text]}
+            type="textarea"
+            label="Question"
+            rows="3"
+            maxlength="1000"
+            phx-hook="CardLinkInput"
+            data-suggestions="question-text-suggestions"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls="question-text-suggestions"
+          />
+          <ul
+            id="question-text-suggestions"
+            class="mq-suggestions"
+            role="listbox"
+            aria-label="Card suggestions"
+            phx-update="ignore"
+            hidden
+          >
+          </ul>
+        </div>
+        <p class="-mt-2 text-xs text-base-content/60" id="card-link-hint">
+          Type <kbd class="kbd kbd-xs">[</kbd>
+          and a card name to link a card; <kbd class="kbd kbd-xs">Tab</kbd>
+          accepts the suggestion.
+        </p>
 
         <.input
           field={@form[:points]}

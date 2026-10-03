@@ -78,6 +78,22 @@ defmodule MillenniumQuizWeb.AdminTest do
       assert Enum.map(format.topics, & &1.name) == ["Monsters", "Spells", "Traps"]
     end
 
+    test "the question textarea carries the card link hook and its suggestion list",
+         %{conn: conn} do
+      topic = hd(format_fixture().topics)
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+
+      assert has_element?(
+               view,
+               "textarea#question_text[phx-hook='CardLinkInput'][data-suggestions='question-text-suggestions'][aria-autocomplete='list'][maxlength='1000']"
+             )
+
+      assert has_element?(
+               view,
+               "ul#question-text-suggestions[role='listbox'][phx-update='ignore'][hidden]"
+             )
+    end
+
     test "creates a question with default points and reorders it", %{conn: conn} do
       format = format_fixture()
       topic = hd(format.topics)
