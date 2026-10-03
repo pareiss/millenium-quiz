@@ -153,6 +153,10 @@ defmodule MillenniumQuizWeb.CardComponents do
   attr :on_close, :string, required: true
   attr :on_text, :string, default: nil, doc: "see `card/1`"
   attr :text_value, :any, default: nil
+  attr :count, :integer, default: 1, doc: "cards of the question; controls show from 2"
+  attr :index, :integer, default: 0, doc: "position of the shown card"
+  attr :on_cycle, :string, default: nil, doc: "event with `dir` \"prev\" | \"next\""
+  attr :names, :list, default: [], doc: "card names, for the button labels"
   slot :inner_block, doc: "shown below the card, e.g. credits"
 
   def card_dialog(assigns) do
@@ -163,10 +167,13 @@ defmodule MillenniumQuizWeb.CardComponents do
       role="dialog"
       aria-modal="true"
       aria-label={@card.name}
+      phx-hook={cycle?(assigns) && "SwipeCycle"}
+      data-cycle-event={cycle?(assigns) && @on_cycle}
       phx-window-keydown={@on_close}
       phx-key="escape"
       phx-mounted={JS.focus(to: "##{@id}-close")}
     >
+      <.cycle_keys :if={cycle?(assigns)} on_cycle={@on_cycle} />
       <div class="fixed inset-0 bg-black/65 backdrop-blur-sm" phx-click={@on_close} />
       <div class="relative flex w-[min(26rem,100%)] flex-col items-center gap-3 reveal-pop">
         <button
@@ -184,6 +191,14 @@ defmodule MillenniumQuizWeb.CardComponents do
           class="w-full"
           on_text={@on_text}
           text_value={@text_value}
+        />
+        <.cycle_controls
+          :if={cycle?(assigns)}
+          id={@id}
+          count={@count}
+          index={@index}
+          on_cycle={@on_cycle}
+          names={@names}
         />
         <p :if={@card.set} class="text-center text-sm text-white/90">As printed in {@card.set}</p>
         {render_slot(@inner_block)}
@@ -204,6 +219,10 @@ defmodule MillenniumQuizWeb.CardComponents do
   attr :on_close, :string, required: true
   attr :on_back, :string, default: nil
   attr :back_value, :any, default: nil
+  attr :count, :integer, default: 1, doc: "cards of the question; controls show from 2"
+  attr :index, :integer, default: 0, doc: "position of the shown card"
+  attr :on_cycle, :string, default: nil, doc: "event with `dir` \"prev\" | \"next\""
+  attr :names, :list, default: [], doc: "card names, for the button labels"
   slot :inner_block, doc: "shown below the text, e.g. credits"
 
   def card_text_dialog(assigns) do
@@ -220,10 +239,13 @@ defmodule MillenniumQuizWeb.CardComponents do
       role="dialog"
       aria-modal="true"
       aria-labelledby={"#{@id}-title"}
+      phx-hook={cycle?(assigns) && "SwipeCycle"}
+      data-cycle-event={cycle?(assigns) && @on_cycle}
       phx-window-keydown={@on_close}
       phx-key="escape"
       phx-mounted={JS.focus(to: "##{@id}-close")}
     >
+      <.cycle_keys :if={cycle?(assigns)} on_cycle={@on_cycle} />
       <div class="fixed inset-0 bg-black/65 backdrop-blur-sm" phx-click={@on_close} />
       <div class="relative flex w-[min(36rem,100%)] flex-col items-center gap-3 reveal-pop">
         <article
@@ -321,10 +343,81 @@ defmodule MillenniumQuizWeb.CardComponents do
           </div>
         </article>
         <%!-- outside the panel, so its links don't also go back to the card --%>
+        <.cycle_controls
+          :if={cycle?(assigns)}
+          id={@id}
+          count={@count}
+          index={@index}
+          on_cycle={@on_cycle}
+          names={@names}
+        />
         <p :if={@card.set} class="text-center text-sm text-white/90">As printed in {@card.set}</p>
         {render_slot(@inner_block)}
       </div>
     </div>
+    """
+  end
+
+  defp cycle?(assigns), do: assigns.on_cycle != nil and assigns.count >= 2
+
+  # One binding per key: phx-key takes a single key.
+  attr :on_cycle, :string, required: true
+
+  defp cycle_keys(assigns) do
+    ~H"""
+    <span hidden phx-window-keydown={@on_cycle} phx-key="ArrowLeft" phx-value-dir="prev" />
+    <span hidden phx-window-keydown={@on_cycle} phx-key="ArrowRight" phx-value-dir="next" />
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :count, :integer, required: true
+  attr :index, :integer, required: true
+  attr :on_cycle, :string, required: true
+  attr :names, :list, default: []
+
+  defp cycle_controls(assigns) do
+    assigns =
+      assign(assigns,
+        prev_name: Enum.at(assigns.names, rem(assigns.index - 1 + assigns.count, assigns.count)),
+        next_name: Enum.at(assigns.names, rem(assigns.index + 1, assigns.count))
+      )
+
+    ~H"""
+    <nav id={"#{@id}-cycle"} class="mq-cycle" aria-label="Cards of this question">
+      <button
+        type="button"
+        id={"#{@id}-prev"}
+        class="mq-cycle__btn"
+        phx-click={@on_cycle}
+        phx-value-dir="prev"
+        aria-label={"Previous card: #{@prev_name}"}
+        title={"Previous card: #{@prev_name}"}
+      >
+        <.icon name="hero-chevron-left" class="size-5" />
+      </button>
+      <div class="mq-cycle__status">
+        <span class="mq-cycle__count" aria-live="polite">{@index + 1} / {@count}</span>
+        <span class="mq-cycle__dots" aria-hidden="true">
+          <span
+            :for={i <- 0..(@count - 1)}
+            class="mq-cycle__dot"
+            aria-current={i == @index && "true"}
+          />
+        </span>
+      </div>
+      <button
+        type="button"
+        id={"#{@id}-next"}
+        class="mq-cycle__btn"
+        phx-click={@on_cycle}
+        phx-value-dir="next"
+        aria-label={"Next card: #{@next_name}"}
+        title={"Next card: #{@next_name}"}
+      >
+        <.icon name="hero-chevron-right" class="size-5" />
+      </button>
+    </nav>
     """
   end
 

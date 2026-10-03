@@ -397,7 +397,8 @@ defmodule MillenniumQuizWeb.GameLive do
       assign(assigns,
         view: view,
         index: index,
-        card: question && Enum.at(question.cards, index)
+        card: question && Enum.at(question.cards, index),
+        names: if(question, do: Enum.map(question.cards, & &1.name), else: [])
       )
 
     ~H"""
@@ -408,6 +409,10 @@ defmodule MillenniumQuizWeb.GameLive do
       on_close="close_card"
       on_text="read_card"
       text_value={@index}
+      count={length(@names)}
+      index={@index}
+      on_cycle="cycle_card"
+      names={@names}
     >
       <.card_credit class="text-center text-white/70" />
       <p class="text-xs text-white/70 text-center">Tap outside the card or press Esc to close.</p>
@@ -419,6 +424,10 @@ defmodule MillenniumQuizWeb.GameLive do
       on_close="close_card"
       on_back="zoom_card"
       back_value={@index}
+      count={length(@names)}
+      index={@index}
+      on_cycle="cycle_card"
+      names={@names}
     >
       <.card_credit class="text-center text-white/70" />
     </.card_text_dialog>
@@ -694,6 +703,11 @@ defmodule MillenniumQuizWeb.GameLive do
   def handle_event("zoom_card", %{"card" => index}, socket), do: zoom(socket, :card, index)
   def handle_event("read_card", %{"card" => index}, socket), do: zoom(socket, :text, index)
 
+  def handle_event("cycle_card", %{"dir" => dir}, socket) when dir in ["next", "prev"],
+    do: cycle_card(socket, if(dir == "next", do: 1, else: -1))
+
+  def handle_event("cycle_card", _params, socket), do: {:noreply, socket}
+
   def handle_event("close_card", _params, socket), do: {:noreply, assign(socket, :zoom, nil)}
 
   def handle_event("confirm_end", _params, socket),
@@ -740,6 +754,20 @@ defmodule MillenniumQuizWeb.GameLive do
     case parse_index(index) do
       {:ok, index} when index < cards -> {:noreply, assign(socket, :zoom, {view, index})}
       _ -> {:noreply, socket}
+    end
+  end
+
+  # Steps through the cards of the current question, keeping the open view.
+  defp cycle_card(socket, step) do
+    question = Game.current_question(socket.assigns.game)
+    cards = if question, do: length(question.cards), else: 0
+
+    case socket.assigns.zoom do
+      {view, index} when cards > 1 and index < cards ->
+        {:noreply, assign(socket, :zoom, {view, Integer.mod(index + step, cards)})}
+
+      _ ->
+        {:noreply, socket}
     end
   end
 

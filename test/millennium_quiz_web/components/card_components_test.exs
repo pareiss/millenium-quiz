@@ -433,4 +433,74 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(doc, "#zoom .mq-card--large") == 1
     assert html =~ "As printed in Starter Deck"
   end
+
+  describe "carousel controls" do
+    @names ["Alpha", "Beta", "Gamma"]
+
+    defp render_dialog(fun, opts) do
+      card = Map.merge(@blank, %{name: "Beta", text: "Hi."})
+
+      render_component(
+        fun,
+        [id: "d", card: card, on_close: "close", inner_block: []] ++ opts
+      )
+      |> LazyHTML.from_fragment()
+    end
+
+    for {fun, label} <- [{&card_dialog/1, "card dialog"}, {&card_text_dialog/1, "text dialog"}] do
+      test "#{label}: buttons, n / m, dots and keys with several cards" do
+        doc =
+          render_dialog(unquote(fun),
+            count: 3,
+            index: 1,
+            on_cycle: "cycle_card",
+            names: @names
+          )
+
+        assert count(doc, "#d-prev[phx-click=cycle_card][phx-value-dir=prev]") == 1
+        assert count(doc, "#d-next[phx-click=cycle_card][phx-value-dir=next]") == 1
+        assert count(doc, "#d-prev[aria-label='Previous card: Alpha']") == 1
+        assert count(doc, "#d-next[aria-label='Next card: Gamma']") == 1
+        assert text(doc, ".mq-cycle__count") == "2 / 3"
+        assert count(doc, ".mq-cycle__dot") == 3
+        assert count(doc, ".mq-cycle__dot[aria-current]") == 1
+
+        assert LazyHTML.attribute(
+                 LazyHTML.query(doc, ".mq-cycle__dot"),
+                 "aria-current"
+               ) == ["true"]
+
+        assert count(
+                 doc,
+                 "[phx-window-keydown=cycle_card][phx-key=ArrowLeft][phx-value-dir=prev]"
+               ) ==
+                 1
+
+        assert count(
+                 doc,
+                 "[phx-window-keydown=cycle_card][phx-key=ArrowRight][phx-value-dir=next]"
+               ) ==
+                 1
+
+        assert count(doc, "#d[phx-hook=SwipeCycle][data-cycle-event=cycle_card]") == 1
+      end
+
+      test "#{label}: wraps the neighbours' names" do
+        doc =
+          render_dialog(unquote(fun), count: 3, index: 0, on_cycle: "c", names: @names)
+
+        assert count(doc, "#d-prev[aria-label='Previous card: Gamma']") == 1
+        assert count(doc, "#d-next[aria-label='Next card: Beta']") == 1
+      end
+
+      test "#{label}: no controls with one card or without on_cycle" do
+        for opts <- [[count: 1, index: 0, on_cycle: "cycle_card", names: ["A"]], [count: 3]] do
+          doc = render_dialog(unquote(fun), opts)
+          assert count(doc, ".mq-cycle, #d-prev, #d-next") == 0
+          assert count(doc, "[phx-key=ArrowLeft], [phx-key=ArrowRight]") == 0
+          assert count(doc, "[phx-hook]") == 0
+        end
+      end
+    end
+  end
 end
