@@ -7,7 +7,10 @@ defmodule MillenniumQuizWeb.NewGameLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <.link navigate={~p"/"} class="text-sm text-base-content/60 hover:text-base-content">
+      <.link
+        navigate={~p"/"}
+        class="inline-flex items-center text-sm text-base-content/60 hover:text-base-content pointer-coarse:min-h-11"
+      >
         <span aria-hidden="true">&larr;</span> All formats
       </.link>
 
@@ -21,7 +24,14 @@ defmodule MillenniumQuizWeb.NewGameLive do
           </p>
         </div>
 
-        <.form for={@form} id="players-form" phx-change="change" phx-submit="start" class="space-y-3">
+        <.form
+          for={@form}
+          id="players-form"
+          phx-hook=".NextOnEnter"
+          phx-change="change"
+          phx-submit="start"
+          class="space-y-3"
+        >
           <p class="font-medium">Who is playing? ({@min}–{@max} players)</p>
           <div :for={{name, i} <- Enum.with_index(@names)} class="flex items-start gap-2">
             <span class="mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-secondary text-secondary-content text-sm font-semibold">
@@ -35,6 +45,10 @@ defmodule MillenniumQuizWeb.NewGameLive do
                 placeholder={"Player #{i + 1}"}
                 maxlength="24"
                 autocomplete="off"
+                autocapitalize="words"
+                autocorrect="off"
+                spellcheck="false"
+                enterkeyhint="next"
                 phx-debounce="200"
               />
             </div>
@@ -100,6 +114,31 @@ defmodule MillenniumQuizWeb.NewGameLive do
           </div>
         </.form>
       </div>
+
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".NextOnEnter">
+        // On phones the keyboard's Enter ("Next") must not start the game with
+        // the names typed so far: it moves to the next name field, and from the
+        // last one just closes the keyboard. Desktop keeps Enter = submit.
+        export default {
+          mounted() {
+            this.onKeydown = (e) => {
+              if (e.key !== "Enter" || e.isComposing) return
+              if (!window.matchMedia("(pointer: coarse)").matches) return
+              const field = e.target
+              if (!(field instanceof HTMLInputElement) || field.name !== "names[]") return
+              e.preventDefault()
+              const fields = [...this.el.querySelectorAll('input[name="names[]"]')]
+              const next = fields[fields.indexOf(field) + 1]
+              if (next) next.focus()
+              else field.blur()
+            }
+            this.el.addEventListener("keydown", this.onKeydown)
+          },
+          destroyed() {
+            this.el.removeEventListener("keydown", this.onKeydown)
+          }
+        }
+      </script>
     </Layouts.app>
     """
   end

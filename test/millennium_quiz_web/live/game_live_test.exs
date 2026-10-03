@@ -32,6 +32,14 @@ defmodule MillenniumQuizWeb.GameLiveTest do
 
     assert has_element?(view, "#mode-free input:checked")
 
+    # phone keyboards: names are not autocorrected, Enter says "next"
+    assert has_element?(
+             view,
+             "#player-name-0[autocapitalize=words][autocorrect=off][spellcheck=false][enterkeyhint=next]"
+           )
+
+    assert has_element?(view, "#players-form[phx-hook$=NextOnEnter]")
+
     assert {:error, {:live_redirect, %{to: "/games/" <> id}}} =
              view
              |> form("#players-form", %{
@@ -160,6 +168,9 @@ defmodule MillenniumQuizWeb.GameLiveTest do
 
     assert has_element?(view, "#question-card-0", "As printed in Starter Deck: Yugi Evolution")
     assert has_element?(view, "#question-card-0 img[src='/cards/#{reborn.id}/artwork']")
+    assert has_element?(view, "#question-card-0 img[draggable=false]")
+    assert has_element?(view, "#game[data-turn-key]")
+    assert has_element?(view, "#choice-0.mq-nosel")
     assert has_element?(view, "#question-card-0 .mq-card__face[data-frame=spell]")
     assert has_element?(view, "#question-card-0 .mq-card__line", "Spell Card")
 
@@ -168,6 +179,8 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert has_element?(view, "#card-zoom .mq-card--large", "Monster Reborn")
     # the Yugipedia credit is shown with the enlarged text
     assert has_element?(view, "#card-zoom a[href='https://yugipedia.com']")
+    # the Esc hint is for keyboards only (hidden without hover)
+    assert has_element?(view, "#card-zoom-hint .hidden", "press Esc")
     view |> element("#card-zoom") |> render_keydown(%{"key" => "Escape"})
     refute has_element?(view, "#card-zoom")
 

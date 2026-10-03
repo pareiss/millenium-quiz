@@ -78,7 +78,11 @@ defmodule MillenniumQuizWeb.CoreComponents do
           <p>{msg}</p>
         </div>
         <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
+        <button
+          type="button"
+          class="group relative self-start cursor-pointer pointer-coarse:after:absolute pointer-coarse:after:top-1/2 pointer-coarse:after:left-1/2 pointer-coarse:after:size-11 pointer-coarse:after:-translate-1/2 pointer-coarse:after:content-['']"
+          aria-label={gettext("close")}
+        >
           <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
         </button>
       </div>
@@ -185,7 +189,8 @@ defmodule MillenniumQuizWeb.CoreComponents do
   attr :error_class, :any, default: nil, doc: "the input error class to use over defaults"
 
   attr :rest, :global,
-    include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
+    include:
+      ~w(accept autocomplete autocorrect capture cols disabled form list max maxlength min minlength
                 multiple pattern placeholder readonly required rows size step)
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
@@ -536,7 +541,7 @@ defmodule MillenniumQuizWeb.CoreComponents do
     ~H"""
     <div
       id={@id}
-      class="fixed inset-0 z-50 grid place-items-center p-4"
+      class="mq-dialog fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={"#{@id}-title"}

@@ -20,6 +20,7 @@ defmodule MillenniumQuizWeb.GameLive do
         phx-hook=".RememberGame"
         data-game-id={@game_id}
         data-finished={to_string(@status == :finished)}
+        data-turn-key={turn_key_attr(@turn_key)}
         class="space-y-5"
       >
         <.game_header game={@game} status={@status} />
@@ -56,8 +57,24 @@ defmodule MillenniumQuizWeb.GameLive do
         const KEY = "mq:games"
         const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || "[]") } catch (_e) { return [] } }
         export default {
-          mounted() { this.sync() },
-          updated() { this.sync() },
+          mounted() { this.turnKey = this.el.dataset.turnKey; this.sync() },
+          updated() { this.sync(); this.newTurn() },
+          // A new turn (next player, next phase) starts at its panel, not where
+          // the last player left the page: the "Pass the device" bar shows.
+          // Not while a dialog is open; pauses and re-renders keep the key.
+          newTurn() {
+            const key = this.el.dataset.turnKey
+            if (key === this.turnKey) return
+            this.turnKey = key
+            if (document.querySelector('[role="dialog"]')) return
+            const panel = this.el.querySelector("[data-turn-panel]")
+            if (!panel) return
+            const header = document.querySelector("header")
+            const offset = (header ? header.getBoundingClientRect().height : 0) + 12
+            const top = Math.max(0, panel.getBoundingClientRect().top + window.scrollY - offset)
+            const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            window.scrollTo({top, behavior: calm ? "auto" : "smooth"})
+          },
           sync() {
             const id = this.el.dataset.gameId
             let ids = read().filter(x => x !== id)
@@ -107,7 +124,7 @@ defmodule MillenniumQuizWeb.GameLive do
         value={Enum.count(@game.questions, & &1.result)}
         max={Game.total_rounds(@game)}
       />
-      <ul class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="scoreboard">
+      <ul class="mq-nosel grid grid-cols-2 sm:grid-cols-4 gap-2" id="scoreboard">
         <li
           :for={{player, index} <- Enum.with_index(@game.players)}
           id={"score-#{index}"}
@@ -143,6 +160,7 @@ defmodule MillenniumQuizWeb.GameLive do
     ~H"""
     <div
       id={"board-panel-#{@game.round}"}
+      data-turn-panel
       class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden"
     >
       <div class="bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
@@ -154,7 +172,7 @@ defmodule MillenniumQuizWeb.GameLive do
       <div class="p-3 sm:p-5 overflow-x-auto">
         <div
           id="board"
-          class="grid gap-2"
+          class="mq-nosel grid gap-2"
           style={"grid-template-columns: repeat(#{length(@board)}, minmax(4.5rem, 1fr))"}
         >
           <div
@@ -241,6 +259,7 @@ defmodule MillenniumQuizWeb.GameLive do
     ~H"""
     <div
       id={"turn-#{@game.round}-#{@game.answered}"}
+      data-turn-panel
       class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden reveal-pop"
     >
       <div class="bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
@@ -266,7 +285,7 @@ defmodule MillenniumQuizWeb.GameLive do
             phx-click="answer"
             phx-value-choice={i}
             disabled={@turn_locked}
-            class="group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
+            class="mq-nosel group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
           >
             <span class="grid place-items-center size-8 shrink-0 rounded-full bg-base-200 font-semibold group-hover:bg-primary group-hover:text-primary-content transition">
               {<<?A + i>>}
@@ -514,7 +533,7 @@ defmodule MillenniumQuizWeb.GameLive do
         class="w-36 sm:w-44"
       >
         <div
-          class="relative cursor-zoom-in transition hover:-translate-y-1 hover:drop-shadow-lg"
+          class="mq-nosel relative cursor-zoom-in transition hover:-translate-y-1 hover:drop-shadow-lg"
           phx-click="zoom_card"
           phx-value-card={i}
         >
@@ -568,7 +587,12 @@ defmodule MillenniumQuizWeb.GameLive do
       names={@names}
     >
       <.card_credit class="text-center text-white/70" />
-      <p class="text-xs text-white/70 text-center">Tap outside the card or press Esc to close.</p>
+      <p class="text-xs text-white/70 text-center" id="card-zoom-hint">
+        <span class="[@media(hover:hover)]:hidden">Tap outside the card to close.</span>
+        <span class="hidden [@media(hover:hover)]:inline">
+          Click outside the card or press Esc to close.
+        </span>
+      </p>
     </.card_dialog>
     <.card_text_dialog
       :if={@card && @view == :text}
@@ -594,12 +618,17 @@ defmodule MillenniumQuizWeb.GameLive do
     ~H"""
     <p class={["text-xs", @class]}>
       Card texts from
-      <a href="https://yugipedia.com" target="_blank" rel="noopener" class="link">Yugipedia</a>
+      <a
+        href="https://yugipedia.com"
+        target="_blank"
+        rel="noopener"
+        class="link pointer-coarse:-my-3.5 pointer-coarse:inline-block pointer-coarse:py-3.5"
+      >Yugipedia</a>
       (CC BY-SA 4.0) and <a
         href="https://github.com/DawnbrandBots/yaml-yugi"
         target="_blank"
         rel="noopener"
-        class="link"
+        class="link pointer-coarse:-my-3.5 pointer-coarse:inline-block pointer-coarse:py-3.5"
       >YAML Yugi</a>.
       Yu-Gi-Oh! card names and texts © Konami.
     </p>
@@ -990,6 +1019,9 @@ defmodule MillenniumQuizWeb.GameLive do
         socket |> assign(:turn_key, key) |> assign(:turn_locked, true)
     end
   end
+
+  defp turn_key_attr(nil), do: nil
+  defp turn_key_attr({round, phase, answered}), do: "#{round}-#{phase}-#{answered}"
 
   # The QR code is only rendered (and computed) while paused.
   defp maybe_assign_qr(%{assigns: %{status: :paused, qr_svg: nil}} = socket) do

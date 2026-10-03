@@ -534,8 +534,11 @@
 .mq-card__text.mq-text--xxs { font-size: 2.3cqw; }
 .mq-card__texts.is-readable { position: relative; cursor: zoom-in; border-radius: 0.4cqw; transition: box-shadow 150ms; }
 /* the ring goes around the boxes' corner squares, inside the outer border */
-.mq-card__texts.is-readable:hover,
 .mq-card__texts.is-readable:focus-visible { outline: none; box-shadow: 0 0 0 1.7cqw var(--color-primary); }
+@media (hover: hover) {
+  .mq-card__texts.is-readable:hover { outline: none; box-shadow: 0 0 0 1.7cqw var(--color-primary); }
+}
+.mq-card__texts.is-readable:active { box-shadow: 0 0 0 1.7cqw var(--color-primary); }
 /* the type line keeps its size when a long text is set smaller, as on real
    cards */
 .mq-card__type { font-family: "Cinzel", ui-serif, Georgia, serif; font-weight: 700; font-size: 3.5cqw; line-height: 1.15; text-align: left; }
@@ -755,7 +758,10 @@
   cursor: pointer;
   transition: background-color 0.15s;
 }
-.mq-cycle__btn:hover { background: rgb(255 255 255 / 0.2); }
+@media (hover: hover) {
+  .mq-cycle__btn:hover { background: rgb(255 255 255 / 0.2); }
+}
+.mq-cycle__btn:active { background: rgb(255 255 255 / 0.2); }
 .mq-cycle__btn:focus-visible { outline: 2px solid #f3dc8c; outline-offset: 2px; }
 .mq-cycle__status {
   display: flex;
@@ -815,9 +821,15 @@
   font-size: 0.875rem;
 }
 .mq-suggestion[aria-selected="true"],
-.mq-suggestion:hover {
+.mq-suggestion:active {
   background: var(--color-primary);
   color: var(--color-primary-content);
+}
+@media (hover: hover) {
+  .mq-suggestion:hover {
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+  }
 }
 .mq-suggestion-tag {
   flex: none;
@@ -842,3 +854,42 @@
 }
 @keyframes mq-linkpop-in { from { opacity: 0; } }
 @media (hover: none) { .mq-linkpop { display: none !important; } }
+
+/* Touch safety: no flash on tap, no double-tap zoom delay, no pull-to-refresh
+   in the middle of a game, no text selection or image drag on game controls. */
+html { -webkit-tap-highlight-color: transparent; }
+body { overscroll-behavior-y: contain; }
+a, button, input, select, textarea, summary, label, [role="button"] { touch-action: manipulation; }
+.mq-nosel {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Card artwork never takes the tap or the drag: the card behind it does. */
+.mq-card__art img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Dialogs: no scroll chaining to the page; horizontal swipes belong to the
+   dialog (SwipeCycle reads them from touch events), not to the browser's
+   back gesture. */
+.mq-dialog { overscroll-behavior: contain; touch-action: pan-y; }
+.mq-card-panel__body { overscroll-behavior: contain; }
+.mq-suggestions { overscroll-behavior: contain; }
+.btn:active, .mq-cycle__btn:active { filter: brightness(0.92); }
+[data-phx-theme]:active { opacity: 0.7; }
+
+/* Coarse pointers (fingers): 44 px targets and 16 px inputs (iOS zooms the
+   page into smaller ones). The desktop look stays as it is. */
+@media (pointer: coarse) {
+  .btn, .btn-sm, .btn-xs { min-height: 2.75rem; min-width: 2.75rem; }
+  .btn-xs { padding-inline: 0.75rem; }
+  .btn-circle, .btn-square { width: 2.75rem; height: 2.75rem; }
+  /* 44 px high; the width stays 32 px for now: three of them next to each
+     other already fill the 360 px header (the header redesign solves it) */
+  [data-phx-theme] { min-height: 2.75rem; align-items: center; justify-content: center; }
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"]), textarea, select { font-size: 16px; }
+  .mq-suggestion { min-height: 2.75rem; }
+}
