@@ -270,12 +270,12 @@ defmodule MillenniumQuizWeb.CardComponents do
           <.attribute_icon
             :if={@card[:attribute]}
             attribute={@card.attribute}
-            class="size-8 shrink-0"
+            class="size-8 shrink-0 cursor-help"
           />
           <.attribute_icon
             :if={kind(@card) in ["Spell", "Trap"]}
             attribute={kind(@card)}
-            class="size-8 shrink-0"
+            class="size-8 shrink-0 cursor-help"
           />
         </header>
         <div class="mq-card-panel__body">
