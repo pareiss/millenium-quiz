@@ -273,9 +273,8 @@
 .mq-card__pendulum-text.mq-text--xs  { font-size: 2.3cqw; }
 .mq-card__pendulum-text.mq-text--xxs { font-size: 2cqw; }
 .mq-card__scale { display: grid; place-items: center; font-size: 4.6cqw; font-weight: 800; line-height: 1; }
-.mq-card__scale::before { content: ""; width: 3.6cqw; height: 3.6cqw; margin-bottom: 0.6cqw; transform: rotate(45deg); }
-.mq-card__scale--left::before  { background: #2563eb; }
-.mq-card__scale--right::before { background: #dc2626; }
+/* the blue (left) and red (right) diamond above each scale */
+.mq-card__gem { width: 5cqw; height: 5cqw; margin-bottom: 0.4cqw; }
 
 /* The Pendulum box and the text box: one clickable area. */
 .mq-card__texts {
