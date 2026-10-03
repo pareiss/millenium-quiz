@@ -376,7 +376,11 @@ defmodule MillenniumQuizWeb.CardComponents do
   def link_arrow(assigns) do
     ~H"""
     <svg viewBox="0 0 24 24" class={["mq-link-arrow", @class]} aria-hidden="true">
-      <polygon points="12,2 18,20 6,20" transform={"rotate(#{arrow_turn(@position)} 12 12)"} />
+      <%!-- the same triangle as the arrows on the card --%>
+      <polygon
+        points="12,7.2 22.8,16.8 1.2,16.8"
+        transform={"rotate(#{arrow_turn(@position)} 12 12)"}
+      />
     </svg>
     """
   end
@@ -506,12 +510,13 @@ defmodule MillenniumQuizWeb.CardComponents do
     }[position]
   end
 
-  # A Link monster's arrows, clockwise from the top.
+  # A Link monster's arrows, clockwise from the bottom: bottom, bottom
+  # left, left, top left, top, top right, right, bottom right.
   defp lit_positions(arrows) do
     @link_arrows
     |> Enum.filter(fn {arrow, _} -> arrow in arrows end)
     |> Enum.map(&elem(&1, 1))
-    |> Enum.sort_by(&arrow_turn/1)
+    |> Enum.sort_by(&rem(arrow_turn(&1) + 180, 360))
   end
 
   defp link_label(arrows) do
