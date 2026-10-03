@@ -222,6 +222,49 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
       )
 
     assert html =~ "[Quick-Play Spell]"
+    assert html =~ ~s(title="Quick-Play Spell")
+
+    normal = Map.put(spell, :property, "Normal")
+
+    html =
+      render_component(&card_text_dialog/1,
+        id: "text",
+        card: normal,
+        on_close: "close",
+        inner_block: []
+      )
+
+    refute html =~ "mq-card-panel__property"
+  end
+
+  test "the text panel shows the Level or Rank as a number and a star" do
+    panel = fn attrs ->
+      card =
+        Map.merge(
+          @blank,
+          Map.merge(%{name: "X", monster_type_line: "Spellcaster / Normal"}, attrs)
+        )
+
+      render_component(&card_text_dialog/1,
+        id: "text",
+        card: card,
+        on_close: "close",
+        inner_block: []
+      )
+      |> LazyHTML.from_fragment()
+    end
+
+    seven = panel.(%{level: 7})
+    assert count(seven, ".mq-card-panel__stars[title='Level 7'] svg") == 1
+    assert text(seven, ".mq-card-panel__stars span:not(.sr-only)") == "7"
+
+    # a single star or Rank has no number
+    one = panel.(%{rank: 1})
+    assert count(one, ".mq-card-panel__stars[title='Rank 1'] svg") == 1
+    assert count(one, ".mq-card-panel__stars span:not(.sr-only)") == 0
+
+    # Link monsters have neither
+    assert count(panel.(%{link_arrows: ["⬆"]}), ".mq-card-panel__stars") == 0
   end
 
   test "a card from an old snapshot gets a plain frame and no artwork" do

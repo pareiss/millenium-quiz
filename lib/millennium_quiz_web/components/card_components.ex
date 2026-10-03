@@ -236,9 +236,29 @@ defmodule MillenniumQuizWeb.CardComponents do
           />
         </header>
         <div class="mq-card-panel__body">
-          <p :if={@card[:monster_type_line]} class="font-bold">[{@card.monster_type_line}]</p>
-          <p :if={kind(@card) in ["Spell", "Trap"]} class="font-bold">
-            [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(@card)}]
+          <div :if={@card[:monster_type_line]} class="mq-card-panel__type">
+            <p>[{@card.monster_type_line}]</p>
+            <p :if={stars_label(@card)} class="mq-card-panel__stars" title={stars_label(@card)}>
+              <span :if={(@card[:level] || @card[:rank]) != 1}>{@card[:level] || @card[:rank]}</span>
+              <.level_star rank={not is_nil(@card[:rank])} class="size-6" />
+              <span class="sr-only">{stars_label(@card)}</span>
+            </p>
+          </div>
+          <p :if={kind(@card) in ["Spell", "Trap"]} class="mq-card-panel__type">
+            <span>
+              [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(
+                @card
+              )}]
+            </span>
+            <span
+              :if={@card[:property] not in [nil, "Normal"]}
+              class="mq-card-panel__property"
+              title={"#{@card.property} #{kind(@card)}"}
+            ><.property_icon
+              property={@card.property}
+              label={"#{@card.property} #{kind(@card)}"}
+              class="size-6"
+            /></span>
           </p>
           <section :if={@card[:pendulum_text]} class="mq-card-panel__pendulum">
             <h3>Pendulum Effect · Scale {@card[:pendulum_scale]}</h3>
@@ -304,10 +324,11 @@ defmodule MillenniumQuizWeb.CardComponents do
 
   @doc "One Level star (red-orange disc) or Rank star (black disc)."
   attr :rank, :boolean, default: false
+  attr :class, :any, default: "mq-card__star"
 
   def level_star(assigns) do
     ~H"""
-    <svg viewBox="0 0 32 32" class="mq-card__star" aria-hidden="true">
+    <svg viewBox="0 0 32 32" class={@class} aria-hidden="true">
       <circle
         cx="16"
         cy="16"
