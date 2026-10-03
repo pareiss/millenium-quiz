@@ -63,6 +63,14 @@ defmodule MillenniumQuiz.Quiz do
 
   ## Questions
 
+  @doc "The question with this id (topic preloaded), or nil (also for ids that aren't valid)."
+  def get_question(id) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, id} -> Question |> Repo.get(id) |> Repo.preload(:topic)
+      :error -> nil
+    end
+  end
+
   def get_question!(id) do
     Question |> Repo.get!(id) |> Repo.preload([:topic, question_cards: [card: :card_texts]])
   end

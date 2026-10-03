@@ -28,10 +28,11 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
               <.icon name="hero-pencil-square" class="size-4" /> Edit
             </.button>
             <.button
-              phx-click="delete_format"
-              data-confirm="Delete this format with all topics and questions?"
+              phx-click="confirm_delete"
+              phx-value-what="format"
               class="btn btn-ghost text-error"
               id="delete-format"
+              aria-label="Delete format"
             >
               <.icon name="hero-trash" class="size-4" />
             </.button>
@@ -110,23 +111,75 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
             </.link>
             <button
               class="btn btn-ghost btn-xs text-error"
-              phx-click="delete_question"
+              phx-click="confirm_delete"
+              phx-value-what="question"
               phx-value-id={q.id}
-              data-confirm="Delete this question?"
               id={"delete-question-#{q.id}"}
+              aria-label="Delete question"
             >
               <.icon name="hero-trash" class="size-4" />
             </button>
           </li>
         </ol>
       </section>
+
+      <.confirm_dialog
+        :if={@confirm && @confirm.what == :format}
+        id="delete-format-dialog"
+        title="Delete this format?"
+        icon="hero-trash"
+        on_cancel="cancel_confirm"
+      >
+        <p>
+          <strong>{@format.name}</strong>
+          will be deleted with all its topics and questions. This can't be undone.
+        </p>
+        <:actions>
+          <button class="btn btn-ghost" phx-click="cancel_confirm" id="delete-format-dialog-cancel">
+            Cancel
+          </button>
+          <button class="btn btn-error" phx-click="delete_format" id="delete-format-dialog-confirm">
+            <.icon name="hero-trash" class="size-4" /> Delete format
+          </button>
+        </:actions>
+      </.confirm_dialog>
+
+      <.confirm_dialog
+        :if={@confirm && @confirm.what == :question}
+        id="delete-question-dialog"
+        title="Delete this question?"
+        icon="hero-trash"
+        on_cancel="cancel_confirm"
+      >
+        <p>“{@confirm.label}”</p>
+        <p class="mt-2 text-sm text-base-content/60">
+          The questions after it move up one place. This can't be undone.
+        </p>
+        <:actions>
+          <button
+            class="btn btn-ghost"
+            phx-click="cancel_confirm"
+            id="delete-question-dialog-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn btn-error"
+            phx-click="delete_question"
+            phx-value-id={@confirm.id}
+            id="delete-question-dialog-confirm"
+          >
+            <.icon name="hero-trash" class="size-4" /> Delete question
+          </button>
+        </:actions>
+      </.confirm_dialog>
     </Layouts.app>
     """
   end
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    {:ok, assign_format(socket, id)}
+    {:ok, socket |> assign(:confirm, nil) |> assign_format(id)}
   end
 
   @impl true
@@ -136,9 +189,43 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
     {:noreply, assign_format(socket, socket.assigns.format.id)}
   end
 
+  # Deleting asks first, in an in-app dialog (see confirm_dialog/1).
+  def handle_event("confirm_delete", %{"what" => "format"}, socket) do
+    {:noreply, assign(socket, :confirm, %{what: :format})}
+  end
+
+  def handle_event("confirm_delete", %{"what" => "question", "id" => id}, socket) do
+    case Quiz.get_question(id) do
+      nil ->
+        {:noreply, question_gone(socket)}
+
+      question ->
+        label =
+          String.slice(question.text, 0, 80) <>
+            if(String.length(question.text) > 80, do: "…", else: "")
+
+        {:noreply, assign(socket, :confirm, %{what: :question, id: question.id, label: label})}
+    end
+  end
+
+  def handle_event("cancel_confirm", _params, socket) do
+    {:noreply, assign(socket, :confirm, nil)}
+  end
+
   def handle_event("delete_question", %{"id" => id}, socket) do
-    {:ok, _} = id |> Quiz.get_question!() |> Quiz.delete_question()
-    {:noreply, assign_format(socket, socket.assigns.format.id)}
+    case Quiz.get_question(id) do
+      nil ->
+        {:noreply, question_gone(socket)}
+
+      question ->
+        {:ok, _} = Quiz.delete_question(question)
+
+        {:noreply,
+         socket
+         |> assign(:confirm, nil)
+         |> put_flash(:info, "Question deleted.")
+         |> assign_format(socket.assigns.format.id)}
+    end
   end
 
   def handle_event("delete_format", _params, socket) do
@@ -156,5 +243,13 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
     socket
     |> assign(:page_title, format.name)
     |> assign(:format, format)
+  end
+
+  # E.g. deleted by another admin in the meantime: say so instead of crashing.
+  defp question_gone(socket) do
+    socket
+    |> assign(:confirm, nil)
+    |> put_flash(:error, "That question doesn't exist anymore.")
+    |> assign_format(socket.assigns.format.id)
   end
 end

@@ -16,6 +16,14 @@ defmodule MillenniumQuiz.Accounts do
 
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc "The user with this id, or nil (also for ids that aren't valid)."
+  def get_user(id) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, id} -> Repo.get(User, id)
+      :error -> nil
+    end
+  end
+
   def get_user_by_username(username) when is_binary(username) do
     Repo.get_by(User, username: username)
   end
