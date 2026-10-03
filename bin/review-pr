@@ -4,12 +4,15 @@
 #   bin/review-pr <number> [--force]
 #
 # The reviewer's instructions and model come from .claude/agents/pr-reviewer.md.
-# It only gets a fixed prompt with the PR number, the base and head commits and
-# a read-only checkout of the head commit. It runs with --restricted (no
-# user/project/local settings, so also no project agents: the instructions are
-# passed with --append-system-prompt), only read-only tools, and without a
-# saved session. Knowledge about the project comes from REVIEWING.md, README.md
-# and AGENTS.md in the repository.
+# It runs inside a throwaway worktree of the PR's head commit, with only Read,
+# Grep and Glob: no shell, no Write or Edit, so it can't change anything, and
+# --restricted keeps it inside that worktree. --restricted also skips all
+# user/project/local settings (so the project agents too: the instructions are
+# passed with --append-system-prompt), and nothing is saved as a session.
+#
+# Everything it needs is prepared as files in <worktree>/.review/: the diff and
+# commits against the merge base, the PR description, and REVIEWING.md from
+# this checkout. Its prompt is fixed: the PR number and the two commits.
 #
 # Output: reviews/pr-<branch>-<short head sha>-<model>.md (the branch name with
 # characters other than letters, digits, ".", "_" and "-" replaced by "-").
@@ -44,10 +47,10 @@ for tool in gh claude git; do
   command -v "$tool" >/dev/null || { echo "review-pr: $tool not found" >&2; exit 1; }
 done
 
-pr=$(gh pr view "$number" --json number,title,headRefOid,baseRefOid,headRefName,isDraft,url \
-  --jq '[.headRefOid, .baseRefOid, .headRefName, (.isDraft|tostring), .url, .title] | join("\t")') ||
+pr=$(gh pr view "$number" --json number,title,headRefOid,baseRefOid,baseRefName,headRefName,isDraft,url \
+  --jq '[.headRefOid, .baseRefOid, .baseRefName, .headRefName, (.isDraft|tostring), .url, .title] | join("\t")') ||
   { echo "review-pr: PR #$number not found" >&2; exit 1; }
-IFS=$'\t' read -r head base branch draft url title <<<"$pr"
+IFS=$'\t' read -r head base_tip base_branch branch draft url title <<<"$pr"
 
 short="${head:0:7}"
 slug="$(printf '%s' "$branch" | sed 's/[^A-Za-z0-9._-]/-/g')"
@@ -60,12 +63,15 @@ if [[ -e "$out" && "$force" != true ]]; then
 fi
 
 # Make sure both commits are here (the PR may come from a branch we never fetched).
-if ! git cat-file -e "${head}^{commit}" 2>/dev/null || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-  git fetch --quiet origin "+refs/pull/${number}/head:refs/remotes/origin/pr/${number}" \
-    "$(gh pr view "$number" --json baseRefName --jq .baseRefName)"
+if ! git cat-file -e "${head}^{commit}" 2>/dev/null || ! git cat-file -e "${base_tip}^{commit}" 2>/dev/null; then
+  git fetch --quiet origin "+refs/pull/${number}/head:refs/remotes/origin/pr/${number}" "$base_branch"
 fi
 
-worktree=".claude/worktrees/pr-${slug}-$$"
+# The base branch may have moved on since the PR branched off; diffing against
+# its tip would show those newer commits as reversed changes of the PR.
+base="$(git merge-base "$base_tip" "$head")"
+
+worktree="$root/.claude/worktrees/pr-${slug}-$$"
 tmp="$(mktemp)"
 cleanup() {
   git worktree remove --force "$worktree" >/dev/null 2>&1 || true
@@ -75,21 +81,30 @@ trap cleanup EXIT
 
 git worktree add --quiet --detach "$worktree" "$head"
 
-prompt="Review pull request #${number} of this repository.
-Base commit: ${base}
+# The review material, so the reviewer needs no shell or network.
+material="$worktree/.review"
+mkdir -p "$material"
+cp REVIEWING.md "$material/REVIEWING.md"
+git log --reverse --format='%h %s%n%n%b' "$base..$head" >"$material/commits.txt"
+git diff --stat "$base" "$head" >"$material/files.txt"
+git diff "$base" "$head" >"$material/diff.patch"
+gh pr view "$number" --json title,body --jq '"# " + .title + "\n\n" + .body' >"$material/description.md"
+
+prompt="Review pull request #${number} (branch ${branch} into ${base_branch}).
+Base commit (merge base): ${base}
 Head commit: ${head}
-The code at the head commit is checked out read-only at: ${worktree}
-Follow your review procedure and output only the review."
+The working directory is a read-only checkout of the head commit; the review
+material is in .review/. Follow your review procedure and output only the review."
 
 echo "reviewing PR #$number ($short) with $model…"
-if ! claude -p "$prompt" \
+if ! (cd "$worktree" && claude -p "$prompt" \
   --append-system-prompt "$instructions" \
   --model "$model" \
   --restricted \
   --no-session-persistence \
-  --tools "Read,Grep,Glob,Bash" \
-  --allowedTools "Read Grep Glob Bash(gh pr view:*) Bash(gh pr diff:*) Bash(git log:*) Bash(git show:*) Bash(git diff:*)" \
-  --output-format text >"$tmp" || [[ ! -s "$tmp" ]]; then
+  --tools "Read,Grep,Glob" \
+  --allowedTools "Read Grep Glob" \
+  --output-format text </dev/null >"$tmp") || [[ ! -s "$tmp" ]]; then
   echo "review-pr: the reviewer failed for PR #$number" >&2
   exit 1
 fi
@@ -99,12 +114,13 @@ fi
   echo
   echo "- PR: #${number} ${url}$([[ "$draft" == true ]] && echo " (draft)")"
   echo "- Branch: \`${branch}\`"
-  echo "- Base: \`${base}\`"
+  echo "- Base: \`${base}\` (merge base with \`${base_branch}\`)"
   echo "- Head: \`${head}\`"
   echo "- Reviewer: ${model} (bin/review-pr, isolated process)"
   echo "- Date: $(date -u +%Y-%m-%dT%H:%MZ)"
   echo
-  cat "$tmp"
+  # Anything the reviewer wrote before its summary is narration, not review.
+  if grep -q '^## Summary' "$tmp"; then sed -n '/^## Summary/,$p' "$tmp"; else cat "$tmp"; fi
 } >"$out"
 
 # The verdict lines are what the user ticks and /post-review reads; add any the
