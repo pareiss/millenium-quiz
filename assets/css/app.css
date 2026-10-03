@@ -646,3 +646,51 @@
 .mq-card-panel__stars { display: inline-flex; flex: none; align-items: center; gap: 0.3rem; font-family: ui-sans-serif, system-ui, sans-serif; cursor: help; }
 .mq-card-panel__property { display: inline-flex; flex: none; cursor: help; }
 .mq-link-arrow polygon { fill: #ef3b24; stroke: #d6d3d1; stroke-width: 1.6; stroke-linejoin: round; }
+
+/* Prev/next, "n / m" and dots under an open card. The backdrop is dark in
+   both themes, so the colours are fixed light-on-dark. */
+.mq-cycle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  color: #fff;
+}
+.mq-cycle__btn {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  background: rgb(0 0 0 / 0.45);
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.mq-cycle__btn:hover { background: rgb(255 255 255 / 0.2); }
+.mq-cycle__btn:focus-visible { outline: 2px solid #f3dc8c; outline-offset: 2px; }
+.mq-cycle__status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 5rem;
+}
+.mq-cycle__count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+}
+.mq-cycle__dots { display: flex; gap: 0.4rem; }
+.mq-cycle__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.35);
+}
+.mq-cycle__dot[aria-current] {
+  background: #f3dc8c;
+  box-shadow: 0 0 0 2px rgb(243 220 140 / 0.35);
+}

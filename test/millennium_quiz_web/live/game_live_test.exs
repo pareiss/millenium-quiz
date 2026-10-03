@@ -308,6 +308,52 @@ defmodule MillenniumQuizWeb.GameLiveTest do
       render_hook(view, "cycle_card", %{"dir" => "prev"})
       assert zoom_of(view) == {:card, 0}
     end
+
+    test "the rendered buttons step through the cards in both views", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {:ok, plain} = Cards.import(11_111_111)
+      view = start_with_cards(conn, [reborn.id, plain.id])
+
+      view |> element("#zoom-card-0") |> render_click()
+      assert has_element?(view, "#card-zoom-cycle", "1 / 2")
+
+      view |> element("#card-zoom-next") |> render_click()
+      assert zoom_of(view) == {:card, 1}
+      assert has_element?(view, "#card-zoom-cycle", "2 / 2")
+      assert has_element?(view, "#card-zoom-cycle .mq-cycle__dot[aria-current]:nth-child(2)")
+
+      view |> element("#card-zoom-next") |> render_click()
+      assert zoom_of(view) == {:card, 0}
+      view |> element("#card-zoom-prev") |> render_click()
+      assert zoom_of(view) == {:card, 1}
+
+      render_hook(view, "read_card", %{"card" => "1"})
+      assert has_element?(view, "#card-text-cycle", "2 / 2")
+      view |> element("#card-text-prev") |> render_click()
+      assert zoom_of(view) == {:text, 0}
+      view |> element("#card-text-next") |> render_click()
+      assert zoom_of(view) == {:text, 1}
+
+      # back to the card returns to the shown one
+      view |> element("#card-text-back") |> render_click()
+      assert zoom_of(view) == {:card, 1}
+    end
+
+    test "a single card shows no controls", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      view = start_with_cards(conn, [reborn.id])
+
+      view |> element("#zoom-card-0") |> render_click()
+      assert has_element?(view, "#card-zoom")
+      refute has_element?(view, ".mq-cycle")
+      refute has_element?(view, "#card-zoom-next")
+
+      render_hook(view, "read_card", %{"card" => "0"})
+      assert has_element?(view, "#card-text")
+      refute has_element?(view, ".mq-cycle")
+    end
   end
 
   test "unknown games redirect home", %{conn: conn} do

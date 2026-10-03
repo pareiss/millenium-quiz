@@ -397,7 +397,8 @@ defmodule MillenniumQuizWeb.GameLive do
       assign(assigns,
         view: view,
         index: index,
-        card: question && Enum.at(question.cards, index)
+        card: question && Enum.at(question.cards, index),
+        names: if(question, do: Enum.map(question.cards, & &1.name), else: [])
       )
 
     ~H"""
@@ -408,6 +409,10 @@ defmodule MillenniumQuizWeb.GameLive do
       on_close="close_card"
       on_text="read_card"
       text_value={@index}
+      count={length(@names)}
+      index={@index}
+      on_cycle="cycle_card"
+      names={@names}
     >
       <.card_credit class="text-center text-white/70" />
       <p class="text-xs text-white/70 text-center">Tap outside the card or press Esc to close.</p>
@@ -419,6 +424,10 @@ defmodule MillenniumQuizWeb.GameLive do
       on_close="close_card"
       on_back="zoom_card"
       back_value={@index}
+      count={length(@names)}
+      index={@index}
+      on_cycle="cycle_card"
+      names={@names}
     >
       <.card_credit class="text-center text-white/70" />
     </.card_text_dialog>
