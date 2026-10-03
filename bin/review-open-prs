@@ -63,12 +63,12 @@ done
 wait
 
 echo
-printf '%-5s %-9s %-8s %-10s %-4s %-8s %s\n' PR status blocker should-fix nit question file
+printf '%-5s %-9s %-8s %-10s %-4s %-8s %-10s %s\n' PR status blocker should-fix nit question CI file
 failed=0
 for n in "${numbers[@]}"; do
   code="$(cat "$status_dir/$n" 2>/dev/null || echo 1)"
-  # pr-<branch>-<7 hex>-<model>.md, so "card-pool" doesn't match "card-pool-v2"
-  file="$(ls -t reviews/pr-"${slug[$n]}"-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.md 2>/dev/null | head -1 || true)"
+  file="reviews/pr-${slug[$n]}.md"
+  [[ -e "$file" ]] || file=""
   case "$code" in
     0) status=reviewed ;;
     3) status=skipped ;;
@@ -77,8 +77,10 @@ for n in "${numbers[@]}"; do
   count() {
     if [[ -n "$file" ]]; then grep -cE "^### F[0-9]+ · $1 " "$file" || true; else echo -; fi
   }
-  printf '%-5s %-9s %-8s %-10s %-4s %-8s %s\n' "#$n" "$status" \
-    "$(count blocker)" "$(count should-fix)" "$(count nit)" "$(count question)" "${file:--}"
+  ci="-"
+  [[ -n "$file" ]] && ci="$(sed -n 's/^- CI: \([a-z]*\).*/\1/p' "$file" | head -1)"
+  printf '%-5s %-9s %-8s %-10s %-4s %-8s %-10s %s\n' "#$n" "$status" \
+    "$(count blocker)" "$(count should-fix)" "$(count nit)" "$(count question)" "${ci:--}" "${file:--}"
 done
 
 [[ $failed -eq 0 ]]

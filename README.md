@@ -105,7 +105,7 @@ the repository: the PR, the code at its head commit and the written docs
 which the change was written, so it doesn't inherit the author's assumptions.
 
 ```sh
-bin/review-pr 12           # one PR -> reviews/pr-<branch>-<sha>-sonnet.md
+bin/review-pr 12           # one PR -> reviews/pr-<branch>.md
 bin/review-open-prs        # every open PR, one process each, 3 at a time
 REVIEW_MODEL=fable bin/review-pr 12 --force   # another model, review again
 bin/review-selfcheck --force                  # re-verify the isolation
@@ -127,6 +127,17 @@ Guarantees, each checked by the scripts rather than promised:
 - **Real locations.** The diff the reviewer gets carries the head commit's line
   numbers, and every cited `path:line` is checked afterwards; impossible ones
   get a "Location check" warning in the review.
+
+There is **one current review per PR**, `reviews/pr-<branch>.md`; its header
+names the commit it covers. A PR is reviewed again only when it has new
+commits (or with `--force`); the previous review moves to `reviews/archive/`
+with the verdicts you ticked.
+
+The reviewer can **check test results without running code**: CI
+(`.github/workflows/ci.yml`) runs the precommit checks and the tests with
+coverage on every PR, and `bin/review-pr` hands the `ci-results` of the head
+commit to the reviewer (waiting up to 15 minutes if CI is still running). The
+review header shows the CI outcome.
 
 In Claude Code the same is available as `/review-pr <number>` and
 `/review-open-prs`. Each finding in a review file has a "Your verdict" line:

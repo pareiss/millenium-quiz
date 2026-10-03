@@ -17,15 +17,19 @@
 #
 # Everything it needs is prepared as files in <worktree>/.review/: the diff
 # (with head line numbers) and commits against the merge base, the PR
-# description, and REVIEWING.md from this checkout. Its prompt is fixed: the
-# PR number and the two commits. Afterwards every cited path:line is checked
+# description, REVIEWING.md from this checkout, and the CI results of the head
+# commit (tests, coverage, compile warnings; see .github/workflows/ci.yml), so it
+# can check test results without running any code. Its prompt is fixed: the PR
+# number and the two commits. Afterwards every cited path:line is checked
 # against the head commit.
 #
-# Output: reviews/pr-<branch>-<short head sha>-<model>.md (the branch name with
-# characters other than letters, digits, ".", "_" and "-" replaced by "-").
-# Exit codes: 0 reviewed, 3 skipped (this commit was already reviewed), 1 failed.
+# Output: reviews/pr-<branch>.md, one current review per PR (the branch name
+# with characters other than letters, digits, ".", "_" and "-" replaced by "-").
+# A new review moves the previous one, with its verdicts, to reviews/archive/.
+# Exit codes: 0 reviewed, 3 skipped (the current review is of this commit), 1 failed.
 # Environment: REVIEW_MODEL (default: the model in the agent file),
-# REVIEW_SELFCHECKED=1 to skip the self-check (bin/review-open-prs runs it once).
+# REVIEW_SELFCHECKED=1 to skip the self-check (bin/review-open-prs runs it once),
+# REVIEW_CI_WAIT (default 900): seconds to wait for a CI run still in progress.
 set -euo pipefail
 
 usage() { echo "usage: bin/review-pr <number> [--force]" >&2; exit 1; }
@@ -65,9 +69,10 @@ IFS=$'\t' read -r head base_tip base_branch branch draft url title <<<"$pr"
 short="${head:0:7}"
 slug="$(printf '%s' "$branch" | sed 's/[^A-Za-z0-9._-]/-/g')"
 mkdir -p reviews
-out="reviews/pr-${slug}-${short}-${model}.md"
+out="reviews/pr-${slug}.md"
+reviewed_head() { sed -n 's/^- Head: `\([0-9a-f]*\)`.*/\1/p' "$1" | head -1; }
 
-if [[ -e "$out" && "$force" != true ]]; then
+if [[ -e "$out" && "$force" != true && "$(reviewed_head "$out")" == "$head" ]]; then
   echo "skipped: PR #$number at $short already reviewed ($out); use --force to review again"
   exit 3
 fi
@@ -114,6 +119,36 @@ git diff --stat "$base" "$head" >"$material/files.txt"
 git diff "$base" "$head" | bin/review-tools annotate-diff >"$material/diff.patch"
 gh pr view "$number" --json title,body --jq '"# " + .title + "\n\n" + .body' >"$material/description.md"
 
+# CI results of the head commit (the reviewer must not run code itself).
+ci_run() {
+  gh run list --commit "$head" --workflow CI --limit 1 --json databaseId,status,conclusion,url \
+    --jq '.[0] // empty | [(.databaseId|tostring), .status, .conclusion, .url] | join("\t")' 2>/dev/null || true
+}
+ci="$(ci_run)"
+if [[ -n "$ci" && "$(cut -f2 <<<"$ci")" != completed ]]; then
+  echo "waiting for CI of $short (up to ${REVIEW_CI_WAIT:-900}s)…"
+  timeout "${REVIEW_CI_WAIT:-900}" gh run watch "$(cut -f1 <<<"$ci")" --exit-status >/dev/null 2>&1 || true
+  ci="$(ci_run)"
+fi
+if [[ -z "$ci" ]]; then
+  ci_status="no CI run for this commit"
+  echo "No CI run exists for the head commit, so there are no test results." >"$material/tests.md"
+else
+  IFS=$'\t' read -r ci_id ci_state ci_conclusion ci_url <<<"$ci"
+  if [[ "$ci_state" != completed ]]; then
+    ci_status="still running ($ci_url)"
+    echo "CI is still running for the head commit ($ci_url); no test results yet." >"$material/tests.md"
+  elif gh run download "$ci_id" -n ci-results -D "$material/ci" >/dev/null 2>&1; then
+    ci_status="$ci_conclusion ($ci_url)"
+    { echo "CI run: $ci_conclusion — $ci_url"; echo; cat "$material/ci/summary.md"
+      echo; echo "Full outputs: .review/ci/tests.txt (tests and coverage), compile.txt,"
+      echo "unused-deps.txt, format.txt."; } >"$material/tests.md"
+  else
+    ci_status="$ci_conclusion, results not downloadable ($ci_url)"
+    echo "CI run: $ci_conclusion — $ci_url (the ci-results artifact could not be downloaded)." >"$material/tests.md"
+  fi
+fi
+
 prompt="Review pull request #${number} (branch ${branch} into ${base_branch}).
 Base commit (merge base): ${base}
 Head commit: ${head}
@@ -139,6 +174,14 @@ for m in $used; do
   fi
 done
 
+# Keep the previous review (and the verdicts ticked in it) in the archive.
+if [[ -e "$out" ]]; then
+  mkdir -p reviews/archive
+  old="reviews/archive/pr-${slug}-$(reviewed_head "$out" | cut -c1-7).md"
+  [[ -e "$old" ]] && old="${old%.md}-$(date -u +%Y%m%dT%H%M%S).md"
+  mv "$out" "$old"
+fi
+
 {
   echo "# Review of PR #${number}: ${title}"
   echo
@@ -148,6 +191,7 @@ done
   echo "- Head: \`${head}\`"
   echo "- Reviewer: ${used//$'\n'/, } (bin/review-pr, isolated process)"
   echo "- Written with: ${authors:-no Claude model in the commits}"
+  echo "- CI: ${ci_status}"
   echo "- Date: $(date -u +%Y-%m-%dT%H:%MZ)"
   echo
   # Anything the reviewer wrote before its summary is narration, not review.
