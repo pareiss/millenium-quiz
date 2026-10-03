@@ -130,10 +130,8 @@
 }
 
 .mq-card__face {
-  --frame: #b9a27c;
   --frame-edge: #3f2d1a;
   --name-color: #1c1917;
-  --spell: #1f9a86;
   aspect-ratio: 59 / 86;
   display: flex;
   flex-direction: column;
@@ -158,16 +156,23 @@
   overflow: hidden;
   text-align: left;
 }
-.mq-card__face[data-frame="normal"]  { --frame: #d8b064; }
-.mq-card__face[data-frame="effect"]  { --frame: #c46a32; }
-.mq-card__face[data-frame="ritual"]  { --frame: #5d8bd3; }
-.mq-card__face[data-frame="fusion"]  { --frame: #8a56ae; }
-.mq-card__face[data-frame="synchro"] { --frame: #e9e6df; }
-.mq-card__face[data-frame="xyz"]     { --frame: #121110; --name-color: #fafaf9; }
-.mq-card__face[data-frame="link"]    { --frame: #1553b8; --name-color: #fafaf9; }
-.mq-card__face[data-frame="token"]   { --frame: #9b9690; }
-.mq-card__face[data-frame="spell"]   { --frame: var(--spell); --name-color: #fafaf9; }
-.mq-card__face[data-frame="trap"]    { --frame: #a83a7c; --name-color: #fafaf9; }
+/* Frame and text box colours, sampled from real cards of each type. */
+:is(.mq-card__face, .mq-card-panel) {
+  --spell: #129584;
+  --spell-box: #badfd8;
+  --frame: #b9a27c;
+  --box: #ede0cb;
+}
+:is(.mq-card__face, .mq-card-panel)[data-frame="normal"]  { --frame: #c39a55; --box: #ede0cb; }
+:is(.mq-card__face, .mq-card-panel)[data-frame="effect"]  { --frame: #b86639; --box: #e9d1c5; }
+:is(.mq-card__face, .mq-card-panel)[data-frame="ritual"]  { --frame: #5479ba; --box: #cdd7ea; }
+:is(.mq-card__face, .mq-card-panel)[data-frame="fusion"]  { --frame: #8b479b; --box: #dcc8e1; }
+:is(.mq-card__face, .mq-card-panel)[data-frame="synchro"] { --frame: #e3e2e0; --box: #f6f6f4; }
+:is(.mq-card__face, .mq-card-panel)[data-frame="xyz"]     { --frame: #262b2d; --box: #bfbfc0; --name-color: #fafaf9; }
+:is(.mq-card__face, .mq-card-panel)[data-frame="link"]    { --frame: #235790; --box: #cad5ed; --name-color: #fafaf9; }
+:is(.mq-card__face, .mq-card-panel)[data-frame="token"]   { --frame: #807c7b; --box: #d8d7d8; }
+:is(.mq-card__face, .mq-card-panel)[data-frame="spell"]   { --frame: var(--spell); --box: var(--spell-box); --name-color: #fafaf9; }
+:is(.mq-card__face, .mq-card-panel)[data-frame="trap"]    { --frame: #ab2e7a; --box: #e6c0d7; --name-color: #fafaf9; }
 /* Xyz: deep black with short blue streaks around the centre and a few
    faint stars, no old-paper texture. */
 .mq-card__face[data-frame="xyz"] {
@@ -301,7 +306,7 @@
   background:
     var(--paper),
     radial-gradient(ellipse at center, transparent 50%, color-mix(in oklab, var(--spell) 30%, transparent) 100%),
-    color-mix(in oklab, color-mix(in oklab, var(--spell) 18%, #fff) 80%, transparent);
+    color-mix(in oklab, var(--spell-box) 80%, transparent);
 }
 .mq-card__pendulum-text { max-height: 14cqw; overflow: hidden; font-size: 3.2cqw; white-space: pre-line; }
 .mq-card__pendulum-text.mq-text--s   { font-size: 2.7cqw; }
@@ -337,20 +342,21 @@
   background:
     var(--box-paper, var(--paper)),
     radial-gradient(ellipse at center, transparent 50%, color-mix(in oklab, var(--box-color, var(--frame)) 30%, transparent) 100%),
-    var(--box-base, color-mix(in oklab, var(--box-color, var(--frame)) 18%, #fff));
+    var(--box-base, var(--box));
   font-size: 3.5cqw;
 }
 /* Xyz: a plain grey text box (no old paper) that lets the streaks and
    stars behind it show through */
 .mq-card__face[data-frame="xyz"] {
   --box-paper: none;
-  --box-base: color-mix(in oklab, color-mix(in oklab, var(--frame) 18%, #fff) 60%, transparent);
+  --box-base: color-mix(in oklab, var(--box) 60%, transparent);
 }
 /* Pendulum monsters (Xyz Pendulums too): the lower half of the card is a
    Spell's, so the text box is a Spell's: solid whitish green on old paper.
    `initial` drops the Xyz overrides above, back to the defaults. */
 .mq-card__face[data-pendulum] {
   --box-color: var(--spell);
+  --box: var(--spell-box);
   --box-paper: initial;
   --box-base: initial;
 }
@@ -398,17 +404,7 @@
 }
 
 /* A card's texts in a readable panel, tinted like its text box. */
-.mq-card-panel { --frame: #b9a27c; --spell: #1f9a86; }
-.mq-card-panel[data-frame="normal"]  { --frame: #d8b064; }
-.mq-card-panel[data-frame="effect"]  { --frame: #c46a32; }
-.mq-card-panel[data-frame="ritual"]  { --frame: #5d8bd3; }
-.mq-card-panel[data-frame="fusion"]  { --frame: #8a56ae; }
-.mq-card-panel[data-frame="synchro"] { --frame: #e9e6df; }
-.mq-card-panel[data-frame="xyz"]     { --frame: #262322; }
-.mq-card-panel[data-frame="link"]    { --frame: #1f4f97; }
-.mq-card-panel[data-frame="token"]   { --frame: #9b9690; }
-.mq-card-panel[data-frame="spell"]   { --frame: var(--spell); }
-.mq-card-panel[data-frame="trap"]    { --frame: #a83a7c; }
+/* .mq-card-panel takes its colours from the palette above. */
 .mq-card-panel__name {
   display: flex;
   align-items: center;
@@ -437,7 +433,7 @@
   padding: 1rem 1.1rem;
   border: 3px solid #1c1917;
   border-radius: 0 0 0.6rem 0.6rem;
-  background: color-mix(in oklab, var(--frame) 16%, #fffdf7);
+  background: var(--box);
   color: #1c1917;
   font-size: 1rem;
   line-height: 1.55;
@@ -446,7 +442,7 @@
   padding: 0.6rem 0.8rem;
   border: 2px solid color-mix(in oklab, var(--spell) 55%, #1c1917);
   border-radius: 0.4rem;
-  background: color-mix(in oklab, var(--spell) 16%, #fffdf7);
+  background: var(--spell-box);
 }
 .mq-card-panel__pendulum p { white-space: pre-line; }
 .mq-card-panel__pendulum h3 {
