@@ -8,6 +8,13 @@
                                                   prints the models that answered, one per line
   review-tools check-locations <review> <head>    flags cited path:line that don't exist at head
   review-tools selfcheck <stream-json> <inside-token> <outside-token>
+  review-tools post-body <review> <pr-commits.json> <evaluator>
+                                                  PR comment with every finding, its verdict and
+                                                  the commits that address it
+  review-tools since-review <review> <pr-commits.json>
+                                                  commits after the review that name no finding
+  review-tools mark-posted <review> <timestamp> <url>
+                                                  add or replace the review's "- Posted:" line
 """
 import json
 import re
@@ -115,6 +122,134 @@ def selfcheck(stream_path, inside, outside):
     print("self-check passed: tools are Read, Grep, Glob only; inside read, outside blocked")
 
 
+def parse_review(path):
+    """Header fields and findings (with the human verdict) of a review file."""
+    with open(path) as f:
+        text = f.read()
+    header = dict(re.findall(r"(?m)^- (PR|Branch|Base|Head|Reviewer|CI|Date|Posted): (.*)$", text))
+    findings = []
+    for block in re.split(r"(?m)^(?=### F\d+ · )", text)[1:]:
+        block = re.split(r"(?m)^## ", block)[0]
+        head = re.match(r"### (F\d+) · ([^·]+?) · (.+?) — (.*)", block)
+        if not head:
+            continue
+        field = lambda name: (re.search(rf"(?ms)^- \*\*{name}:\*\* (.*?)(?=^- \*\*|\Z)", block) or [None, ""])[1].strip()
+        verdict_line = field("Your verdict")
+        marked = re.findall(r"\[[xX]\] (valid|wrong|unsure)", verdict_line)
+        reason = verdict_line.split("reason:", 1)[1].strip() if "reason:" in verdict_line else ""
+        findings.append({
+            "id": head.group(1), "severity": head.group(2).strip(),
+            "location": head.group(3).strip(), "title": head.group(4).strip(),
+            "claim": field("Claim"), "evidence": field("Evidence"),
+            "fix": field("Suggested fix"), "confidence": field("Confidence"),
+            "verdict": marked[0] if marked else "unmarked", "reason": reason,
+        })
+    return header, findings
+
+
+# A commit addresses a finding when a line of its message starts with the
+# finding's id, e.g. "F2: ..." or "- F1, F5: ..." (the convention for review
+# fix commits). A mere mention ("F2 is a false positive") doesn't count.
+FIX_LINE = re.compile(r"(?m)^[ \t]*(?:[-*][ \t]+)?(F\d+(?:[ \t]*,[ \t]*F\d+)*)[ \t]*:")
+
+
+def commits_after_review(commits_path, reviewed_head, reviewed_at):
+    """The PR's own commits (GitHub's list, oldest first) made after the
+    reviewed commit: those following it in the list, or, if a rebase removed
+    it from the PR, those committed after the review's date."""
+    with open(commits_path) as f:
+        commits = json.load(f).get("commits", [])
+    oids = [c["oid"] for c in commits]
+    if reviewed_head in oids:
+        return commits[oids.index(reviewed_head) + 1 :]
+    return [c for c in commits if not reviewed_at or c.get("committedDate", "") > reviewed_at]
+
+
+def named_findings(commit):
+    message = (commit.get("messageHeadline") or "") + "\n" + (commit.get("messageBody") or "")
+    return {fid for group in FIX_LINE.findall(message) for fid in re.findall(r"F\d+", group)}
+
+
+def fixing_commits(commits):
+    """Finding id -> short shas of the commits that address it."""
+    found = {}
+    for c in commits:
+        for fid in sorted(named_findings(c), key=lambda f: int(f[1:])):
+            found.setdefault(fid, []).append(c["oid"][:7])
+    return found
+
+
+def review_point(header):
+    head = re.search(r"[0-9a-f]{40}", header.get("Head", ""))
+    # Review dates look like 2026-10-03T02:15Z; GitHub's like 2026-10-03T02:20:11Z.
+    date = header.get("Date", "").strip()
+    if re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\dZ", date):
+        date = date.replace("Z", ":00Z")
+    return (head.group(0) if head else ""), date
+
+
+def since_review(review_path, commits_path):
+    """Prints the commits after the review that name no finding: changes the
+    review never saw, so the user should confirm before posting."""
+    header, _ = parse_review(review_path)
+    for c in commits_after_review(commits_path, *review_point(header)):
+        if not named_findings(c):
+            print(f"{c['oid'][:7]} {c.get('messageHeadline', '')}")
+
+
+def mark_posted(review_path, timestamp, url):
+    """Adds the "- Posted:" line after "- Date:", or replaces an existing one."""
+    with open(review_path) as f:
+        lines = f.read().split("\n")
+    line = f"- Posted: {timestamp} {url}"
+    posted = [i for i, l in enumerate(lines) if l.startswith("- Posted: ")]
+    if posted:
+        lines[posted[0]] = line
+    else:
+        date = next((i for i, l in enumerate(lines) if l.startswith("- Date: ")), 0)
+        lines.insert(date + 1, line)
+    with open(review_path, "w") as f:
+        f.write("\n".join(lines))
+
+
+def post_body(review_path, commits_path, evaluator):
+    header, findings = parse_review(review_path)
+    reviewed, reviewed_at = review_point(header)
+    fixes = fixing_commits(commits_after_review(commits_path, reviewed, reviewed_at))
+    icon = {"valid": "✅ valid", "wrong": "❌ wrong", "unsure": "🤷 unsure", "unmarked": "– not evaluated"}
+    cell = lambda t: t.replace("|", "\\|").replace("\n", " ")
+
+    out = [
+        "## Review, evaluated",
+        "",
+        f"Independent review of `{reviewed[:7]}` by {header.get('Reviewer', 'the reviewer').split(' (')[0]}"
+        f" (`bin/review-pr`, no shared context with the author). CI at review time: {header.get('CI', 'unknown')}.",
+        f"Each finding was judged by @{evaluator}; \"Addressed in\" lists the commits after the review that name the finding.",
+        "",
+        "| # | Severity | Finding | Verdict | Reason | Addressed in |",
+        "|---|---|---|---|---|---|",
+    ]
+    for f in findings:
+        addressed = ", ".join(fixes.get(f["id"], [])) or ("–" if f["verdict"] != "valid" else "not yet")
+        out.append(
+            f"| {f['id']} | {f['severity']} | {cell(f['title'])} | {icon[f['verdict']]} | {cell(f['reason']) or '–'} | {addressed} |"
+        )
+    out += ["", "<details><summary>Findings in full</summary>", ""]
+    for f in findings:
+        out += [
+            f"#### {f['id']} · {f['severity']} · `{f['location']}` — {f['title']}",
+            "",
+            f"- **Claim:** {f['claim']}",
+            f"- **Evidence:** {f['evidence']}",
+            f"- **Suggested fix:** {f['fix']}",
+            f"- **Confidence:** {f['confidence']}",
+            f"- **Verdict:** {icon[f['verdict']]}" + (f" — {f['reason']}" if f["reason"] else ""),
+            "",
+        ]
+    out += ["</details>"]
+    print("\n".join(out))
+
+
 if __name__ == "__main__":
     cmd, args = (sys.argv[1], sys.argv[2:]) if len(sys.argv) > 1 else ("", [])
     commands = {
@@ -124,6 +259,9 @@ if __name__ == "__main__":
         "run-result": run_result,
         "check-locations": check_locations,
         "selfcheck": selfcheck,
+        "post-body": post_body,
+        "since-review": since_review,
+        "mark-posted": mark_posted,
     }
     if cmd not in commands:
         sys.exit(__doc__)

@@ -41,3 +41,6 @@ npm-debug.log
 /reviews/
 /.claude/worktrees/
 /.claude/settings.local.json
+
+# Python bytecode from the review helper tests
+__pycache__/
