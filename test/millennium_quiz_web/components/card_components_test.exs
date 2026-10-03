@@ -314,8 +314,21 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(one, ".mq-card-panel__stars[title='Rank 1'] svg") == 1
     assert count(one, ".mq-card-panel__stars span:not(.sr-only)") == 0
 
-    # Link monsters have neither
-    assert count(panel.(%{link_arrows: ["⬆"]}), ".mq-card-panel__stars") == 0
+    # Link monsters show their rating and lit arrows instead
+    link = panel.(%{frame_type: "link", link_arrows: ["↙", "⬆\uFE0F", "↘"]})
+
+    assert count(
+             link,
+             "header .mq-card-panel__stars[title='Link 3: top, bottom left, bottom right']"
+           ) == 1
+
+    assert count(link, ".mq-link-icon polygon") == 8
+    assert count(link, ".mq-link-icon polygon.is-active") == 3
+
+    assert count(
+             link,
+             ".mq-card-panel__stars .level-star, .mq-card-panel__stars svg:not(.mq-link-icon)"
+           ) == 0
   end
 
   test "a card from an old snapshot gets a plain frame and no artwork" do

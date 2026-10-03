@@ -199,7 +199,11 @@ defmodule MillenniumQuizWeb.CardComponents do
   slot :inner_block, doc: "shown below the text, e.g. credits"
 
   def card_text_dialog(assigns) do
-    assigns = assign(assigns, :link?, frame(assigns.card) == "link")
+    assigns =
+      assign(assigns,
+        link?: frame(assigns.card) == "link",
+        arrows: Enum.map(assigns.card[:link_arrows] || [], &String.trim(&1, "\uFE0F"))
+      )
 
     ~H"""
     <div
@@ -249,6 +253,11 @@ defmodule MillenniumQuizWeb.CardComponents do
             <span :if={(@card[:level] || @card[:rank]) != 1}>{@card[:level] || @card[:rank]}</span>
             <.level_star rank={not is_nil(@card[:rank])} class="size-7" />
             <span class="sr-only">{stars_label(@card)}</span>
+          </p>
+          <p :if={@link?} class="mq-card-panel__stars" title={link_label(@arrows)}>
+            <span>{length(@arrows)}</span>
+            <.link_arrows_icon arrows={@arrows} class="size-9" />
+            <span class="sr-only">{link_label(@arrows)}</span>
           </p>
           <span
             :if={kind(@card) in ["Spell", "Trap"] and @card[:property] not in [nil, "Normal"]}
@@ -356,6 +365,26 @@ defmodule MillenniumQuizWeb.CardComponents do
       <path
         d={if @side == "left", do: "M0 5 7 0.5 10 5 7 9.5z", else: "M12 5 5 0.5 2 5 5 9.5z"}
         fill={if @side == "left", do: "#2563eb", else: "#dc2626"}
+      />
+    </svg>
+    """
+  end
+
+  @doc "The eight Link Arrows around a square; the card's arrows are lit."
+  attr :arrows, :list, required: true, doc: "YAML Yugi arrows, e.g. `[\"↙\", \"⬆\"]`"
+  attr :class, :any, default: nil
+
+  def link_arrows_icon(assigns) do
+    assigns = assign(assigns, :all, @link_arrows)
+
+    ~H"""
+    <svg viewBox="0 0 32 32" class={["mq-link-icon", @class]} aria-hidden="true">
+      <rect x="11.5" y="11.5" width="9" height="9" rx="1" fill="#1c1917" fill-opacity="0.45" />
+      <polygon
+        :for={{arrow, position} <- @all}
+        points="16,0.8 22,8.2 10,8.2"
+        transform={"rotate(#{arrow_turn(position)} 16 16)#{arrow_shift(position)}"}
+        class={arrow in @arrows && "is-active"}
       />
     </svg>
     """
@@ -471,6 +500,32 @@ defmodule MillenniumQuizWeb.CardComponents do
       "aria-label" => "Read the texts of #{name}",
       "title" => "Read the texts"
     }
+  end
+
+  defp arrow_turn(position) do
+    %{
+      "top" => 0,
+      "top-right" => 45,
+      "right" => 90,
+      "bottom-right" => 135,
+      "bottom" => 180,
+      "bottom-left" => 225,
+      "left" => 270,
+      "top-left" => 315
+    }[position]
+  end
+
+  # corner arrows sit further out, at the square's corners
+  defp arrow_shift(position),
+    do: if(String.contains?(position, "-"), do: " translate(0 -1.2)", else: "")
+
+  defp link_label(arrows) do
+    names =
+      for {arrow, position} <- @link_arrows,
+          arrow in arrows,
+          do: String.replace(position, "-", " ")
+
+    "Link #{length(arrows)}: #{Enum.join(names, ", ")}"
   end
 
   defp stars_label(%{rank: rank}) when is_integer(rank), do: "Rank #{rank}"

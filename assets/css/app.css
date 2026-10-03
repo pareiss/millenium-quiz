@@ -464,3 +464,5 @@
 .mq-card-panel__stats { display: flex; justify-content: flex-end; gap: 1.2rem; border-top: 2px solid #1c1917; padding-top: 0.3rem; font-weight: 700; }
 .mq-card-panel__stars { display: inline-flex; flex: none; align-items: center; gap: 0.3rem; font-family: ui-sans-serif, system-ui, sans-serif; cursor: help; }
 .mq-card-panel__property { display: inline-flex; flex: none; cursor: help; }
+.mq-link-icon polygon { fill: #35312e; stroke: #75706b; stroke-width: 1.4; stroke-linejoin: round; }
+.mq-link-icon polygon.is-active { fill: #ef3b24; stroke: #d6d3d1; }
