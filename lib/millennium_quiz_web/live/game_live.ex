@@ -390,44 +390,29 @@ defmodule MillenniumQuizWeb.GameLive do
 
   defp end_game_modal(assigns) do
     ~H"""
-    <div
+    <.confirm_dialog
       id="end-game-modal"
-      class="fixed inset-0 z-50 grid place-items-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="end-game-title"
-      phx-window-keydown="cancel_end"
-      phx-key="escape"
-      phx-mounted={JS.focus(to: "#cancel-end")}
+      title="End the game?"
+      icon="hero-flag"
+      on_cancel="cancel_end"
+      cancel_id="cancel-end"
     >
-      <div class="absolute inset-0 bg-base-content/40 backdrop-blur-sm" phx-click="cancel_end" />
-      <div class="relative w-full max-w-md rounded-box border border-error/50 bg-base-100 shadow-xl p-5 sm:p-6 space-y-6 reveal-pop">
-        <div class="flex items-start gap-3">
-          <span class="grid place-items-center size-10 shrink-0 rounded-full bg-error text-error-content">
-            <.icon name="hero-flag" class="size-5" />
-          </span>
-          <div>
-            <h2 class="text-xl font-semibold" id="end-game-title">End the game?</h2>
-            <p class="text-base-content/70">
-              The final results are shown right away. A question that is not revealed yet will not be scored.
-            </p>
-            <p class="mt-2 text-sm text-base-content/60">
-              Just need a break? Pause instead and continue later.
-            </p>
-          </div>
-        </div>
-
-        <div class="flex flex-wrap justify-end gap-2">
-          <button class="btn btn-ghost" phx-click="cancel_end" id="cancel-end">Keep playing</button>
-          <button class="btn" phx-click="pause" id="pause-instead">
-            <.icon name="hero-pause" class="size-4" /> Pause
-          </button>
-          <button class="btn btn-error" phx-click="finish" id="confirm-end">
-            <.icon name="hero-flag" class="size-4" /> End game
-          </button>
-        </div>
-      </div>
-    </div>
+      <p>
+        The final results are shown right away. A question that is not revealed yet will not be scored.
+      </p>
+      <p class="mt-2 text-sm text-base-content/60">
+        Just need a break? Pause instead and continue later.
+      </p>
+      <:actions>
+        <button class="btn btn-ghost" phx-click="cancel_end" id="cancel-end">Keep playing</button>
+        <button class="btn" phx-click="pause" id="pause-instead">
+          <.icon name="hero-pause" class="size-4" /> Pause
+        </button>
+        <button class="btn btn-error" phx-click="finish" id="confirm-end">
+          <.icon name="hero-flag" class="size-4" /> End game
+        </button>
+      </:actions>
+    </.confirm_dialog>
     """
   end
 

@@ -188,6 +188,73 @@ defmodule MillenniumQuizWeb.AdminTest do
       assert %{name: "Early 2004", date: ~D[2004-06-01]} = Quiz.get_format!(format.id)
     end
 
+    test "deleting a format asks in a dialog first", %{conn: conn} do
+      format = format_fixture()
+      {:ok, view, _html} = live(conn, ~p"/admin/formats/#{format.id}")
+
+      view |> element("#delete-format") |> render_click()
+      assert has_element?(view, "#delete-format-dialog", format.name)
+
+      view |> element("#delete-format-dialog-cancel") |> render_click()
+      refute has_element?(view, "#delete-format-dialog")
+
+      # Esc closes it too
+      view |> element("#delete-format") |> render_click()
+      render_keydown(view, "cancel_confirm", %{"key" => "Escape"})
+      refute has_element?(view, "#delete-format-dialog")
+      assert Quiz.get_format!(format.id)
+
+      view |> element("#delete-format") |> render_click()
+
+      assert {:error, {:live_redirect, %{to: "/admin/formats"}}} =
+               view |> element("#delete-format-dialog-confirm") |> render_click()
+
+      assert_raise Ecto.NoResultsError, fn -> Quiz.get_format!(format.id) end
+    end
+
+    test "deleting a question asks in a dialog first", %{conn: conn} do
+      format = format_fixture()
+      topic = hd(format.topics)
+      keep = question_fixture(topic, %{"text" => "Which card draws 2?"})
+      doomed = question_fixture(topic, %{"text" => "Which card destroys all monsters?"})
+      {:ok, view, _html} = live(conn, ~p"/admin/formats/#{format.id}")
+
+      view |> element("#delete-question-#{doomed.id}") |> render_click()
+      assert has_element?(view, "#delete-question-dialog", "Which card destroys all monsters?")
+
+      view |> element("#delete-question-dialog-cancel") |> render_click()
+      refute has_element?(view, "#delete-question-dialog")
+      assert Quiz.get_question!(doomed.id)
+
+      view |> element("#delete-question-#{doomed.id}") |> render_click()
+      view |> element("#delete-question-dialog-confirm") |> render_click()
+
+      refute has_element?(view, "#delete-question-dialog")
+      refute has_element?(view, "#delete-question-#{doomed.id}")
+      assert has_element?(view, "#delete-question-#{keep.id}")
+      assert_raise Ecto.NoResultsError, fn -> Quiz.get_question!(doomed.id) end
+    end
+
+    test "removing an admin asks in a dialog first", %{conn: conn, user: me} do
+      other = user_fixture(%{username: "kaiba"})
+      {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+      refute has_element?(view, "#delete-user-#{me.id}")
+
+      view |> element("#delete-user-#{other.id}") |> render_click()
+      assert has_element?(view, "#delete-user-dialog", "Remove admin kaiba?")
+
+      view |> element("#delete-user-dialog-cancel") |> render_click()
+      refute has_element?(view, "#delete-user-dialog")
+      assert has_element?(view, "#user-#{other.id}")
+
+      view |> element("#delete-user-#{other.id}") |> render_click()
+      view |> element("#delete-user-dialog-confirm") |> render_click()
+
+      refute has_element?(view, "#user-#{other.id}")
+      assert MillenniumQuiz.Repo.get(MillenniumQuiz.Accounts.User, other.id) == nil
+    end
+
     test "admins can add other admins", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/users")
 

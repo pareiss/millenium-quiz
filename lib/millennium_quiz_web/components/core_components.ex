@@ -503,6 +503,67 @@ defmodule MillenniumQuizWeb.CoreComponents do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
 
+  @doc """
+  An in-app confirmation dialog, used instead of the browser's confirm pop-up
+  (`data-confirm`). It is rendered while the LiveView's state says so, e.g.
+  `<.confirm_dialog :if={@confirm} …>`.
+
+  Esc and a click on the backdrop send `on_cancel`. The cancel button in the
+  `actions` slot needs the id given as `cancel_id` (default `"<id>-cancel"`): it
+  gets the focus, so Enter doesn't confirm by accident.
+
+  ## Examples
+
+      <.confirm_dialog :if={@confirm} id="delete-thing" title="Delete it?" on_cancel="cancel">
+        <p>This can't be undone.</p>
+        <:actions>
+          <button class="btn btn-ghost" phx-click="cancel" id="delete-thing-cancel">Cancel</button>
+          <button class="btn btn-error" phx-click="delete" id="delete-thing-confirm">Delete</button>
+        </:actions>
+      </.confirm_dialog>
+  """
+  attr :id, :string, required: true
+  attr :title, :string, required: true
+  attr :icon, :string, default: "hero-exclamation-triangle"
+  attr :on_cancel, :string, required: true, doc: "event sent by Esc and the backdrop"
+  attr :cancel_id, :string, default: nil, doc: "id of the cancel button, gets the focus"
+  slot :inner_block, doc: "the explanation"
+  slot :actions, required: true, doc: "the buttons, cancel first"
+
+  def confirm_dialog(assigns) do
+    assigns = assign(assigns, :cancel_id, assigns.cancel_id || "#{assigns.id}-cancel")
+
+    ~H"""
+    <div
+      id={@id}
+      class="fixed inset-0 z-50 grid place-items-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={"#{@id}-title"}
+      phx-window-keydown={@on_cancel}
+      phx-key="escape"
+      phx-mounted={JS.focus(to: "##{@cancel_id}")}
+    >
+      <div class="absolute inset-0 bg-base-content/40 backdrop-blur-sm" phx-click={@on_cancel} />
+      <div class="relative w-full max-w-md rounded-box border border-error/50 bg-base-100 shadow-xl p-5 sm:p-6 space-y-6 reveal-pop">
+        <div class="flex items-start gap-3">
+          <span class="grid place-items-center size-10 shrink-0 rounded-full bg-error text-error-content">
+            <.icon name={@icon} class="size-5" />
+          </span>
+          <div class="min-w-0">
+            <h2 class="text-xl font-semibold" id={"#{@id}-title"}>{@title}</h2>
+            <div class="text-base-content/70 break-words">{render_slot(@inner_block)}</div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-2">
+          {render_slot(@actions)}
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   @doc "A date for display, e.g. `Apr 1, 2005`."
   def display_date(nil), do: nil
   def display_date(%Date{} = date), do: Calendar.strftime(date, "%b %-d, %Y")

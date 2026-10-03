@@ -21,10 +21,10 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
           <button
             :if={user.id != @current_scope.user.id}
             class="btn btn-ghost btn-xs text-error"
-            phx-click="delete"
+            phx-click="confirm_delete"
             phx-value-id={user.id}
-            data-confirm={"Remove admin #{user.username}?"}
             id={"delete-user-#{user.id}"}
+            aria-label={"Remove admin #{user.username}"}
           >
             <.icon name="hero-trash" class="size-4" />
           </button>
@@ -80,6 +80,29 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
           <.button variant="primary" phx-disable-with="Saving…">Change password</.button>
         </.form>
       </section>
+
+      <.confirm_dialog
+        :if={@confirm}
+        id="delete-user-dialog"
+        title={"Remove admin #{@confirm.username}?"}
+        icon="hero-user-minus"
+        on_cancel="cancel_confirm"
+      >
+        <p>They can no longer log in, and their open sessions end right away.</p>
+        <:actions>
+          <button class="btn btn-ghost" phx-click="cancel_confirm" id="delete-user-dialog-cancel">
+            Cancel
+          </button>
+          <button
+            class="btn btn-error"
+            phx-click="delete"
+            phx-value-id={@confirm.id}
+            id="delete-user-dialog-confirm"
+          >
+            <.icon name="hero-user-minus" class="size-4" /> Remove admin
+          </button>
+        </:actions>
+      </.confirm_dialog>
     </Layouts.app>
     """
   end
@@ -92,6 +115,7 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
      socket
      |> assign(:page_title, "Admins")
      |> assign(:users, Accounts.list_users())
+     |> assign(:confirm, nil)
      |> assign(:new_form, to_form(Accounts.change_user_registration(%User{}), id: "new_user"))
      |> assign(:password_form, to_form(Accounts.change_user_password(user), id: "password"))
      |> assign(:current_password, nil)
@@ -119,6 +143,19 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
     end
   end
 
+  # Removing an admin asks first, in an in-app dialog (see confirm_dialog/1).
+  def handle_event("confirm_delete", %{"id" => id}, socket) do
+    user = Accounts.get_user!(id)
+
+    if user.id == socket.assigns.current_scope.user.id,
+      do: {:noreply, socket},
+      else: {:noreply, assign(socket, :confirm, %{id: user.id, username: user.username})}
+  end
+
+  def handle_event("cancel_confirm", _params, socket) do
+    {:noreply, assign(socket, :confirm, nil)}
+  end
+
   def handle_event("delete", %{"id" => id}, socket) do
     user = Accounts.get_user!(id)
 
@@ -127,7 +164,11 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
       MillenniumQuizWeb.UserAuth.disconnect_sessions(user)
     end
 
-    {:noreply, assign(socket, :users, Accounts.list_users())}
+    {:noreply,
+     socket
+     |> assign(:confirm, nil)
+     |> put_flash(:info, "Admin #{user.username} removed.")
+     |> assign(:users, Accounts.list_users())}
   end
 
   def handle_event(
