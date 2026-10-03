@@ -174,9 +174,10 @@
   --frame-paper: var(--paper-grain);
   --frame-gloss: linear-gradient(155deg, rgb(255 255 255 / 0.1), transparent 38%);
   --frame-sky:
-    radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.75) 0 0.15cqw, transparent 0.4cqw) 0 0 / 17cqw 19cqw,
-    radial-gradient(circle at 70% 65%, rgb(255 255 255 / 0.45) 0 0.12cqw, transparent 0.32cqw) 0 0 / 23cqw 27cqw,
-    radial-gradient(circle at 45% 85%, rgb(205 222 255 / 0.55) 0 0.18cqw, transparent 0.42cqw) 0 0 / 31cqw 37cqw,
+    /* a few soft, faint stars */
+    radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.3), transparent 0.9cqw) 0 0 / 41cqw 47cqw,
+    radial-gradient(circle at 70% 65%, rgb(255 255 255 / 0.22), transparent 0.8cqw) 0 0 / 57cqw 53cqw,
+    radial-gradient(circle at 45% 85%, rgb(205 222 255 / 0.26), transparent 1cqw) 0 0 / 73cqw 89cqw,
     /* faint blue streaks radiating from the centre */
     conic-gradient(
       at 50% 50%,
