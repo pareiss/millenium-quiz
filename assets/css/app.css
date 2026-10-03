@@ -317,8 +317,8 @@
   padding: 1.6cqw 2.4cqw;
   background:
     var(--box-paper, var(--paper)),
-    radial-gradient(ellipse at center, transparent 50%, color-mix(in oklab, var(--frame) 30%, transparent) 100%),
-    var(--box-base, color-mix(in oklab, var(--frame) 18%, #fff));
+    radial-gradient(ellipse at center, transparent 50%, color-mix(in oklab, var(--box-color, var(--frame)) 30%, transparent) 100%),
+    var(--box-base, color-mix(in oklab, var(--box-color, var(--frame)) 18%, #fff));
   font-size: 3.5cqw;
 }
 /* Xyz: a plain grey text box (no old paper) that lets the streaks and
@@ -326,6 +326,14 @@
 .mq-card__face[data-frame="xyz"] {
   --box-paper: none;
   --box-base: color-mix(in oklab, color-mix(in oklab, var(--frame) 18%, #fff) 60%, transparent);
+}
+/* Pendulum monsters (Xyz Pendulums too): the lower half of the card is a
+   Spell's, so the text box is a Spell's: solid whitish green on old paper.
+   `initial` drops the Xyz overrides above, back to the defaults. */
+.mq-card__face[data-pendulum] {
+  --box-color: var(--spell);
+  --box-paper: initial;
+  --box-base: initial;
 }
 /* a small bronze square on each corner of the frame */
 .mq-card__text::before,
