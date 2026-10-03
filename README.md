@@ -60,7 +60,9 @@ readable panel; both show the Yugipedia/YAML Yugi credit. The frames are CSS
 cards, and the icons are SVGs drawn for this app; no Konami card templates or
 icons are used. Yugipedia's errata of a Pendulum card only cover its Pendulum
 Effect, so `Cards.printed_on/3` dates the Pendulum Effect and shows the
-current monster text. Games paused before cards were drawn show their cards
+current monster text. Known limitation: an older wording of a Pendulum
+monster's own text (not its Pendulum Effect) is not recovered, so such a card
+shows today's monster text in every format. Games paused before cards were drawn show their cards
 with a plain frame and no artwork. How a card looks always follows the
 current app; its data (texts, stats) is fixed when a game starts.
 

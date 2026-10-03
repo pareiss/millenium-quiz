@@ -180,6 +180,16 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     render_click(view, "read_card", %{"card" => "1"})
     assert :sys.get_state(view.pid).socket.assigns.zoom == nil
 
+    # malformed values are ignored instead of crashing the LiveView
+    for {event, key} <- [{"zoom_card", "card"}, {"read_card", "card"}, {"answer", "choice"}],
+        value <- [1, nil, %{"x" => 1}, "-1", "abc"] do
+      render_click(view, event, %{key => value})
+    end
+
+    assert Process.alive?(view.pid)
+    assert :sys.get_state(view.pid).socket.assigns.zoom == nil
+    assert has_element?(view, "#choice-0")
+
     # the hover texts work on thumbnails: nothing lies over the card
     refute has_element?(view, "#question-card-0 button.absolute")
 

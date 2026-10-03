@@ -676,16 +676,16 @@ defmodule MillenniumQuizWeb.GameLive do
 
   @impl true
   def handle_event("answer", %{"choice" => choice}, socket) do
-    case Integer.parse(choice) do
-      {choice, ""} -> run(socket, &Games.answer(&1, choice))
-      _ -> {:noreply, socket}
+    case parse_index(choice) do
+      {:ok, choice} -> run(socket, &Games.answer(&1, choice))
+      :error -> {:noreply, socket}
     end
   end
 
   def handle_event("choose", %{"question" => index}, socket) do
-    case Integer.parse(index) do
-      {index, ""} -> run(socket, &Games.choose(&1, index))
-      _ -> {:noreply, socket}
+    case parse_index(index) do
+      {:ok, index} -> run(socket, &Games.choose(&1, index))
+      :error -> {:noreply, socket}
     end
   end
 
@@ -737,14 +737,22 @@ defmodule MillenniumQuizWeb.GameLive do
     question = Game.current_question(socket.assigns.game)
     cards = if question, do: length(question.cards), else: 0
 
-    case Integer.parse(index) do
-      {index, ""} when index in 0..(cards - 1)//1 ->
-        {:noreply, assign(socket, :zoom, {view, index})}
-
-      _ ->
-        {:noreply, socket}
+    case parse_index(index) do
+      {:ok, index} when index < cards -> {:noreply, assign(socket, :zoom, {view, index})}
+      _ -> {:noreply, socket}
     end
   end
+
+  # Event values come from the client: only a non-negative integer as a
+  # string is an index; anything else (another type, garbage) is ignored.
+  defp parse_index(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {index, ""} when index >= 0 -> {:ok, index}
+      _ -> :error
+    end
+  end
+
+  defp parse_index(_value), do: :error
 
   defp run(socket, fun) do
     case fun.(socket.assigns.game_id) do
