@@ -255,8 +255,7 @@ defmodule MillenniumQuizWeb.CardComponents do
             <span class="sr-only">{stars_label(@card)}</span>
           </p>
           <p :if={@link?} class="mq-card-panel__stars" title={link_label(@arrows)}>
-            <span>{length(@arrows)}</span>
-            <.link_arrows_icon arrows={@arrows} class="size-9" />
+            <.link_arrow :for={position <- lit_positions(@arrows)} position={position} class="size-6" />
             <span class="sr-only">{link_label(@arrows)}</span>
           </p>
           <span
@@ -370,22 +369,14 @@ defmodule MillenniumQuizWeb.CardComponents do
     """
   end
 
-  @doc "The eight Link Arrows around a square; the card's arrows are lit."
-  attr :arrows, :list, required: true, doc: "YAML Yugi arrows, e.g. `[\"↙\", \"⬆\"]`"
+  @doc "One lit Link Arrow pointing to `position` (e.g. `\"bottom-left\"`)."
+  attr :position, :string, required: true
   attr :class, :any, default: nil
 
-  def link_arrows_icon(assigns) do
-    assigns = assign(assigns, :all, @link_arrows)
-
+  def link_arrow(assigns) do
     ~H"""
-    <svg viewBox="0 0 32 32" class={["mq-link-icon", @class]} aria-hidden="true">
-      <rect x="11.5" y="11.5" width="9" height="9" rx="1" fill="#1c1917" fill-opacity="0.45" />
-      <polygon
-        :for={{arrow, position} <- @all}
-        points="16,0.8 22,8.2 10,8.2"
-        transform={"rotate(#{arrow_turn(position)} 16 16)#{arrow_shift(position)}"}
-        class={arrow in @arrows && "is-active"}
-      />
+    <svg viewBox="0 0 24 24" class={["mq-link-arrow", @class]} aria-hidden="true">
+      <polygon points="12,2 18,20 6,20" transform={"rotate(#{arrow_turn(@position)} 12 12)"} />
     </svg>
     """
   end
@@ -515,15 +506,16 @@ defmodule MillenniumQuizWeb.CardComponents do
     }[position]
   end
 
-  # corner arrows sit further out, at the square's corners
-  defp arrow_shift(position),
-    do: if(String.contains?(position, "-"), do: " translate(0 -1.2)", else: "")
+  # A Link monster's arrows, clockwise from the top.
+  defp lit_positions(arrows) do
+    @link_arrows
+    |> Enum.filter(fn {arrow, _} -> arrow in arrows end)
+    |> Enum.map(&elem(&1, 1))
+    |> Enum.sort_by(&arrow_turn/1)
+  end
 
   defp link_label(arrows) do
-    names =
-      for {arrow, position} <- @link_arrows,
-          arrow in arrows,
-          do: String.replace(position, "-", " ")
+    names = arrows |> lit_positions() |> Enum.map(&String.replace(&1, "-", " "))
 
     "Link #{length(arrows)}: #{Enum.join(names, ", ")}"
   end

@@ -314,21 +314,20 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(one, ".mq-card-panel__stars[title='Rank 1'] svg") == 1
     assert count(one, ".mq-card-panel__stars span:not(.sr-only)") == 0
 
-    # Link monsters show their rating and lit arrows instead
+    # Link monsters show their lit arrows instead, clockwise from the top
     link = panel.(%{frame_type: "link", link_arrows: ["↙", "⬆\uFE0F", "↘"]})
 
     assert count(
              link,
-             "header .mq-card-panel__stars[title='Link 3: top, bottom left, bottom right']"
+             "header .mq-card-panel__stars[title='Link 3: top, bottom right, bottom left']"
            ) == 1
 
-    assert count(link, ".mq-link-icon polygon") == 8
-    assert count(link, ".mq-link-icon polygon.is-active") == 3
+    turns =
+      link
+      |> LazyHTML.query(".mq-link-arrow polygon")
+      |> Enum.map(&(LazyHTML.attribute(&1, "transform") |> hd()))
 
-    assert count(
-             link,
-             ".mq-card-panel__stars .level-star, .mq-card-panel__stars svg:not(.mq-link-icon)"
-           ) == 0
+    assert turns == ["rotate(0 12 12)", "rotate(135 12 12)", "rotate(225 12 12)"]
   end
 
   test "a card from an old snapshot gets a plain frame and no artwork" do
