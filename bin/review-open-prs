@@ -34,8 +34,11 @@ if [[ ${#numbers[@]} -eq 0 ]]; then
   exit 0
 fi
 
-# Fetch once up front so the parallel runs don't fight over git locks.
+# Fetch once up front so the parallel runs don't fight over git locks, and
+# verify the reviewer isolation once instead of in every run.
 git fetch --quiet origin
+bin/review-selfcheck || { echo "reviewer isolation not verified, not reviewing" >&2; exit 1; }
+export REVIEW_SELFCHECKED=1
 
 echo "reviewing ${#numbers[@]} open PR(s): ${numbers[*]/#/#} (up to $jobs at a time)"
 

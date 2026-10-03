@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""Helpers for bin/review-pr and bin/review-selfcheck (no dependencies).
+
+  review-tools annotate-diff < diff               diff with head line numbers
+  review-tools authors <base> <head>              Claude model families that co-authored the commits
+  review-tools family <model>                     model family of a model name or alias
+  review-tools run-result <json> <text-out>       review text of a `claude -p --output-format json` run;
+                                                  prints the models that answered, one per line
+  review-tools check-locations <review> <head>    flags cited path:line that don't exist at head
+  review-tools selfcheck <stream-json> <inside-token> <outside-token>
+"""
+import json
+import re
+import subprocess
+import sys
+
+FAMILIES = ("opus", "sonnet", "haiku", "fable")
+
+
+def family(model):
+    name = model.lower()
+    return next((f for f in FAMILIES if f in name), name)
+
+
+def annotate_diff():
+    """Prefix every line of each hunk with its line number in the new file, so
+    the reviewer can cite real lines instead of positions in the patch."""
+    new = None
+    for line in sys.stdin:
+        line = line.rstrip("\n")
+        hunk = re.match(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
+        if hunk:
+            new = int(hunk.group(1))
+            print(line)
+        elif new is not None and line[:1] in ("+", " "):
+            print(f"{new:>6} |{line}")
+            new += 1
+        elif new is not None and line[:1] in ("-", "\\"):
+            print(f"{'':>6} |{line}")
+        else:
+            new = None
+            print(line)
+
+
+def authors(base, head):
+    log = subprocess.run(
+        ["git", "log", "--format=%B", f"{base}..{head}"], capture_output=True, text=True, check=True
+    ).stdout
+    found = {family(m) for m in re.findall(r"(?im)^co-authored-by:\s*claude\s+(\w+)", log)}
+    print(" ".join(sorted(found)))
+
+
+def run_result(json_path, text_out):
+    with open(json_path) as f:
+        data = json.load(f)
+    if data.get("is_error") or not data.get("result"):
+        sys.exit(f"reviewer run failed: {data.get('subtype') or data.get('result') or 'no result'}")
+    with open(text_out, "w") as f:
+        f.write(data["result"])
+    for model in data.get("modelUsage", {}):
+        print(model)
+
+
+def check_locations(review_path, head):
+    """Adds a warning line under every finding whose path:line doesn't exist at head."""
+    heading = re.compile(r"^### (F\d+) · [^·]+ · (\S+?):~?(\d+)")
+    lines_cache = {}
+
+    def file_lines(path):
+        if path not in lines_cache:
+            show = subprocess.run(["git", "show", f"{head}:{path}"], capture_output=True, text=True)
+            lines_cache[path] = show.stdout.count("\n") if show.returncode == 0 else None
+        return lines_cache[path]
+
+    out, bad = [], 0
+    with open(review_path) as f:
+        for line in f:
+            out.append(line)
+            m = heading.match(line)
+            if not m:
+                continue
+            path, number = m.group(2), int(m.group(3))
+            total = file_lines(path)
+            problem = None
+            if total is None:
+                problem = f"`{path}` does not exist at the head commit"
+            elif number > total:
+                problem = f"`{path}` has only {total} lines at the head commit"
+            if problem:
+                bad += 1
+                out.append(f"- **Location check:** ⚠ {problem}; the location is probably wrong.\n")
+    with open(review_path, "w") as f:
+        f.writelines(out)
+    print(bad)
+
+
+def selfcheck(stream_path, inside, outside):
+    """Passes only if the session had exactly Read, Grep and Glob, actually read
+    the inside file, and nothing from outside the working directory got in."""
+    with open(stream_path) as f:
+        raw = f.read()
+    events = [json.loads(l) for l in raw.splitlines() if l.strip().startswith("{")]
+    init = next((e for e in events if e.get("type") == "system" and e.get("subtype") == "init"), None)
+    problems = []
+    if init is None:
+        problems.append("no init event in the output")
+    elif sorted(init.get("tools", [])) != ["Glob", "Grep", "Read"]:
+        problems.append(f"available tools are {sorted(init.get('tools', []))}, expected Glob, Grep, Read")
+    if inside not in raw:
+        problems.append("the file inside the working directory was not read (inconclusive run)")
+    if outside in raw:
+        problems.append("a file OUTSIDE the working directory was read")
+    if problems:
+        sys.exit("self-check failed: " + "; ".join(problems))
+    print("self-check passed: tools are Read, Grep, Glob only; inside read, outside blocked")
+
+
+if __name__ == "__main__":
+    cmd, args = (sys.argv[1], sys.argv[2:]) if len(sys.argv) > 1 else ("", [])
+    commands = {
+        "annotate-diff": annotate_diff,
+        "authors": authors,
+        "family": lambda m: print(family(m)),
+        "run-result": run_result,
+        "check-locations": check_locations,
+        "selfcheck": selfcheck,
+    }
+    if cmd not in commands:
+        sys.exit(__doc__)
+    commands[cmd](*args)

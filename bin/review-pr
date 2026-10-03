@@ -4,20 +4,28 @@
 #   bin/review-pr <number> [--force]
 #
 # The reviewer's instructions and model come from .claude/agents/pr-reviewer.md.
-# It runs inside a throwaway worktree of the PR's head commit, with only Read,
-# Grep and Glob: no shell, no Write or Edit, so it can't change anything, and
-# --restricted keeps it inside that worktree. --restricted also skips all
-# user/project/local settings (so the project agents too: the instructions are
-# passed with --append-system-prompt), and nothing is saved as a session.
+# It runs inside a throwaway worktree of the PR's head commit with the flags in
+# bin/review-flags: only Read, Grep and Glob (no shell, no Write/Edit, no MCP),
+# confined to that worktree, no settings, no saved session. bin/review-selfcheck
+# verifies that this isolation holds with the installed Claude Code. As
+# --restricted skips project agents, the instructions are passed with
+# --append-system-prompt.
 #
-# Everything it needs is prepared as files in <worktree>/.review/: the diff and
-# commits against the merge base, the PR description, and REVIEWING.md from
-# this checkout. Its prompt is fixed: the PR number and the two commits.
+# The reviewer must be a different model family than the one that wrote the PR
+# (from the commits' "Co-Authored-By: Claude <model>" trailers); this is checked
+# before the run and again against the model that actually answered.
+#
+# Everything it needs is prepared as files in <worktree>/.review/: the diff
+# (with head line numbers) and commits against the merge base, the PR
+# description, and REVIEWING.md from this checkout. Its prompt is fixed: the
+# PR number and the two commits. Afterwards every cited path:line is checked
+# against the head commit.
 #
 # Output: reviews/pr-<branch>-<short head sha>-<model>.md (the branch name with
 # characters other than letters, digits, ".", "_" and "-" replaced by "-").
 # Exit codes: 0 reviewed, 3 skipped (this commit was already reviewed), 1 failed.
-# Environment: REVIEW_MODEL (default: the model in the agent file).
+# Environment: REVIEW_MODEL (default: the model in the agent file),
+# REVIEW_SELFCHECKED=1 to skip the self-check (bin/review-open-prs runs it once).
 set -euo pipefail
 
 usage() { echo "usage: bin/review-pr <number> [--force]" >&2; exit 1; }
@@ -35,6 +43,8 @@ done
 
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
+# shellcheck source=bin/review-flags
+source bin/review-flags
 
 agent=".claude/agents/pr-reviewer.md"
 [[ -f "$agent" ]] || { echo "review-pr: $agent not found" >&2; exit 1; }
@@ -43,7 +53,7 @@ instructions="$(awk 'f>=2 {print} /^---$/ {f++}' "$agent")"
 model="${REVIEW_MODEL:-$(sed -n 's/^model: *//p' "$agent" | head -1)}"
 model="${model:-sonnet}"
 
-for tool in gh claude git; do
+for tool in gh claude git python3; do
   command -v "$tool" >/dev/null || { echo "review-pr: $tool not found" >&2; exit 1; }
 done
 
@@ -71,11 +81,25 @@ fi
 # its tip would show those newer commits as reversed changes of the PR.
 base="$(git merge-base "$base_tip" "$head")"
 
+# The reviewer must not share the author's blind spots: refuse a model of the
+# same family as any Claude model that co-authored the PR's commits.
+authors="$(bin/review-tools authors "$base" "$head")"
+reviewer_family="$(bin/review-tools family "$model")"
+if [[ " $authors " == *" $reviewer_family "* ]]; then
+  echo "review-pr: PR #$number was written with Claude ${authors// /, }; the reviewer must be another model than $model (e.g. REVIEW_MODEL=$( [[ $reviewer_family == sonnet ]] && echo fable || echo sonnet))" >&2
+  exit 1
+fi
+
+if [[ "${REVIEW_SELFCHECKED:-}" != 1 ]]; then
+  bin/review-selfcheck || { echo "review-pr: reviewer isolation not verified, not reviewing" >&2; exit 1; }
+fi
+
 worktree="$root/.claude/worktrees/pr-${slug}-$$"
 tmp="$(mktemp)"
+run="$(mktemp)"
 cleanup() {
   git worktree remove --force "$worktree" >/dev/null 2>&1 || true
-  rm -f "$tmp"
+  rm -f "$tmp" "$run"
 }
 trap cleanup EXIT
 
@@ -87,7 +111,7 @@ mkdir -p "$material"
 cp REVIEWING.md "$material/REVIEWING.md"
 git log --reverse --format='%h %s%n%n%b' "$base..$head" >"$material/commits.txt"
 git diff --stat "$base" "$head" >"$material/files.txt"
-git diff "$base" "$head" >"$material/diff.patch"
+git diff "$base" "$head" | bin/review-tools annotate-diff >"$material/diff.patch"
 gh pr view "$number" --json title,body --jq '"# " + .title + "\n\n" + .body' >"$material/description.md"
 
 prompt="Review pull request #${number} (branch ${branch} into ${base_branch}).
@@ -100,14 +124,20 @@ echo "reviewing PR #$number ($short) with $model…"
 if ! (cd "$worktree" && claude -p "$prompt" \
   --append-system-prompt "$instructions" \
   --model "$model" \
-  --restricted \
-  --no-session-persistence \
-  --tools "Read,Grep,Glob" \
-  --allowedTools "Read Grep Glob" \
-  --output-format text </dev/null >"$tmp") || [[ ! -s "$tmp" ]]; then
+  "${review_flags[@]}" \
+  --output-format json </dev/null >"$run") ||
+  ! used="$(bin/review-tools run-result "$run" "$tmp")" || [[ ! -s "$tmp" ]]; then
   echo "review-pr: the reviewer failed for PR #$number" >&2
   exit 1
 fi
+
+# Check the models that actually answered, too (e.g. no silent fallback).
+for m in $used; do
+  if [[ " $authors " == *" $(bin/review-tools family "$m") "* ]]; then
+    echo "review-pr: the review was answered by $m, the same family as the author; not saved" >&2
+    exit 1
+  fi
+done
 
 {
   echo "# Review of PR #${number}: ${title}"
@@ -116,7 +146,8 @@ fi
   echo "- Branch: \`${branch}\`"
   echo "- Base: \`${base}\` (merge base with \`${base_branch}\`)"
   echo "- Head: \`${head}\`"
-  echo "- Reviewer: ${model} (bin/review-pr, isolated process)"
+  echo "- Reviewer: ${used//$'\n'/, } (bin/review-pr, isolated process)"
+  echo "- Written with: ${authors:-no Claude model in the commits}"
   echo "- Date: $(date -u +%Y-%m-%dT%H:%MZ)"
   echo
   # Anything the reviewer wrote before its summary is narration, not review.
@@ -141,5 +172,8 @@ awk -v verdict="$verdict" '
   END { flush() }
 ' "$out" >"$tmp" && cat "$tmp" >"$out"
 
+# Every cited path:line must exist at the head commit; flag those that don't.
+bad="$(bin/review-tools check-locations "$out" "$head")"
+
 count() { grep -cE "^### F[0-9]+ · $1 " "$out" || true; }
-echo "reviewed: $out — blocker $(count blocker), should-fix $(count should-fix), nit $(count nit), question $(count question)"
+echo "reviewed: $out — blocker $(count blocker), should-fix $(count should-fix), nit $(count nit), question $(count question)$([[ $bad != 0 ]] && echo ", $bad location(s) flagged")"

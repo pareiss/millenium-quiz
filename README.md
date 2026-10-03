@@ -103,13 +103,30 @@ Pull requests are reviewed by a separate Claude Code process that only knows
 the repository: the PR, the code at its head commit and the written docs
 (`REVIEWING.md`, this README, `AGENTS.md`). It never sees the conversation in
 which the change was written, so it doesn't inherit the author's assumptions.
-It runs on a different model than the one that writes the code.
 
 ```sh
 bin/review-pr 12           # one PR -> reviews/pr-<branch>-<sha>-sonnet.md
 bin/review-open-prs        # every open PR, one process each, 3 at a time
-REVIEW_MODEL=opus bin/review-pr 12 --force   # another model, review again
+REVIEW_MODEL=fable bin/review-pr 12 --force   # another model, review again
+bin/review-selfcheck --force                  # re-verify the isolation
 ```
+
+Guarantees, each checked by the scripts rather than promised:
+
+- **Another model.** The reviewer's model family must differ from every Claude
+  model in the PR's `Co-Authored-By` trailers; otherwise the review is refused.
+  The model that actually answered is checked again afterwards and recorded in
+  the review's header. (Commits without a Claude trailer count as human.)
+- **Isolation.** The reviewer runs inside a throwaway worktree of the head
+  commit with the flags in `bin/review-flags`: only Read, Grep and Glob (no
+  shell, no Write/Edit, no MCP), confined to that worktree, no settings, no
+  saved session. `bin/review-selfcheck` verifies this with the installed Claude
+  Code without trusting the model: the tool list must be exactly Read, Grep and
+  Glob, and a marker file outside the working directory must stay unread. It
+  runs before reviewing and again after every Claude Code update.
+- **Real locations.** The diff the reviewer gets carries the head commit's line
+  numbers, and every cited `path:line` is checked afterwards; impossible ones
+  get a "Location check" warning in the review.
 
 In Claude Code the same is available as `/review-pr <number>` and
 `/review-open-prs`. Each finding in a review file has a "Your verdict" line:
@@ -117,8 +134,8 @@ tick valid, wrong or unsure. `/post-review <number>` then posts only the valid
 findings to the PR and offers rejected ones for the "Decisions and known false
 positives" section of `REVIEWING.md`, so reviews improve over time.
 
-The reviewer is defined in `.claude/agents/pr-reviewer.md`. `reviews/` is
-gitignored.
+The reviewer is defined in `.claude/agents/pr-reviewer.md`. The scripts need
+`gh`, `claude`, `git` and `python3`. `reviews/` is gitignored.
 
 ## Container image
 
