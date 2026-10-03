@@ -130,7 +130,6 @@
 }
 
 .mq-card__face {
-  --frame-edge: #3f2d1a;
   --name-color: #1c1917;
   aspect-ratio: 59 / 86;
   display: flex;
@@ -411,9 +410,9 @@
 .mq-card__text.mq-text--xs  { font-size: 2.6cqw; }
 .mq-card__text.mq-text--xxs { font-size: 2.2cqw; }
 .mq-card__texts.is-readable { position: relative; cursor: zoom-in; border-radius: 0.4cqw; transition: box-shadow 150ms; }
-/* the ring goes around the boxes' corner squares */
+/* the ring goes around the boxes' corner squares, inside the outer border */
 .mq-card__texts.is-readable:hover,
-.mq-card__texts.is-readable:focus-visible { outline: none; box-shadow: 0 0 0 2cqw var(--color-primary); }
+.mq-card__texts.is-readable:focus-visible { outline: none; box-shadow: 0 0 0 1.7cqw var(--color-primary); }
 .mq-card__type { font-weight: 700; }
 .mq-card__body { flex: 1; min-height: 0; overflow: hidden; white-space: pre-line; }
 .mq-card--small .mq-card__body { mask-image: linear-gradient(to bottom, #000 75%, transparent); }

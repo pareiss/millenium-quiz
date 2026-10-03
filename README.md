@@ -48,18 +48,21 @@ and Effect, materials and archetypes. It also stores the artwork (picture
 only, 624x624 JPEG), served at `/cards/<id>/artwork`, so cards can be drawn
 locally with the text of any date.
 
+`bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_cards()"` fetches
+every card again, e.g. after new errata.
+
 Questions show their cards drawn by `MillenniumQuizWeb.CardComponents.card/1`:
 frame, Attribute, Level/Rank stars, Link Arrows, Pendulum Scales, artwork,
 type line, the texts of the format's date and ATK/DEF. Long texts are set
-smaller. A tap enlarges a card, and a tap on a long text shows it in a
-readable panel. The frames are CSS (`.mq-card` in `app.css`) and the icons
-are SVGs drawn for this app; no Konami card templates or icons are used.
-Yugipedia's errata of a Pendulum card only cover its Pendulum Effect, so
-`Cards.printed_on/3` dates the Pendulum Effect and shows the current monster
-text. Games paused before cards were drawn show their cards with a plain
-frame and no artwork.
-`bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_cards()"` fetches
-every card again, e.g. after new errata.
+smaller. A tap enlarges a card, and a tap on its text shows the texts in a
+readable panel; both show the Yugipedia/YAML Yugi credit. The frames are CSS
+(`.mq-card` in `app.css`), with colours, borders and margins taken from real
+cards, and the icons are SVGs drawn for this app; no Konami card templates or
+icons are used. Yugipedia's errata of a Pendulum card only cover its Pendulum
+Effect, so `Cards.printed_on/3` dates the Pendulum Effect and shows the
+current monster text. Games paused before cards were drawn show their cards
+with a plain frame and no artwork. How a card looks always follows the
+current app; its data (texts, stats) is fixed when a game starts.
 
 ## Architecture
 
