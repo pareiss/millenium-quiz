@@ -437,7 +437,9 @@ defmodule MillenniumQuizWeb.CardComponents do
         <% "Quick-Play" -> %>
           <path d="M13.5 2 4.5 13.5h6.5L9.5 22l10-12.5h-6.5z" fill="currentColor" stroke-width="1" />
         <% "Continuous" -> %>
-          <path d="M6.5 8a4 4 0 1 0 0 8c2.6 0 3.6-2 5.5-4s2.9-4 5.5-4a4 4 0 1 1 0 8c-2.6 0-3.6-2-5.5-4s-2.9-4-5.5-4z" />
+          <%!-- a little below the middle: the flat sign then lines up with
+               the middle of the text beside it --%>
+          <path d="M6.5 9.4a4 4 0 1 0 0 8c2.6 0 3.6-2 5.5-4s2.9-4 5.5-4a4 4 0 1 1 0 8c-2.6 0-3.6-2-5.5-4s-2.9-4-5.5-4z" />
         <% "Equip" -> %>
           <%!-- a cross with square ends and sharp corners --%>
           <path
