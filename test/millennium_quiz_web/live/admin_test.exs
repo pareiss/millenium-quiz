@@ -125,6 +125,14 @@ defmodule MillenniumQuizWeb.AdminTest do
       view |> form("#card-search", card_search: %{query: "reborn"}) |> render_change()
       assert has_element?(view, "#card-results", "Monster Reborn")
 
+      # a failing search clears the old results instead of showing them under the error
+      Req.Test.stub(MillenniumQuiz.Cards, &Plug.Conn.send_resp(&1, 500, "down"))
+      view |> form("#card-search", card_search: %{query: "rebor"}) |> render_change()
+      assert has_element?(view, "#card-search-error")
+      refute has_element?(view, "#card-results")
+
+      CardSourcesStub.stub!()
+      view |> form("#card-search", card_search: %{query: "reborn"}) |> render_change()
       view |> element("#add-card-83764719") |> render_click()
       render_async(view)
 
@@ -158,9 +166,26 @@ defmodule MillenniumQuizWeb.AdminTest do
       # editing keeps the card, removing it detaches it
       {:ok, edit, _html} = live(conn, ~p"/admin/questions/#{question.id}/edit")
       [%{card: card}] = question.question_cards
+      # a malformed id from the browser is ignored, not a crash
+      render_hook(edit, "remove_card", %{"id" => "not-an-id"})
+      assert has_element?(edit, "#selected-card-#{card.id}")
       edit |> element("#remove-card-#{card.id}") |> render_click()
       edit |> form("#question-form") |> render_submit()
       assert Quiz.get_question!(question.id).question_cards == []
+    end
+
+    test "a format's date can't be changed after it was created", %{conn: conn} do
+      format = format_fixture(%{"date" => "2004-06-01"})
+      {:ok, view, _html} = live(conn, ~p"/admin/formats/#{format.id}/edit")
+
+      refute has_element?(view, "input[name='format[date]']")
+      assert has_element?(view, "#format-date", "Jun 1, 2004")
+
+      view
+      |> form("#format-form", format: %{name: "Early 2004"})
+      |> render_submit(%{format: %{date: "2020-01-01"}})
+
+      assert %{name: "Early 2004", date: ~D[2004-06-01]} = Quiz.get_format!(format.id)
     end
 
     test "admins can add other admins", %{conn: conn} do

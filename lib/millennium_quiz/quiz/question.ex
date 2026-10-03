@@ -54,7 +54,7 @@ defmodule MillenniumQuiz.Quiz.Question do
       |> Enum.uniq()
       |> Enum.with_index()
       |> Enum.map(fn {card_id, position} ->
-        %QuestionCard{card_id: card_id, position: position}
+        QuestionCard.changeset(%QuestionCard{}, %{card_id: card_id, position: position})
       end)
 
     put_assoc(changeset, :question_cards, question_cards)

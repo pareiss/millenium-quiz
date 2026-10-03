@@ -160,9 +160,17 @@ defmodule MillenniumQuizWeb.GameLiveTest do
 
     assert has_element?(view, "#question-card-0", "As printed in Starter Deck: Yugi Evolution")
 
-    # the same question in a later format shows the current text
-    {:ok, _} = Quiz.update_format(Quiz.get_format!(format.id), %{"date" => "2020-01-01"})
-    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+    # the same card in a later format shows the current text
+    later = format_fixture(%{"date" => "2020-01-01"})
+
+    for topic <- later.topics do
+      {:ok, _} =
+        Quiz.create_question(topic, %{"text" => "Who?", "choices" => choices_params()}, [
+          reborn.id
+        ])
+    end
+
+    {:ok, id} = Games.create_game(later.id, ["Ann", "Bob"])
     {:ok, view, _html} = live(conn, ~p"/games/#{id}")
     view |> element("#question-0") |> render_click()
 

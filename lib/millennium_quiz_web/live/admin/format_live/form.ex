@@ -17,11 +17,22 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Form do
 
       <.form for={@form} id="format-form" phx-change="validate" phx-submit="save" class="space-y-4">
         <.input field={@form[:name]} label="Name" maxlength="80" />
-        <.input field={@form[:date]} type="date" label="Date" />
-        <p class="-mt-2 text-sm text-base-content/60">
-          The point in time this format represents: only cards released by then can be used,
-          and card texts show the errata that applied on this date.
-        </p>
+        <%= if @format.id do %>
+          <div class="fieldset mb-2" id="format-date">
+            <span class="label mb-1">Date</span>
+            <p class="font-medium">{display_date(@format.date)}</p>
+          </div>
+          <p class="-mt-2 text-sm text-base-content/60">
+            The date is fixed once a format exists: the cards on its questions were chosen
+            for it.
+          </p>
+        <% else %>
+          <.input field={@form[:date]} type="date" label="Date" />
+          <p class="-mt-2 text-sm text-base-content/60">
+            The point in time this format represents: only cards released by then can be used,
+            and card texts show the errata that applied on this date. It can't be changed later.
+          </p>
+        <% end %>
         <.input field={@form[:description]} type="textarea" label="Description" rows="2" />
 
         <fieldset class="space-y-2">

@@ -29,9 +29,14 @@ defmodule MillenniumQuiz.Quiz.Format do
   are the params produced by `<.inputs_for>` add/remove buttons; the position
   of each topic follows its index in the form.
   """
+  # A format stands for a point in time that doesn't move: the date is set
+  # when the format is created and can't be changed afterwards (cards attached
+  # to its questions were chosen for that date).
   def changeset(format, attrs) do
+    fields = if format.id, do: [:name, :description], else: [:name, :description, :date]
+
     format
-    |> cast(attrs, [:name, :description, :date])
+    |> cast(attrs, fields)
     |> validate_required([:name, :date])
     |> validate_length(:name, max: 80)
     |> cast_assoc(:topics,

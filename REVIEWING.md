@@ -37,6 +37,9 @@ here (see "Decisions and known false positives" at the end).
   own game state: they call `MillenniumQuiz.Games` and render broadcasts.
 - A running game keeps what was snapshotted at its start (questions, points,
   card texts). Admin edits must not change running games.
+- A format's date is set when it is created and never changes afterwards
+  (`Format.changeset/2` casts it only for new formats): the cards attached to
+  its questions were chosen for that date.
 
 ### Database
 - Migrations must be reversible (or say why not) and safe on a database that

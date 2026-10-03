@@ -260,7 +260,10 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
         {:noreply, socket |> assign(:results, results) |> assign(:search_error, nil)}
 
       {:error, _reason} ->
-        {:noreply, assign(socket, :search_error, "The card search is not available right now.")}
+        {:noreply,
+         socket
+         |> assign(:results, [])
+         |> assign(:search_error, "The card search is not available right now.")}
     end
   end
 
@@ -278,8 +281,13 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   end
 
   def handle_event("remove_card", %{"id" => id}, socket) do
-    id = String.to_integer(id)
-    {:noreply, assign(socket, :cards, Enum.reject(socket.assigns.cards, &(&1.id == id)))}
+    case Integer.parse(id) do
+      {id, ""} ->
+        {:noreply, assign(socket, :cards, Enum.reject(socket.assigns.cards, &(&1.id == id)))}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   @impl true
