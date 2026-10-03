@@ -253,23 +253,28 @@
 }
 .mq-card__art img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
 
+/* Link Arrows sit on the artwork's border, half over the picture, each
+   centred on its spot and turned outward. Lit arrows are red with a light
+   grey edge, unlit ones dark with a darker grey edge. */
 .mq-card__arrow {
+  --edge: 0.6cqw; /* the middle of the artwork's 1.2cqw border */
   position: absolute;
-  width: 7cqw;
-  height: 3.6cqw;
-  background: #3b3633;
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
-  filter: drop-shadow(0 0 0.3cqw #000);
+  width: 8.5cqw;
+  height: 4.25cqw;
+  overflow: visible;
+  filter: drop-shadow(0 0 0.3cqw rgb(0 0 0 / 0.7));
+  transform: translate(-50%, -50%) rotate(var(--turn));
 }
-.mq-card__arrow.is-active { background: #ef3b24; }
-.mq-card__arrow--top          { top: -0.6cqw; left: 50%; transform: translateX(-50%); }
-.mq-card__arrow--bottom       { bottom: -0.6cqw; left: 50%; transform: translateX(-50%) rotate(180deg); }
-.mq-card__arrow--left         { left: -2.6cqw; top: 50%; transform: translateY(-50%) rotate(-90deg); }
-.mq-card__arrow--right        { right: -2.6cqw; top: 50%; transform: translateY(-50%) rotate(90deg); }
-.mq-card__arrow--top-left     { top: 0.4cqw; left: -1cqw; transform: rotate(-45deg); }
-.mq-card__arrow--top-right    { top: 0.4cqw; right: -1cqw; transform: rotate(45deg); }
-.mq-card__arrow--bottom-left  { bottom: 0.4cqw; left: -1cqw; transform: rotate(-135deg); }
-.mq-card__arrow--bottom-right { bottom: 0.4cqw; right: -1cqw; transform: rotate(135deg); }
+.mq-card__arrow polygon { fill: #35312e; stroke: #75706b; stroke-width: 1.3; stroke-linejoin: round; }
+.mq-card__arrow.is-active polygon { fill: #ef3b24; stroke: #d6d3d1; }
+.mq-card__arrow--top          { left: 50%; top: calc(-1 * var(--edge)); --turn: 0deg; }
+.mq-card__arrow--bottom       { left: 50%; top: calc(100% + var(--edge)); --turn: 180deg; }
+.mq-card__arrow--left         { left: calc(-1 * var(--edge)); top: 50%; --turn: -90deg; }
+.mq-card__arrow--right        { left: calc(100% + var(--edge)); top: 50%; --turn: 90deg; }
+.mq-card__arrow--top-left     { left: 0.6cqw; top: 0.6cqw; --turn: -45deg; }
+.mq-card__arrow--top-right    { left: calc(100% - 0.6cqw); top: 0.6cqw; --turn: 45deg; }
+.mq-card__arrow--bottom-left  { left: 0.6cqw; top: calc(100% - 0.6cqw); --turn: -135deg; }
+.mq-card__arrow--bottom-right { left: calc(100% - 0.6cqw); top: calc(100% - 0.6cqw); --turn: 135deg; }
 
 .mq-card__pendulum {
   display: grid;

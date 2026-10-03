@@ -91,14 +91,18 @@ defmodule MillenniumQuizWeb.CardComponents do
             loading="lazy"
             decoding="async"
           />
-          <span
+          <svg
             :for={{arrow, position} <- link_arrows()}
             :if={@link?}
+            viewBox="0 0 20 10"
             class={[
               "mq-card__arrow mq-card__arrow--#{position}",
               arrow in @arrows && "is-active"
             ]}
-          />
+            aria-hidden="true"
+          >
+            <polygon points="10,1 19,9 1,9" />
+          </svg>
         </div>
 
         <%!-- one clickable area for the Pendulum box and the text box --%>
