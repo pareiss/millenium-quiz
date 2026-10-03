@@ -235,6 +235,19 @@ defmodule MillenniumQuiz.GameTest do
              card
   end
 
+  test "snapshots from before card links load with their plain text" do
+    map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+
+    map =
+      update_in(map, ["questions"], fn [q | rest] ->
+        [Map.put(q, "text", "Plain [sic]") | rest]
+      end)
+
+    game = Game.from_map(map)
+    assert hd(game.questions).text == "Plain [sic]"
+    assert Game.from_map(map |> Jason.encode!() |> Jason.decode!()) == game
+  end
+
   test "snapshots from before formats keep their category name" do
     map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
 

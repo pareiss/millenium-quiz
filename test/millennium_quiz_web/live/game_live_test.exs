@@ -241,6 +241,146 @@ defmodule MillenniumQuizWeb.GameLiveTest do
            )
   end
 
+  describe "card links in the question text" do
+    @text "Use [Monster Reborn] then [Plain Card] and [Unknown]"
+
+    defp start_with_text(conn, text, card_ids) do
+      format = format_fixture(%{"date" => "2020-01-01"})
+
+      questions =
+        for topic <- format.topics do
+          {:ok, q} =
+            Quiz.create_question(
+              topic,
+              %{"text" => text, "choices" => choices_params()},
+              card_ids
+            )
+
+          q
+        end
+
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+      view |> element("#question-0") |> render_click()
+      {view, id, questions}
+    end
+
+    defp snapshot_question(view),
+      do: MillenniumQuiz.Game.current_question(:sys.get_state(view.pid).socket.assigns.game)
+
+    test "resolve against the snapshot in both views", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {:ok, plain} = Cards.import(11_111_111)
+      {view, _id, _qs} = start_with_text(conn, @text, [reborn.id, plain.id])
+
+      assert [
+               {:text, "Use "},
+               {:card, "Monster Reborn", 0},
+               {:text, " then "},
+               {:card, "Plain Card", 1},
+               {:text, " and [Unknown]"}
+             ] =
+               MillenniumQuizWeb.GameLive.question_segments(snapshot_question(view))
+
+      assert has_element?(view, "#question-text", "Use Monster Reborn then Plain Card")
+      assert has_element?(view, "#question-text", "and [Unknown]")
+      assert has_element?(view, "#question-text [data-card-index=\"0\"]", "Monster Reborn")
+      assert has_element?(view, "#question-text [data-card-index=\"1\"]", "Plain Card")
+      refute has_element?(view, "#question-text [data-card-index=\"2\"]")
+
+      view |> element("#choice-0") |> render_click()
+      view |> element("#choice-0") |> render_click()
+      assert has_element?(view, "#reveal #question-text", "and [Unknown]")
+      assert has_element?(view, "#reveal #question-text [data-card-index=\"1\"]", "Plain Card")
+    end
+
+    test "links are buttons that open the enlarged card, while answering and on reveal",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {:ok, plain} = Cards.import(11_111_111)
+      {view, _id, _qs} = start_with_text(conn, @text, [reborn.id, plain.id])
+
+      assert has_element?(
+               view,
+               "#question-link-0[type=button][phx-click=zoom_card][phx-value-card=\"0\"][aria-label=\"Show card: Monster Reborn\"]",
+               "Monster Reborn"
+             )
+
+      assert has_element?(view, "#question-link-1[phx-value-card=\"1\"]", "Plain Card")
+      refute has_element?(view, "#question-link-2")
+      refute has_element?(view, "#question-text button", "Unknown")
+
+      # one hidden, decorative popover per distinct linked card
+      assert has_element?(view, "#question-link-popovers[aria-hidden=true]")
+      assert has_element?(view, "#question-link-popover-0 .mq-card", "Monster Reborn")
+      assert has_element?(view, "#question-link-popover-1 .mq-card")
+      refute has_element?(view, "#question-link-popovers button")
+
+      view |> element("#question-link-1") |> render_click()
+      assert has_element?(view, "#card-zoom .mq-card--large", "Plain Card")
+      assert :sys.get_state(view.pid).socket.assigns.zoom == {:card, 1}
+
+      view |> element("#card-zoom") |> render_keydown(%{"key" => "Escape"})
+      refute has_element?(view, "#card-zoom")
+
+      view |> element("#choice-0") |> render_click()
+      view |> element("#choice-0") |> render_click()
+      view |> element("#reveal #question-link-0") |> render_click()
+      assert has_element?(view, "#card-zoom .mq-card--large", "Monster Reborn")
+      assert :sys.get_state(view.pid).socket.assigns.zoom == {:card, 0}
+    end
+
+    test "a repeated card links twice but has one popover", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+
+      {view, _id, _qs} =
+        start_with_text(conn, "[Monster Reborn] and [Monster Reborn]", [reborn.id])
+
+      assert has_element?(view, "#question-link-0[phx-value-card=\"0\"]")
+      assert has_element?(view, "#question-link-1[phx-value-card=\"0\"]")
+
+      assert [_] =
+               view
+               |> render()
+               |> LazyHTML.from_fragment()
+               |> LazyHTML.query(".mq-linkpop")
+               |> Enum.to_list()
+    end
+
+    test "plain texts render unchanged", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {view, _id, _qs} = start_with_text(conn, "Who? [sic]", [reborn.id])
+
+      assert [{:text, "Who? [sic]"}] =
+               MillenniumQuizWeb.GameLive.question_segments(snapshot_question(view))
+
+      assert has_element?(view, "#question-text", "Who? [sic]")
+      refute has_element?(view, "#question-text [data-card-index]")
+      refute has_element?(view, "#question-text button")
+      refute has_element?(view, "#question-link-popovers")
+    end
+
+    test "a running game keeps its markup when the question changes", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {:ok, plain} = Cards.import(11_111_111)
+      {view, id, [q | _]} = start_with_text(conn, @text, [reborn.id, plain.id])
+
+      {:ok, _} = Quiz.update_question(q, %{"text" => "Changed"}, [plain.id])
+      {:ok, _} = Quiz.update_question(Quiz.get_question!(q.id), %{"text" => "Again"}, [])
+
+      {:ok, view2, _html} = live(conn, ~p"/games/#{id}")
+      assert has_element?(view2, "#question-text [data-card-index=\"0\"]", "Monster Reborn")
+      assert has_element?(view2, "#question-text [data-card-index=\"1\"]", "Plain Card")
+      assert has_element?(view2, "#question-text", "and [Unknown]")
+      assert [_, _] = snapshot_question(view).cards
+    end
+  end
+
   describe "cycle_card" do
     defp zoom_of(view), do: :sys.get_state(view.pid).socket.assigns.zoom
 

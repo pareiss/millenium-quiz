@@ -78,6 +78,22 @@ defmodule MillenniumQuizWeb.AdminTest do
       assert Enum.map(format.topics, & &1.name) == ["Monsters", "Spells", "Traps"]
     end
 
+    test "the question textarea carries the card link hook and its suggestion list",
+         %{conn: conn} do
+      topic = hd(format_fixture().topics)
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+
+      assert has_element?(
+               view,
+               "textarea#question_text[phx-hook='CardLinkInput'][data-suggestions='question-text-suggestions'][aria-autocomplete='list'][maxlength='1000']"
+             )
+
+      assert has_element?(
+               view,
+               "ul#question-text-suggestions[role='listbox'][phx-update='ignore'][hidden]"
+             )
+    end
+
     test "creates a question with default points and reorders it", %{conn: conn} do
       format = format_fixture()
       topic = hd(format.topics)
@@ -172,6 +188,323 @@ defmodule MillenniumQuizWeb.AdminTest do
       edit |> element("#remove-card-#{card.id}") |> render_click()
       edit |> form("#question-form") |> render_submit()
       assert Quiz.get_question!(question.id).question_cards == []
+    end
+
+    test "suggests pool cards, falls back to the remote search and links cards",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2004-06-01"})
+      topic = hd(format.topics)
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+
+      # pool
+      render_hook(view, "suggest_cards", %{"query" => "monster re"})
+      assert_reply(view, %{suggestions: [%{id: id, name: "Monster Reborn", source: "pool"}]})
+      assert id == reborn.id
+
+      # too short, and malformed
+      render_hook(view, "suggest_cards", %{"query" => "m"})
+      assert_reply(view, %{suggestions: []})
+      render_hook(view, "suggest_cards", %{"query" => 5})
+      assert_reply(view, %{suggestions: []})
+
+      # nothing in the pool: remote (Plain Card is from 2015 > 2004, so nothing for it)
+      render_hook(view, "suggest_cards", %{"query" => "plain"})
+      assert_reply(view, %{suggestions: []})
+
+      # link a pool card, once
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+      assert has_element?(view, "#selected-card-#{reborn.id}")
+      assert view |> render() |> String.split("id=\"selected-card-") |> length() == 2
+
+      # bad params and unknown ids don't crash
+      render_hook(view, "link_card", %{"id" => "x"})
+      render_hook(view, "link_card", %{"id" => "999999999999999999999"})
+      assert render_hook(view, "link_card", %{"id" => "424242"}) =~ "not in the card pool"
+      render_hook(view, "link_card", %{"nothing" => 1})
+      render_hook(view, "link_card", %{"password" => "abc"})
+      assert has_element?(view, "#selected-cards")
+    end
+
+    test "remote fallback and linking a remote card imports it", %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2004-06-01"})
+      topic = hd(format.topics)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+
+      render_hook(view, "suggest_cards", %{"query" => "reborn"})
+
+      assert_reply(view, %{
+        suggestions: [%{password: 83_764_719, name: "Monster Reborn", source: "remote"}]
+      })
+
+      render_hook(view, "link_card", %{"password" => "83764719"})
+      render_async(view)
+      assert has_element?(view, "#selected-cards", "Monster Reborn")
+
+      # a failing remote search is an empty list, not a crash
+      Req.Test.stub(MillenniumQuiz.Cards, &Plug.Conn.send_resp(&1, 500, "down"))
+      render_hook(view, "suggest_cards", %{"query" => "dark"})
+      assert_reply(view, %{suggestions: []})
+    end
+
+    test "removing a card unlinks it in the current text; the text with links is saved",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2004-06-01"})
+      topic = hd(format.topics)
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+
+      text = "Does [Monster Reborn] work [sic] on [monster reborn]?"
+
+      form_params = %{
+        text: text,
+        points: "40",
+        choices: %{
+          "0" => %{text: "Yes", correct: "true"},
+          "1" => %{text: "No", correct: "false"},
+          "2" => %{text: "Maybe", correct: "false"},
+          "3" => %{text: "Never", correct: "false"}
+        }
+      }
+
+      view |> form("#question-form", question: form_params) |> render_change()
+      view |> element("#remove-card-#{reborn.id}") |> render_click()
+
+      assert_push_event(view, "card_links:set_text", %{
+        text: "Does Monster Reborn work [sic] on monster reborn?"
+      })
+
+      html = view |> element("#question-form textarea") |> render()
+      assert html =~ "Does Monster Reborn work [sic] on monster reborn?"
+      assert has_element?(view, "#question-form input[name='question[points]'][value='40']")
+
+      # saving keeps the markup as written and the cards from the list
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+
+      view
+      |> form("#question-form", question: %{form_params | text: "Does [Monster Reborn] work?"})
+      |> render_submit()
+
+      [question] = Quiz.get_format!(format.id).topics |> hd() |> Map.fetch!(:questions)
+      question = Quiz.get_question!(question.id)
+      assert question.text == "Does [Monster Reborn] work?"
+      assert [%{card: %{name: "Monster Reborn"}}] = question.question_cards
+
+      # the admin list shows it without brackets
+      {:ok, _show, html} = live(conn, ~p"/admin/formats/#{format.id}")
+      assert html =~ "Does Monster Reborn work?"
+      refute html =~ "[Monster Reborn]"
+    end
+
+    test "link_card is idempotent for ids and passwords and doesn't re-import",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2004-06-01"})
+      topic = hd(format.topics)
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+      assert view |> render() |> String.split("id=\"selected-card-") |> length() == 2
+
+      password = to_string(reborn.password)
+      render_hook(view, "link_card", %{"password" => password})
+      assert :sys.get_state(view.pid).socket.assigns.importing == nil
+      refute render(view) =~ "already running"
+      assert view |> render() |> String.split("id=\"selected-card-") |> length() == 2
+    end
+
+    test "a remote link during a running import shows a flash", %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2004-06-01"})
+      topic = hd(format.topics)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+
+      test_pid = self()
+      first = :atomics.new(1, [])
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        if :atomics.add_get(first, 1, 1) == 1 do
+          send(test_pid, {:blocked, self()})
+
+          receive do
+            :go -> :ok
+          after
+            5_000 -> :ok
+          end
+        end
+
+        CardSourcesStub.handle(conn)
+      end)
+
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+
+      render_hook(view, "link_card", %{"password" => "83764719"})
+      assert render_hook(view, "link_card", %{"password" => "11111111"}) =~ "already running"
+      assert render_hook(view, "add_card", %{"password" => "11111111"}) =~ "already running"
+
+      # a request from the import's own task is allowed through the view's allowance
+      assert_receive {:blocked, blocked}, 2_000
+      send(blocked, :go)
+      render_async(view)
+      assert has_element?(view, "#selected-cards", "Monster Reborn")
+      refute has_element?(view, "#selected-cards", "Plain Card")
+    end
+
+    test "warns about bracketed names without an attached card, without blocking save",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2004-06-01"})
+      topic = hd(format.topics)
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+      refute has_element?(view, "#unlinked-names")
+
+      params = fn text ->
+        %{
+          text: text,
+          choices: %{
+            "0" => %{text: "Yes", correct: "true"},
+            "1" => %{text: "No", correct: "false"},
+            "2" => %{text: "Maybe", correct: "false"},
+            "3" => %{text: "Never", correct: "false"}
+          }
+        }
+      end
+
+      view
+      |> form("#question-form",
+        question: params.("Is [Monster Reborn] like [ Dark Hole ] and [sic]?")
+      )
+      |> render_change()
+
+      assert has_element?(view, "#unlinked-names", "[Monster Reborn], [Dark Hole], [sic]")
+      assert has_element?(view, "#unlinked-names[role='status']")
+
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+      assert has_element?(view, "#unlinked-names", "[Dark Hole], [sic]")
+      refute has_element?(view, "#unlinked-names", "Monster Reborn")
+
+      view
+      |> form("#question-form", question: params.("Is [monster reborn] fine?"))
+      |> render_change()
+
+      refute has_element?(view, "#unlinked-names")
+
+      # removing the card brings the warning back as the brackets go away: none left
+      view |> element("#remove-card-#{reborn.id}") |> render_click()
+      refute has_element?(view, "#unlinked-names")
+
+      # with brackets still in the text (typed after removal) saving isn't blocked
+      view
+      |> form("#question-form", question: params.("Is [Dark Hole] fine?"))
+      |> render_submit()
+
+      assert [%{text: "Is [Dark Hole] fine?"}] =
+               Quiz.get_format!(format.id).topics |> hd() |> Map.fetch!(:questions)
+    end
+
+    test "the warning shows on mount of an edited question and after remove_card",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2004-06-01"})
+      topic = hd(format.topics)
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+
+      {:ok, question} =
+        Quiz.create_question(
+          topic,
+          %{
+            "text" => "Does [Monster Reborn] beat [Dark Hole]?",
+            "choices" => %{
+              "0" => %{"text" => "Yes", "correct" => "true"},
+              "1" => %{"text" => "No", "correct" => "false"}
+            }
+          },
+          [reborn.id]
+        )
+
+      {:ok, view, _html} = live(conn, ~p"/admin/questions/#{question.id}/edit")
+      assert has_element?(view, "#unlinked-names", "[Dark Hole]")
+      refute has_element?(view, "#unlinked-names", "Monster Reborn")
+
+      # removing the card unlinks its name in the text, the other name stays
+      view |> element("#remove-card-#{reborn.id}") |> render_click()
+      assert has_element?(view, "#unlinked-names", "[Dark Hole]")
+      refute has_element?(view, "#unlinked-names", "Reborn")
+
+      # the card can be linked again by hand-edited text and a link event
+      view
+      |> form("#question-form", question: %{text: "Does [Monster Reborn] beat it?"})
+      |> render_change()
+
+      assert has_element?(view, "#unlinked-names", "[Monster Reborn]")
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+      refute has_element?(view, "#unlinked-names")
+    end
+
+    test "the search box survives a text-started import, not a search-started one",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2004-06-01"})
+      topic = hd(format.topics)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+
+      view |> form("#card-search", card_search: %{query: "reborn"}) |> render_change()
+      assert has_element?(view, "#card-results")
+
+      render_hook(view, "link_card", %{"password" => "83764719"})
+      render_async(view)
+      assert has_element?(view, "#selected-cards", "Monster Reborn")
+      assert has_element?(view, "#card-results")
+      assert has_element?(view, "#card-search input[value='reborn']")
+
+      view |> element("#add-card-83764719") |> render_click()
+      render_async(view)
+      refute has_element?(view, "#card-results")
+      refute has_element?(view, "#card-search input[value='reborn']")
+    end
+
+    test "link_card by id rejects cards released after the format's date",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2004-06-01"})
+      topic = hd(format.topics)
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+
+      set_release = fn date ->
+        reborn |> Ecto.Changeset.change(tcg_release_date: date) |> MillenniumQuiz.Repo.update!()
+      end
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+
+      set_release.(~D[2015-01-01])
+
+      assert render_hook(view, "link_card", %{"id" => to_string(reborn.id)}) =~
+               "not in the card pool"
+
+      refute has_element?(view, "#selected-card-#{reborn.id}")
+
+      set_release.(~D[2004-06-01])
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+      assert has_element?(view, "#selected-card-#{reborn.id}")
     end
 
     test "a format's date can't be changed after it was created", %{conn: conn} do
