@@ -218,10 +218,10 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(doc, "#text .mq-card-panel[data-frame=effect]") == 1
     assert text(doc, "#text-title") == "Odd-Eyes Pendulum Dragon"
     assert text(doc, ".mq-card-panel__pendulum") =~ ~r/Scale 4\s+Reduce damage to 0\./
-    # the scale between its blue and red marker
+    # the scale between its blue and red crystal
     assert count(doc, ".mq-card-panel__scale > svg") == 2
-    assert count(doc, ".mq-card-panel__scale > svg:first-child path[fill='#2563eb']") == 1
-    assert count(doc, ".mq-card-panel__scale > svg:last-child path[fill='#dc2626']") == 1
+    assert count(doc, ".mq-card-panel__scale > svg:first-child polygon[fill='#3d84f0']") == 1
+    assert count(doc, ".mq-card-panel__scale > svg:last-child polygon[fill='#e8364c']") == 1
     assert html =~ "[Dragon / Pendulum / Effect]"
     assert html =~ "Double damage."
     assert text(doc, ".mq-card-panel__stats") =~ ~r/ATK\/2500\s+DEF\/2000/
@@ -329,6 +329,19 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
       |> Enum.map(&(Regex.run(~r/rotate\((\d+) /, &1) |> List.last()))
 
     assert turns == ["225", "0", "135"]
+  end
+
+  test "icons drawn twice on a page get their own gradient ids" do
+    ids = fn html ->
+      ~r/ id="([^"]+)"/ |> Regex.scan(html, capture: :all_but_first) |> List.flatten()
+    end
+
+    attr = fn -> render_component(&attribute_icon/1, attribute: "DARK") end
+    star = fn -> render_component(&level_star/1, rank: false) end
+
+    all = ids.(attr.()) ++ ids.(attr.()) ++ ids.(star.()) ++ ids.(star.())
+    assert all != []
+    assert length(all) == length(Enum.uniq(all))
   end
 
   test "a card from an old snapshot gets a plain frame and no artwork" do

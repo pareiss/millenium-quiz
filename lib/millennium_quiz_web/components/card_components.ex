@@ -318,36 +318,115 @@ defmodule MillenniumQuizWeb.CardComponents do
 
   ## Icons
 
+  # Attribute and Spell/Trap spheres, drawn after the real icons: a glossy
+  # marbled sphere with the kanji and the English name. Per key: kanji,
+  # label, sphere colours (light, mid, dark), marble colour, gold ring?
   @attribute_icons %{
-    "DARK" => {"闇", "#5b2a86"},
-    "LIGHT" => {"光", "#c9a227"},
-    "EARTH" => {"地", "#6f4e2e"},
-    "WATER" => {"水", "#2770b8"},
-    "FIRE" => {"炎", "#c63a22"},
-    "WIND" => {"風", "#2f8a43"},
-    "DIVINE" => {"神", "#a8842b"},
-    "Spell" => {"魔", "#178a7a"},
-    "Trap" => {"罠", "#a2306f"}
+    "DARK" => {"闇", "DARK", {"#c27ae0", "#6b2a8f", "#1d0a2c"}, "#c8304e", false},
+    "LIGHT" => {"光", "LIGHT", {"#e9d7a6", "#6e5222", "#1c1206"}, "#f3dc8c", true},
+    "EARTH" => {"地", "EARTH", {"#9a9a9a", "#3b3b3b", "#0b0b0b"}, "#777777", false},
+    "WATER" => {"水", "WATER", {"#a6e4ff", "#1d8fe2", "#0a347a"}, "#d4f4ff", false},
+    "FIRE" => {"炎", "FIRE", {"#ff9a7a", "#e1241b", "#650906"}, "#ffb44a", false},
+    "WIND" => {"風", "WIND", {"#a8ea96", "#2f9a3a", "#0b3f14"}, "#c6f5b0", false},
+    "DIVINE" => {"神", "DIVINE", {"#e2cf98", "#5a4520", "#170f05"}, "#e8c86a", true},
+    "Spell" => {"魔", "SPELL", {"#9fe6e8", "#1f9fb0", "#0a3a52"}, "#0b2f6e", false},
+    "Trap" => {"罠", "TRAP", {"#ff9ccc", "#c0307e", "#4a0a2c"}, "#2a3fb0", false}
   }
 
-  @doc "An Attribute (or Spell/Trap) disc with its kanji."
+  @doc "An Attribute (or Spell/Trap) sphere with its kanji and name."
   attr :attribute, :string, required: true
   attr :class, :any, default: nil
 
   def attribute_icon(assigns) do
-    {glyph, color} = Map.get(@attribute_icons, assigns.attribute, {"?", "#57534e"})
-    assigns = assign(assigns, glyph: glyph, color: color)
+    {glyph, label, {light, mid, dark}, marble, ring?} =
+      Map.get(
+        @attribute_icons,
+        assigns.attribute,
+        {"?", "", {"#a8a29e", "#57534e", "#1c1917"}, "#78716c", false}
+      )
+
+    assigns =
+      assign(assigns,
+        # gradient ids must be unique on the page (a card can be shown twice)
+        id: "mq-attr-#{String.downcase(label)}-#{System.unique_integer([:positive])}",
+        glyph: glyph,
+        label: label,
+        light: light,
+        mid: mid,
+        dark: dark,
+        marble: marble,
+        ring?: ring?,
+        stripes?: assigns.attribute == "Spell"
+      )
 
     ~H"""
     <svg viewBox="0 0 32 32" class={@class} role="img" aria-label={@attribute}>
       <title>{@attribute}</title>
-      <circle cx="16" cy="16" r="15" fill={@color} stroke="#1c1917" stroke-width="1.2" />
-      <circle cx="16" cy="16" r="12.5" fill="none" stroke="#fff" stroke-opacity="0.45" />
+      <defs>
+        <radialGradient id={"#{@id}-ball"} cx="38%" cy="32%" r="72%">
+          <stop offset="0" stop-color={@light} />
+          <stop offset="0.5" stop-color={@mid} />
+          <stop offset="1" stop-color={@dark} />
+        </radialGradient>
+        <radialGradient id={"#{@id}-shine"} cx="50%" cy="50%" r="50%">
+          <stop offset="0" stop-color="#fff" stop-opacity="0.55" />
+          <stop offset="1" stop-color="#fff" stop-opacity="0" />
+        </radialGradient>
+        <filter id={"#{@id}-marble"} x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.09 0.16" numOctaves="2" seed="4" />
+          <feColorMatrix values={"0 0 0 0 #{rgb(@marble, 0)} 0 0 0 0 #{rgb(@marble, 1)} 0 0 0 0 #{rgb(@marble, 2)} 2.6 0 0 0 -1.15"} />
+        </filter>
+        <clipPath id={"#{@id}-clip"}><circle cx="16" cy="16" r="15" /></clipPath>
+      </defs>
+      <circle cx="16" cy="16" r="15" fill={"url(##{@id}-ball)"} />
+      <g clip-path={"url(##{@id}-clip)"}>
+        <rect :if={!@stripes?} width="32" height="32" filter={"url(##{@id}-marble)"} opacity="0.7" />
+        <g :if={@stripes?} stroke={@marble} stroke-width="1.5" stroke-opacity="0.75">
+          <path
+            :for={x <- -16..40//4}
+            d={"M#{x} 0 l-12 32"}
+          />
+        </g>
+      </g>
+      <circle
+        :if={@ring?}
+        cx="16"
+        cy="16"
+        r="14"
+        fill="none"
+        stroke="#f5d77a"
+        stroke-width="1.8"
+        stroke-opacity="0.9"
+      />
+      <ellipse
+        cx="11"
+        cy="9.5"
+        rx="7"
+        ry="4.2"
+        transform="rotate(-28 11 9.5)"
+        fill={"url(##{@id}-shine)"}
+      />
+      <circle cx="16" cy="16" r="15" fill="none" stroke="#120d0a" stroke-width="0.9" />
       <text
         x="16"
-        y="21.6"
+        y="9"
         text-anchor="middle"
-        font-size="15.5"
+        font-family="ui-serif, Georgia, serif"
+        font-size={if String.length(@label) > 5, do: "3.9", else: "4.4"}
+        font-weight="700"
+        letter-spacing="0.15"
+        fill="#fff"
+        stroke="#1c1917"
+        stroke-width="0.35"
+        paint-order="stroke"
+      >
+        {@label}
+      </text>
+      <text
+        x="16"
+        y="25.2"
+        text-anchor="middle"
+        font-size="14.5"
         font-weight="700"
         fill="#fff"
         stroke="#1c1917"
@@ -360,19 +439,57 @@ defmodule MillenniumQuizWeb.CardComponents do
     """
   end
 
+  # One channel of a "#rrggbb" colour, 0..1, for an feColorMatrix.
+  defp rgb("#" <> hex, channel) do
+    hex
+    |> String.slice(channel * 2, 2)
+    |> String.to_integer(16)
+    |> Kernel./(255)
+    |> Float.round(3)
+  end
+
   @doc """
-  A Pendulum Scale marker: blue on the left, red on the right, its outer
-  corner reaching further out like on real cards.
+  A Pendulum Scale crystal: a faceted gem, blue on the left and red on the
+  right, its outer point reaching further out like on real cards.
   """
   attr :side, :string, required: true, values: ~w(left right)
   attr :class, :any, default: nil
 
   def scale_gem(assigns) do
+    {highlight, light, mid, dark, edge} =
+      if assigns.side == "left",
+        do: {"#eaf5ff", "#9fd0ff", "#3d84f0", "#1640a8", "#0b2a6e"},
+        else: {"#ffe6ea", "#ff9aa8", "#e8364c", "#8a0f1e", "#5a0610"}
+
+    # outer point, top, inner point, bottom and the centre of the facets
+    {o, i, c} = if assigns.side == "left", do: {0, 10.4, 6.4}, else: {12, 1.6, 5.6}
+    t = if assigns.side == "left", do: 6.8, else: 5.2
+
+    assigns =
+      assign(assigns,
+        highlight: highlight,
+        light: light,
+        mid: mid,
+        dark: dark,
+        edge: edge,
+        o: o,
+        i: i,
+        c: c,
+        t: t
+      )
+
     ~H"""
     <svg viewBox="0 0 12 10" class={@class} aria-hidden="true">
-      <path
-        d={if @side == "left", do: "M0 5 7 0.5 10 5 7 9.5z", else: "M12 5 5 0.5 2 5 5 9.5z"}
-        fill={if @side == "left", do: "#2563eb", else: "#dc2626"}
+      <g stroke={@edge} stroke-width="0.2" stroke-linejoin="round">
+        <polygon points={"#{@o},5 #{@t},0.4 #{@c},4.4"} fill={@light} />
+        <polygon points={"#{@t},0.4 #{@i},5 #{@c},4.4"} fill={@highlight} />
+        <polygon points={"#{@i},5 #{@t},9.6 #{@c},4.4"} fill={@dark} />
+        <polygon points={"#{@t},9.6 #{@o},5 #{@c},4.4"} fill={@mid} />
+      </g>
+      <polygon
+        points={"#{(@o + @c) / 2},3.6 #{@t},1.4 #{(@t + @c) / 2},3"}
+        fill="#fff"
+        fill-opacity="0.75"
       />
     </svg>
     """
@@ -400,22 +517,50 @@ defmodule MillenniumQuizWeb.CardComponents do
   attr :class, :any, default: "mq-card__star"
 
   def level_star(assigns) do
+    {light, mid, dark, rim} =
+      if assigns.rank,
+        do: {"#8f8f8f", "#3a3a3a", "#0b0b0b", "#050505"},
+        else: {"#ffc27a", "#e4521f", "#7e1607", "#4a0c03"}
+
+    assigns =
+      assign(assigns,
+        id: "mq-star-#{System.unique_integer([:positive])}",
+        light: light,
+        mid: mid,
+        dark: dark,
+        rim: rim
+      )
+
     ~H"""
     <svg viewBox="0 0 32 32" class={@class} aria-hidden="true">
-      <circle
-        cx="16"
-        cy="16"
-        r="15"
-        fill={if @rank, do: "#1c1917", else: "#d2461d"}
-        stroke={if @rank, do: "#78716c", else: "#7c2d12"}
-        stroke-width="1.5"
-      />
+      <defs>
+        <radialGradient id={"#{@id}-ball"} cx="38%" cy="32%" r="72%">
+          <stop offset="0" stop-color={@light} />
+          <stop offset="0.55" stop-color={@mid} />
+          <stop offset="1" stop-color={@dark} />
+        </radialGradient>
+        <linearGradient id={"#{@id}-gold"} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff6b0" />
+          <stop offset="0.5" stop-color="#f7c600" />
+          <stop offset="1" stop-color="#d48d00" />
+        </linearGradient>
+      </defs>
+      <circle cx="16" cy="16" r="15" fill={"url(##{@id}-ball)"} stroke={@rim} stroke-width="1" />
       <polygon
         points="16,5 19.1,12.5 27,12.9 20.9,18 23,25.8 16,21.4 9,25.8 11.1,18 5,12.9 12.9,12.5"
-        fill="#facc15"
-        stroke="#713f12"
-        stroke-width="0.8"
+        fill={"url(##{@id}-gold)"}
+        stroke="#b86e00"
+        stroke-width="0.5"
         stroke-linejoin="round"
+      />
+      <ellipse
+        cx="11"
+        cy="8.5"
+        rx="6"
+        ry="3"
+        transform="rotate(-28 11 8.5)"
+        fill="#fff"
+        fill-opacity="0.28"
       />
     </svg>
     """
