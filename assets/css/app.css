@@ -168,7 +168,7 @@
   background:
     var(--paper),
     linear-gradient(155deg, rgb(255 255 255 / 0.28), transparent 38%, rgb(0 0 0 / 0.14)),
-    linear-gradient(to bottom, var(--frame) 0 52%, var(--spell) 52% 100%);
+    linear-gradient(to bottom, var(--frame) 0 var(--pendulum-split), var(--spell) var(--pendulum-split) 100%);
 }
 
 .mq-card__name {
@@ -219,7 +219,18 @@
   border: 1.2cqw solid #2a221b;
   background: radial-gradient(circle at 50% 40%, #57534e, #1c1917);
 }
-.mq-card__face[data-pendulum] .mq-card__art { aspect-ratio: 4 / 3; }
+/* Pendulum cards: the artwork has its usual size, and the Pendulum box lies
+   over its lower part, slightly see-through. The frame turns Spell green
+   where the Pendulum box starts. */
+.mq-card__face[data-pendulum] {
+  --pendulum-h: 17cqw;
+  --pendulum-split: 65%;
+}
+.mq-card__face[data-pendulum] .mq-card__texts {
+  position: relative;
+  z-index: 1;
+  margin-top: calc(-1 * var(--pendulum-h) - 1.2cqw);
+}
 .mq-card__art img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
 
 .mq-card__arrow {
@@ -245,11 +256,13 @@
   grid-template-columns: 7cqw 1fr 7cqw;
   align-items: center;
   gap: 1cqw;
+  height: var(--pendulum-h);
+  flex: none;
   padding: 1cqw;
   background:
     var(--paper),
     radial-gradient(ellipse at center, transparent 50%, color-mix(in oklab, var(--spell) 30%, transparent) 100%),
-    color-mix(in oklab, var(--spell) 18%, #fff);
+    color-mix(in oklab, color-mix(in oklab, var(--spell) 18%, #fff) 80%, transparent);
 }
 .mq-card__pendulum-text { max-height: 14cqw; overflow: hidden; font-size: 3.2cqw; white-space: pre-line; }
 .mq-card__pendulum-text.mq-text--s   { font-size: 2.7cqw; }
@@ -304,17 +317,12 @@
   pointer-events: none;
 }
 /* Together they form one frame: the text box's top border is the shared
-   divider, and the corner squares sit on the outer corners only. */
+   divider, with a square at each of its ends. */
 .mq-card__pendulum { border-bottom: 0; }
 .mq-card__pendulum::before {
   background:
     var(--sq) left top / 2cqw 2cqw no-repeat,
     var(--sq) right top / 2cqw 2cqw no-repeat;
-}
-.mq-card__pendulum + .mq-card__text::before {
-  background:
-    var(--sq) left bottom / 2cqw 2cqw no-repeat,
-    var(--sq) right bottom / 2cqw 2cqw no-repeat;
 }
 .mq-card__text.mq-text--s   { font-size: 3cqw; }
 .mq-card__text.mq-text--xs  { font-size: 2.6cqw; }
