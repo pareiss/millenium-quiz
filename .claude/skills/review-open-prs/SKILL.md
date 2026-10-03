@@ -14,6 +14,9 @@ The reviews must stay independent of this session:
 - Do not pass anything else to the reviewers.
 - Do not read the PRs yourself before or during the run.
 
+The script first archives the reviews of PRs that are already merged or
+closed (`bin/review-cleanup`); mention which ones it moved.
+
 When it is done, show the summary table the script printed. For each review
 file, quote the first sentence of its "## Summary" section. For a failed PR,
 show the last lines of its log, `reviews/logs/pr-<branch>.log` (the branch

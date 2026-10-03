@@ -155,7 +155,9 @@ Guarantees, each checked by the scripts rather than promised:
 There is **one current review per PR**, `reviews/pr-<branch>.md`; its header
 names the commit it covers. A PR is reviewed again only when it has new
 commits (or with `--force`); the previous review moves to `reviews/archive/`
-with the verdicts you ticked.
+with the verdicts you ticked. Reviews of merged or closed PRs are archived
+too (`bin/review-cleanup`, also run by `bin/review-open-prs` and available as
+`/review-cleanup`), so `reviews/` only lists PRs that still need attention.
 
 The reviewer can **check test results without running code**: CI
 (`.github/workflows/ci.yml`) runs the precommit checks and the tests with

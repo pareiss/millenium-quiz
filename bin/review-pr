@@ -140,7 +140,12 @@ else
     echo "CI is still running for the head commit ($ci_url); no test results yet." >"$material/tests.md"
   elif gh run download "$ci_id" -n ci-results -D "$material/ci" >/dev/null 2>&1; then
     ci_status="$ci_conclusion ($ci_url)"
-    { echo "CI run: $ci_conclusion — $ci_url"; echo; cat "$material/ci/summary.md"
+    { echo "CI run: $ci_conclusion — $ci_url"
+      echo
+      echo "For pull requests, CI tests a temporary merge commit of the head commit"
+      echo "\`${head}\` into \`${base_branch}\`. The \"CI results for <sha>\" line below names"
+      echo "that merge commit, not the head: the results are for this PR's code."
+      echo; cat "$material/ci/summary.md"
       echo; echo "Full outputs: .review/ci/tests.txt (tests and coverage), compile.txt,"
       echo "unused-deps.txt, format.txt."; } >"$material/tests.md"
   else
