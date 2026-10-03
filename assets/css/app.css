@@ -140,9 +140,10 @@
      and sit as far from the edge as from the top/bottom; the artwork is
      inset by --art-inset */
   --art-inset: 1.4cqw;
-  /* the outer border (drawn by ::after) plus the inner margin */
-  --rim: 2.8cqw;
-  padding: calc(var(--rim) + 3.6cqw);
+  /* the outer border (drawn by ::after) plus the gap to the name bar and
+     text box; both as on real cards (3.4% and 1.9% of the width) */
+  --rim: 3.4cqw;
+  padding: calc(var(--rim) + 1.9cqw);
   border-radius: 1.6cqw;
   position: relative;
   /* what lies on the frame colour: the paper, a gloss, and (for Xyz)
@@ -255,12 +256,12 @@
   border-radius: inherit;
   pointer-events: none;
   box-shadow:
-    inset 0 0 0 0.45cqw #5d647e,
-    inset 0 0 0 0.9cqw #535971,
-    inset 0 0 0 1.35cqw #4a4f65,
-    inset 0 0 0 1.8cqw #3e4055,
-    inset 0 0 0 2.25cqw #2f3245,
-    inset 0 0 0 2.55cqw #1a2134,
+    inset 0 0 0 0.55cqw #5d647e,
+    inset 0 0 0 1.1cqw #535971,
+    inset 0 0 0 1.65cqw #4a4f65,
+    inset 0 0 0 2.2cqw #3e4055,
+    inset 0 0 0 2.75cqw #2f3245,
+    inset 0 0 0 3.1cqw #1a2134,
     inset 0 0 0 var(--rim) #0d0e12;
 }
 
