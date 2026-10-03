@@ -642,38 +642,16 @@ defmodule MillenniumQuizWeb.CardComponents do
             <%!-- a cross with square arms reaching the ring --%>
             <path d="M10 1h4v9h9v4h-9v9h-4v-9H1v-4h9z" />
           <% "Field" -> %>
-            <%!-- a four-pointed star, faceted: each point is split along its
-                 middle into a silver half and an open, silver-edged half (the badge
-                 shows through), turning the same way on every point, for a 3D look --%>
+            <%!-- a four-pointed star with a slight cutout along the middle of
+                 each point, on the same side every time, for a hint of depth --%>
             <g transform="translate(12 12) scale(0.96) translate(-12 -12)">
-              <polygon points="12,12 9.4,9.4 12,1.5" />
-              <polygon
-                points="12,12 12,1.5 14.6,9.4"
-                fill="none"
-                stroke={"url(##{@id}-silver)"}
-                stroke-width="0.8"
-              />
-              <polygon points="12,12 14.6,9.4 22.5,12" />
-              <polygon
-                points="12,12 22.5,12 14.6,14.6"
-                fill="none"
-                stroke={"url(##{@id}-silver)"}
-                stroke-width="0.8"
-              />
-              <polygon points="12,12 14.6,14.6 12,22.5" />
-              <polygon
-                points="12,12 12,22.5 9.4,14.6"
-                fill="none"
-                stroke={"url(##{@id}-silver)"}
-                stroke-width="0.8"
-              />
-              <polygon points="12,12 9.4,14.6 1.5,12" />
-              <polygon
-                points="12,12 1.5,12 9.4,9.4"
-                fill="none"
-                stroke={"url(##{@id}-silver)"}
-                stroke-width="0.8"
-              />
+              <path d="M12 1.5 14.6 9.4 22.5 12 14.6 14.6 12 22.5 9.4 14.6 1.5 12 9.4 9.4z" />
+              <g fill="#1a120c" fill-opacity="0.6" stroke="none">
+                <polygon points="12.25,11.2 12.25,4 13.2,9.9" />
+                <polygon points="12.8,12.25 20,12.25 14.1,13.2" />
+                <polygon points="11.75,12.8 11.75,20 10.8,14.1" />
+                <polygon points="11.2,11.75 4,11.75 9.9,10.8" />
+              </g>
             </g>
           <% "Ritual" -> %>
             <%!-- a flame: a small tongue on the left, a tall one sweeping right
