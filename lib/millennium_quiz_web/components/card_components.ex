@@ -632,7 +632,7 @@ defmodule MillenniumQuizWeb.CardComponents do
             </g>
           <% "Continuous" -> %>
             <%!-- a thick infinity sign, its loops cut out --%>
-            <g transform="translate(12 12) scale(0.92) translate(-12 -12)">
+            <g transform="translate(12 12) scale(0.78) translate(-12 -12)">
               <path
                 fill-rule="evenodd"
                 d="M6.5 6.5a5.5 5.5 0 1 0 0 11c2.4 0 3.8-1.6 5.5-3.6 1.7 2 3.1 3.6 5.5 3.6a5.5 5.5 0 1 0 0-11c-2.4 0-3.8 1.6-5.5 3.6-1.7-2-3.1-3.6-5.5-3.6zM6.5 9.4a2.6 2.6 0 1 0 0 5.2c1.2 0 2.2-1.2 3.6-2.6-1.4-1.4-2.4-2.6-3.6-2.6zM17.5 9.4c-1.2 0-2.2 1.2-3.6 2.6 1.4 1.4 2.4 2.6 3.6 2.6a2.6 2.6 0 1 0 0-5.2z"
@@ -642,11 +642,38 @@ defmodule MillenniumQuizWeb.CardComponents do
             <%!-- a cross with square arms reaching the ring --%>
             <path d="M10 1h4v9h9v4h-9v9h-4v-9H1v-4h9z" />
           <% "Field" -> %>
-            <%!-- a four-pointed star --%>
+            <%!-- a four-pointed star, faceted: each point is split along its
+                 middle into a silver half and an open, silver-edged half (the badge
+                 shows through), turning the same way on every point, for a 3D look --%>
             <g transform="translate(12 12) scale(0.96) translate(-12 -12)">
-              <path d="M12 1.5 14.6 9.4 22.5 12 14.6 14.6 12 22.5 9.4 14.6 1.5 12 9.4 9.4z" />
-              <%!-- fine lines from the centre to the points, as on the original --%>
-              <path d="M12 3.5V20.5M3.5 12H20.5" fill="none" stroke-width="0.45" />
+              <polygon points="12,12 9.4,9.4 12,1.5" />
+              <polygon
+                points="12,12 12,1.5 14.6,9.4"
+                fill="none"
+                stroke={"url(##{@id}-silver)"}
+                stroke-width="0.8"
+              />
+              <polygon points="12,12 14.6,9.4 22.5,12" />
+              <polygon
+                points="12,12 22.5,12 14.6,14.6"
+                fill="none"
+                stroke={"url(##{@id}-silver)"}
+                stroke-width="0.8"
+              />
+              <polygon points="12,12 14.6,14.6 12,22.5" />
+              <polygon
+                points="12,12 12,22.5 9.4,14.6"
+                fill="none"
+                stroke={"url(##{@id}-silver)"}
+                stroke-width="0.8"
+              />
+              <polygon points="12,12 9.4,14.6 1.5,12" />
+              <polygon
+                points="12,12 1.5,12 9.4,9.4"
+                fill="none"
+                stroke={"url(##{@id}-silver)"}
+                stroke-width="0.8"
+              />
             </g>
           <% "Ritual" -> %>
             <%!-- a flame: a small tongue on the left, a tall one sweeping right
@@ -661,7 +688,7 @@ defmodule MillenniumQuizWeb.CardComponents do
           <% "Counter" -> %>
             <%!-- a thick arrow: it starts as a point at the top right, runs
                  down and hooks sharply to the left into a large head --%>
-            <g transform="translate(12 12) scale(0.92) translate(-12 -12)">
+            <g transform="translate(12 12) scale(0.76) translate(-12 -12)">
               <path d="M19.6 2.8C21.7 5.6 22.1 10.2 20.6 13.8C19.2 17.2 15.9 19.6 12.4 20L12.6 22.6L2.4 15.4L12.4 8.4L12.3 12.3C15 12.2 17.3 11.3 18.6 9.4C19.6 7.8 19.9 5.6 19.6 2.8Z" />
             </g>
           <% _ -> %>
