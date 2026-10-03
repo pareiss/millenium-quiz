@@ -5,6 +5,7 @@
 #   bin/review-open-prs [--force] [--jobs N]
 #
 # PRs whose head commit already has a review are skipped unless --force.
+# Reviews of PRs that are merged or closed are archived first (bin/review-cleanup).
 # Logs of each run: reviews/logs/pr-<branch>.log
 set -euo pipefail
 
@@ -21,6 +22,8 @@ done
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 mkdir -p reviews/logs
+
+bin/review-cleanup
 
 declare -A slug=()
 numbers=()

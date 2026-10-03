@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Moves the reviews of pull requests that are no longer open (merged or
+# closed) from reviews/ to reviews/archive/, so reviews/ only lists PRs that
+# still need attention. Archived, not deleted: the verdicts ticked in them
+# stay available. Their logs (reviews/logs/) are deleted.
+#
+#   bin/review-cleanup
+#
+# bin/review-open-prs runs this first.
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+shopt -s nullglob
+
+moved=0
+for file in reviews/pr-*.md; do
+  number="$(sed -n 's/^- PR: #\([0-9]*\).*/\1/p' "$file" | head -1)"
+  [[ -n "$number" ]] || continue
+  state="$(gh pr view "$number" --json state --jq .state 2>/dev/null)" || continue
+  [[ "$state" == OPEN ]] && continue
+
+  name="$(basename "$file" .md)"
+  head="$(sed -n 's/^- Head: `\([0-9a-f]\{7\}\).*/\1/p' "$file" | head -1)"
+  mkdir -p reviews/archive
+  dest="reviews/archive/${name}-${head:-unknown}-$(tr '[:upper:]' '[:lower:]' <<<"$state").md"
+  [[ -e "$dest" ]] && dest="${dest%.md}-$(date -u +%Y%m%dT%H%M%S).md"
+  mv "$file" "$dest"
+  rm -f "reviews/logs/${name}.log"
+  echo "archived #$number ($state): $file -> $dest"
+  moved=$((moved + 1))
+done
+
+echo "review cleanup: $moved review(s) of merged or closed PRs archived"
