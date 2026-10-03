@@ -161,13 +161,13 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(pendulum, ".mq-card__pendulum-text.mq-text--xxs") == 1
   end
 
-  test "with on_text, the text box and the Pendulum box open the texts in a panel" do
+  test "with on_text, the text and Pendulum boxes are one button that opens the texts" do
     button =
       "[role=button][tabindex='0'][phx-click=read][phx-value-card='3'][phx-keydown=read][phx-key=Enter]"
 
     # every text, however short (Normal Monsters' flavor texts can be long too)
     short = render_card(%{name: "X", text: "Draw 2 cards."}, on_text: "read", text_value: 3)
-    assert count(short, ".mq-card__text.is-readable#{button}") == 1
+    assert count(short, ".mq-card__texts.is-readable#{button} > .mq-card__text") == 1
 
     pendulum =
       render_card(%{name: "X", text: "Short.", pendulum_scale: 4, pendulum_text: "P."},
@@ -175,8 +175,9 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
         text_value: 3
       )
 
-    assert count(pendulum, ".mq-card__pendulum.is-readable#{button}") == 1
-    assert count(pendulum, ".mq-card__text.is-readable#{button}") == 1
+    assert count(pendulum, ".mq-card__texts.is-readable#{button} > .mq-card__pendulum") == 1
+    assert count(pendulum, ".mq-card__texts.is-readable#{button} > .mq-card__text") == 1
+    assert count(pendulum, "[phx-click]") == 1
 
     # without on_text nothing is clickable
     plain = render_card(%{name: "X", text: "Short.", pendulum_scale: 4, pendulum_text: "P."})

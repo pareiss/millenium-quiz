@@ -33,7 +33,7 @@ defmodule MillenniumQuizWeb.CardComponents do
   The width comes from the caller, e.g. `class="w-44"`.
 
   Long texts are set smaller, like on real cards. With `on_text`, the text
-  box and the Pendulum box become buttons that send `on_text` (with
+  box and the Pendulum box become one button that sends `on_text` (with
   `phx-value-card={text_value}`) to show the texts in a bigger panel.
   """
   attr :card, :map, required: true
@@ -101,29 +101,29 @@ defmodule MillenniumQuizWeb.CardComponents do
           />
         </div>
 
-        <div :if={@pendulum?} class={["mq-card__pendulum", @read != %{} && "is-readable"]} {@read}>
-          <span class="mq-card__scale mq-card__scale--left" title="Pendulum Scale">
-            {@card[:pendulum_scale]}
-          </span>
-          <p class={["mq-card__pendulum-text", text_size(@card[:pendulum_text], 90)]}>
-            {@card[:pendulum_text]}
-          </p>
-          <span class="mq-card__scale mq-card__scale--right" title="Pendulum Scale">
-            {@card[:pendulum_scale]}
-          </span>
-        </div>
+        <%!-- one clickable area for the Pendulum box and the text box --%>
+        <div class={["mq-card__texts", @read != %{} && "is-readable"]} {@read}>
+          <div :if={@pendulum?} class="mq-card__pendulum">
+            <span class="mq-card__scale mq-card__scale--left" title="Pendulum Scale">
+              {@card[:pendulum_scale]}
+            </span>
+            <p class={["mq-card__pendulum-text", text_size(@card[:pendulum_text], 90)]}>
+              {@card[:pendulum_text]}
+            </p>
+            <span class="mq-card__scale mq-card__scale--right" title="Pendulum Scale">
+              {@card[:pendulum_scale]}
+            </span>
+          </div>
 
-        <div
-          class={["mq-card__text", text_size(@card.text, 160), @read != %{} && "is-readable"]}
-          {@read}
-        >
-          <p :if={@card[:monster_type_line]} class="mq-card__type">[{@card.monster_type_line}]</p>
-          <p class="mq-card__body">{@card.text}</p>
-          <p :if={@card[:atk]} class="mq-card__stats">
-            <span>ATK/{@card.atk}</span>
-            <span :if={@link?}>LINK-{length(@arrows)}</span>
-            <span :if={!@link?}>DEF/{@card.def}</span>
-          </p>
+          <div class={["mq-card__text", text_size(@card.text, 160)]}>
+            <p :if={@card[:monster_type_line]} class="mq-card__type">[{@card.monster_type_line}]</p>
+            <p class="mq-card__body">{@card.text}</p>
+            <p :if={@card[:atk]} class="mq-card__stats">
+              <span>ATK/{@card.atk}</span>
+              <span :if={@link?}>LINK-{length(@arrows)}</span>
+              <span :if={!@link?}>DEF/{@card.def}</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

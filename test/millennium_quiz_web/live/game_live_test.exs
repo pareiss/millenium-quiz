@@ -177,7 +177,7 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     refute has_element?(view, "#question-card-0 button.absolute")
 
     # a tap on the text box opens the texts in a readable panel
-    view |> element("#question-card-0 .mq-card__text") |> render_click()
+    view |> element("#question-card-0 .mq-card__texts") |> render_click()
     assert has_element?(view, "#card-text .mq-card-panel__body", "Select 1 monster")
     # a click on the panel goes back to the enlarged card
     view |> element("#card-text article") |> render_click()
