@@ -441,6 +441,8 @@
   --rim-dark: #7c3e0e;
   --rim-square: #a54a28;
   /* braid shades, precomputed: Firefox drops a border-image with color-mix */
+  /* corner square: a raised rim with a smaller square indented in it */
+  --rim-sq: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect width='10' height='10' fill='%23b45a2a'/%3E%3Cpath d='M0 0H10L9 1H1V9L0 10Z' fill='%23e0a54c'/%3E%3Cpath d='M10 10H0L1 9H9V1L10 0Z' fill='%236e340c'/%3E%3Crect x='2.6' y='2.6' width='4.8' height='4.8' fill='%239c4622'/%3E%3Cpath d='M2.6 2.6H7.4L6.7 3.3H3.3V6.7L2.6 7.4Z' fill='%236e340c'/%3E%3Cpath d='M7.4 7.4H2.6L3.3 6.7H6.7V3.3L7.4 2.6Z' fill='%23e0a54c'/%3E%3C/svg%3E");
   --rim-hi: #cd8638;
   --rim-lo: #a1511c;
   --rim-hi2: #c67731;
@@ -450,6 +452,7 @@
   --rim-mid: #4f5f6f;
   --rim-dark: #2e3a44;
   --rim-square: #55606c;
+  --rim-sq: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect width='10' height='10' fill='%2355606c'/%3E%3Cpath d='M0 0H10L9 1H1V9L0 10Z' fill='%237e8f9c'/%3E%3Cpath d='M10 10H0L1 9H9V1L10 0Z' fill='%232b343d'/%3E%3Crect x='2.6' y='2.6' width='4.8' height='4.8' fill='%234a545f'/%3E%3Cpath d='M2.6 2.6H7.4L6.7 3.3H3.3V6.7L2.6 7.4Z' fill='%232b343d'/%3E%3Cpath d='M7.4 7.4H2.6L3.3 6.7H6.7V3.3L7.4 2.6Z' fill='%237e8f9c'/%3E%3C/svg%3E");
   --rim-hi: #5f707f;
   --rim-lo: #42505e;
   --rim-hi2: #596a79;
@@ -507,15 +510,16 @@
 /* a small bronze square on each corner of the frame */
 .mq-card__text::before,
 .mq-card__pendulum::before {
-  --sq: linear-gradient(135deg, var(--rim-light), var(--rim-square) 55%, var(--rim-dark));
+  --sq: var(--rim-sq);
   content: "";
   position: absolute;
-  inset: -1.45cqw;
+  /* each square centred on the corner of the frame line (0.9cqw wide) */
+  inset: -1.55cqw;
   background:
-    var(--sq) left top / 2cqw 2cqw no-repeat,
-    var(--sq) right top / 2cqw 2cqw no-repeat,
-    var(--sq) left bottom / 2cqw 2cqw no-repeat,
-    var(--sq) right bottom / 2cqw 2cqw no-repeat;
+    var(--sq) left top / 2.2cqw 2.2cqw no-repeat,
+    var(--sq) right top / 2.2cqw 2.2cqw no-repeat,
+    var(--sq) left bottom / 2.2cqw 2.2cqw no-repeat,
+    var(--sq) right bottom / 2.2cqw 2.2cqw no-repeat;
   pointer-events: none;
 }
 /* Together they form one frame: the text box's top border is the shared
@@ -523,8 +527,8 @@
 .mq-card__pendulum { border-bottom: 0; }
 .mq-card__pendulum::before {
   background:
-    var(--sq) left top / 2cqw 2cqw no-repeat,
-    var(--sq) right top / 2cqw 2cqw no-repeat;
+    var(--sq) left top / 2.2cqw 2.2cqw no-repeat,
+    var(--sq) right top / 2.2cqw 2.2cqw no-repeat;
 }
 .mq-card__text.mq-text--s   { font-size: 3cqw; }
 .mq-card__text.mq-text--xs  { font-size: 2.65cqw; }
