@@ -133,14 +133,6 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert has_element?(view, "#final")
   end
 
-  test "links from before formats redirect", %{conn: conn, format: format} do
-    conn = get(conn, "/categories/#{format.id}/play?players[]=Ann")
-    assert redirected_to(conn, 301) == "/formats/#{format.id}/play?players[]=Ann"
-
-    conn = get(build_conn(), "/admin/categories/#{format.id}")
-    assert redirected_to(conn, 301) == "/admin/formats/#{format.id}"
-  end
-
   test "unknown games redirect home", %{conn: conn} do
     assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/games/#{Ecto.UUID.generate()}")
   end

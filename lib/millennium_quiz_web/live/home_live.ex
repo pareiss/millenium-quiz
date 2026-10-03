@@ -50,18 +50,18 @@ defmodule MillenniumQuizWeb.HomeLive do
         class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
       >
         <.link
-          :for={%{format: c, topics: topics, questions: questions} <- @formats}
-          navigate={~p"/formats/#{c.id}/play"}
-          id={"format-#{c.id}"}
+          :for={%{format: format, topics: topics, questions: questions} <- @formats}
+          navigate={~p"/formats/#{format.id}/play"}
+          id={"format-#{format.id}"}
           class="group relative overflow-hidden rounded-box border border-base-300 bg-base-100 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
         >
           <div class="absolute -right-6 -top-6 size-24 rounded-full bg-primary/10 transition group-hover:scale-125" />
-          <h2 class="relative text-xl font-semibold">{c.name}</h2>
-          <p :if={c.description} class="relative mt-1 text-sm text-base-content/70 line-clamp-3">
-            {c.description}
+          <h2 class="relative text-xl font-semibold">{format.name}</h2>
+          <p :if={format.description} class="relative mt-1 text-sm text-base-content/70 line-clamp-3">
+            {format.description}
           </p>
           <div class="relative mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-base-content/60">
-            <span class="badge badge-ghost badge-sm whitespace-nowrap">{display_date(c.date)}</span>
+            <span class="badge badge-ghost badge-sm whitespace-nowrap">{display_date(format.date)}</span>
             <span class="badge badge-ghost badge-sm whitespace-nowrap">{topics} topics</span>
             <span class="badge badge-ghost badge-sm whitespace-nowrap">{questions} questions</span>
             <span class="ml-auto whitespace-nowrap text-primary font-medium group-hover:translate-x-0.5 transition">

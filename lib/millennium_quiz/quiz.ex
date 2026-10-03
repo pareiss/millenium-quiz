@@ -12,7 +12,7 @@ defmodule MillenniumQuiz.Quiz do
   ## Formats
 
   def list_formats do
-    Repo.all(from c in Format, order_by: c.name, preload: [topics: :questions])
+    Repo.all(from f in Format, order_by: f.name, preload: [topics: :questions])
   end
 
   @doc "Formats that can be played: at least 2 topics and 1 question."
@@ -28,12 +28,12 @@ defmodule MillenniumQuiz.Quiz do
         }
 
     Repo.all(
-      from c in Format,
+      from f in Format,
         join: s in subquery(question_counts),
-        on: s.format_id == c.id,
+        on: s.format_id == f.id,
         where: s.topics >= ^Format.min_topics() and s.questions > 0,
-        order_by: c.name,
-        select: %{format: c, topics: s.topics, questions: s.questions}
+        order_by: f.name,
+        select: %{format: f, topics: s.topics, questions: s.questions}
     )
   end
 

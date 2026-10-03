@@ -24,7 +24,9 @@ defmodule MillenniumQuiz.Repo.Migrations.RenameCategoriesToFormats do
     execute "ALTER SEQUENCE categories_id_seq RENAME TO formats_id_seq",
             "ALTER SEQUENCE formats_id_seq RENAME TO categories_id_seq"
 
-    # A format is a point in time; existing rows start at the migration date.
+    # A format is a point in time; existing rows start at the migration date,
+    # i.e. "card texts as of today". Admins set the real date when they edit a
+    # format (new formats always get one, it is required).
     alter table(:formats) do
       add :date, :date
     end
