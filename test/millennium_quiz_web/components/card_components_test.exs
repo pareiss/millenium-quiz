@@ -362,6 +362,16 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert squeeze.(String.duplicate("Long name ", 8)) == "--squeeze: 0.5"
   end
 
+  test "ATK and DEF values sit in fixed fields after their labels" do
+    doc = render_card(%{name: "X", atk: "0", def: "?"})
+
+    assert doc |> LazyHTML.query(".mq-stat__value") |> Enum.map(&LazyHTML.text/1) == ["0", "?"]
+    assert text(doc, ".mq-card__stats") =~ ~r/ATK\/0\s+DEF\/\?/
+
+    link = render_card(%{name: "X", frame_type: "link", atk: "2300", link_arrows: ["⬆", "⬇"]})
+    assert text(link, ".mq-stat--link") == "LINK-2"
+  end
+
   test "a card from an old snapshot gets a plain frame and no artwork" do
     doc = render_card(%{name: "Monster Reborn", text: "Revive."})
 

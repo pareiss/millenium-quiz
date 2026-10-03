@@ -129,9 +129,12 @@ defmodule MillenniumQuizWeb.CardComponents do
             </p>
             <p class="mq-card__body">{@card.text}</p>
             <p :if={@card[:atk]} class="mq-card__stats">
-              <span>ATK/{@card.atk}</span>
-              <span :if={@link?}>LINK-{length(@arrows)}</span>
-              <span :if={!@link?}>DEF/{@card.def}</span>
+              <%!-- values right-aligned in a four-digit field, as on real cards --%>
+              <span class="mq-stat">ATK/<span class="mq-stat__value">{@card.atk}</span></span>
+              <span :if={@link?} class="mq-stat mq-stat--link">LINK-{length(@arrows)}</span>
+              <span :if={!@link?} class="mq-stat">
+                DEF/<span class="mq-stat__value">{@card.def}</span>
+              </span>
             </p>
           </div>
         </div>

@@ -488,12 +488,30 @@
 .mq-card__stats {
   display: flex;
   justify-content: flex-end;
-  gap: 3cqw;
-  margin-top: 0.8cqw;
+  align-items: baseline;
+  gap: 2.4cqw;
+  margin-top: 0.6cqw;
   border-top: 0.35cqw solid #1c1917;
+  /* a tall, condensed bold serif at a fixed size, as on real cards */
   font-family: "Crimson Pro", ui-serif, Georgia, serif;
-  font-size: 1.12em;
+  font-size: 4.3cqw;
   font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.mq-stat { display: inline-flex; align-items: baseline; white-space: nowrap; }
+/* a fixed field of up to four digits: ATK/ and DEF/ keep their place */
+.mq-stat__value { display: inline-block; width: 2.04em; text-align: right; }
+/* LINK-n is set in a heavy, blocky sans-serif, in the same fixed width as
+   the DEF block, so ATK/ stays in place on Link monsters too */
+.mq-stat--link {
+  justify-content: flex-end;
+  width: 3.85em;
+  font-family: "Arial Black", "Helvetica Neue", Arial, ui-sans-serif, sans-serif;
+  font-size: 1.05em;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  -webkit-text-stroke: 0.03em currentColor;
 }
 
 /* A card's texts in a readable panel, tinted like its text box. */
