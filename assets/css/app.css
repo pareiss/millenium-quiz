@@ -422,7 +422,8 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 1.6cqw 2.4cqw;
+  /* the text sits close to the frame, as on real cards */
+  padding: 0.9cqw 1.3cqw 1cqw;
   background:
     var(--box-paper, var(--paper-soft)),
     var(--box-base, var(--box));

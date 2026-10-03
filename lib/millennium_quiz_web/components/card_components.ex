@@ -54,6 +54,7 @@ defmodule MillenniumQuizWeb.CardComponents do
       |> assign(:link?, frame(card) == "link")
       |> assign(:arrows, Enum.map(card[:link_arrows] || [], &String.trim(&1, "\uFE0F")))
       |> assign(:read, read_attrs(assigns.on_text, assigns.text_value, card.name))
+      |> assign(:pendulum_class, ["mq-card__pendulum-text", text_size(card[:pendulum_text], 150)])
 
     ~H"""
     <div class={["mq-card", "mq-card--#{@size}", @class]} {@rest}>
@@ -114,9 +115,8 @@ defmodule MillenniumQuizWeb.CardComponents do
               <.scale_gem side="left" class="mq-card__gem" />
               {@card[:pendulum_scale]}
             </span>
-            <p class={["mq-card__pendulum-text", text_size(@card[:pendulum_text], 150)]}>
-              {@card[:pendulum_text]}
-            </p>
+            <%!-- on one line: the text keeps line breaks (pre-line) --%>
+            <p class={@pendulum_class}>{@card[:pendulum_text]}</p>
             <span class="mq-card__scale mq-card__scale--right" title="Pendulum Scale">
               <.scale_gem side="right" class="mq-card__gem" />
               {@card[:pendulum_scale]}

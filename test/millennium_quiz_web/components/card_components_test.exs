@@ -75,7 +75,9 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(doc, ".mq-card__stars--rank .mq-card__star") == 4
     assert count(doc, ".mq-card__scale") == 2
     assert text(doc, ".mq-card__scale--left") == "3"
-    assert text(doc, ".mq-card__pendulum-text") == "Once per turn: draw 1 card."
+    # no line break before the text: the paragraph keeps line breaks
+    assert doc |> LazyHTML.query(".mq-card__pendulum-text") |> LazyHTML.text() ==
+             "Once per turn: draw 1 card."
   end
 
   test "a Link monster shows its arrows and rating instead of stars and DEF" do
