@@ -168,7 +168,11 @@
   background:
     var(--paper),
     linear-gradient(155deg, rgb(255 255 255 / 0.28), transparent 38%, rgb(0 0 0 / 0.14)),
-    linear-gradient(to bottom, var(--frame) 0 var(--pendulum-split), var(--spell) var(--pendulum-split) 100%);
+    linear-gradient(
+      in oklab to bottom,
+      var(--frame) 0 calc(var(--pendulum-split) - 12%),
+      var(--spell) calc(var(--pendulum-split) + 4%) 100%
+    );
 }
 
 .mq-card__name {
@@ -220,8 +224,8 @@
   background: radial-gradient(circle at 50% 40%, #57534e, #1c1917);
 }
 /* Pendulum cards: the artwork has its usual size, and the Pendulum box lies
-   over its lower part, slightly see-through. The frame turns Spell green
-   where the Pendulum box starts. */
+   over its lower part, slightly see-through. The frame blends into Spell
+   green around where the Pendulum box starts. */
 .mq-card__face[data-pendulum] {
   --pendulum-h: 17cqw;
   --pendulum-split: 65%;
