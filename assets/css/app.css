@@ -145,7 +145,7 @@
    strong clouds and grain; text boxes only faint clouds.
    Tuned against real cards (frame/box stains, mottle and grain measured
    at 813 px); noise parameters: {"tile": 45, "freq": 0.018, "octaves": 3, "k_frame": 0.45, "k_box": 0.17, "grain": 0.16, "box_grain": 0.022, "bias": 0.25} */
-.mq-card__face {
+:is(.mq-card__face, .mq-card-panel) {
   --paper-grain:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0 0.12 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url%28%23g%29'/%3E%3C/svg%3E") 0 0 / 20cqw 20cqw;
   --paper:
@@ -203,11 +203,11 @@
 :is(.mq-card__face, .mq-card-panel)[data-frame="spell"]   { --frame: var(--spell); --box: var(--spell-box); --name-color: #fafaf9; }
 :is(.mq-card__face, .mq-card-panel)[data-frame="trap"]    { --frame: #ab2e7a; --box: #e6c0d7; --name-color: #fafaf9; }
 /* Synchro: the white frame only has faint clouds; grain would show as dirt */
-.mq-card__face[data-frame="synchro"] { --frame-paper: var(--paper-soft); }
+:is(.mq-card__face, .mq-card-panel)[data-frame="synchro"] { --frame-paper: var(--paper-soft); }
 
 /* Xyz: deep black with short blue streaks around the centre, small glowing
    dots of "space dust" as on real Xyz cards, no old-paper texture. */
-.mq-card__face[data-frame="xyz"] {
+:is(.mq-card__face, .mq-card-panel)[data-frame="xyz"] {
   --frame-paper: none;
   --frame-gloss: linear-gradient(155deg, rgb(255 255 255 / 0.1), transparent 38%);
   --frame-sky:
@@ -221,7 +221,7 @@
 /* Link: a faint hexagon grid on the frame, some cells a little darker,
    and in three patches (upper left, top, lower right) an even fainter,
    larger grid offset from it. The text box stays solid. */
-.mq-card__face[data-frame="link"] {
+:is(.mq-card__face, .mq-card-panel)[data-frame="link"] {
   --frame-sky:
     radial-gradient(ellipse at 50% 45%, transparent 35%, rgb(5 25 75 / 0.25) 100%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 59 86' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23cfe1ff' stroke-width='.3'%3E%3Cpath d='M28.03 4.46 L23.88 6.86 L19.72 4.46 L19.72 -0.34 L23.88 -2.74 L28.03 -0.34Z' stroke-opacity='0.037'/%3E%3Cpath d='M36.35 4.46 L32.19 6.86 L28.03 4.46 L28.03 -0.34 L32.19 -2.74 L36.35 -0.34Z' stroke-opacity='0.068'/%3E%3Cpath d='M44.67 4.46 L40.51 6.86 L36.35 4.46 L36.35 -0.34 L40.51 -2.74 L44.67 -0.34Z' stroke-opacity='0.073'/%3E%3Cpath d='M52.98 4.46 L48.82 6.86 L44.67 4.46 L44.67 -0.34 L48.82 -2.74 L52.98 -0.34Z' stroke-opacity='0.052'/%3E%3Cpath d='M61.30 4.46 L57.14 6.86 L52.98 4.46 L52.98 -0.34 L57.14 -2.74 L61.30 -0.34Z' stroke-opacity='0.006'/%3E%3Cpath d='M15.56 11.66 L11.40 14.06 L7.24 11.66 L7.24 6.86 L11.40 4.46 L15.56 6.86Z' stroke-opacity='0.023'/%3E%3Cpath d='M23.88 11.66 L19.72 14.06 L15.56 11.66 L15.56 6.86 L19.72 4.46 L23.88 6.86Z' stroke-opacity='0.016'/%3E%3Cpath d='M32.19 11.66 L28.03 14.06 L23.88 11.66 L23.88 6.86 L28.03 4.46 L32.19 6.86Z' stroke-opacity='0.038'/%3E%3Cpath d='M40.51 11.66 L36.35 14.06 L32.19 11.66 L32.19 6.86 L36.35 4.46 L40.51 6.86Z' stroke-opacity='0.056'/%3E%3Cpath d='M48.82 11.66 L44.67 14.06 L40.51 11.66 L40.51 6.86 L44.67 4.46 L48.82 6.86Z' stroke-opacity='0.048'/%3E%3Cpath d='M57.14 11.66 L52.98 14.06 L48.82 11.66 L48.82 6.86 L52.98 4.46 L57.14 6.86Z' stroke-opacity='0.015'/%3E%3Cpath d='M3.09 18.86 L-1.07 21.26 L-5.23 18.86 L-5.23 14.06 L-1.07 11.66 L3.09 14.06Z' stroke-opacity='0.015'/%3E%3Cpath d='M11.40 18.86 L7.24 21.26 L3.09 18.86 L3.09 14.06 L7.24 11.66 L11.40 14.06Z' stroke-opacity='0.065'/%3E%3Cpath d='M19.72 18.86 L15.56 21.26 L11.40 18.86 L11.40 14.06 L15.56 11.66 L19.72 14.06Z' stroke-opacity='0.077'/%3E%3Cpath d='M28.03 18.86 L23.88 21.26 L19.72 18.86 L19.72 14.06 L23.88 11.66 L28.03 14.06Z' stroke-opacity='0.051'/%3E%3Cpath d='M7.24 26.06 L3.09 28.46 L-1.07 26.06 L-1.07 21.26 L3.09 18.86 L7.24 21.26Z' stroke-opacity='0.056'/%3E%3Cpath d='M15.56 26.06 L11.40 28.46 L7.24 26.06 L7.24 21.26 L11.40 18.86 L15.56 21.26Z' stroke-opacity='0.087'/%3E%3Cpath d='M23.88 26.06 L19.72 28.46 L15.56 26.06 L15.56 21.26 L19.72 18.86 L23.88 21.26Z' stroke-opacity='0.080'/%3E%3Cpath d='M32.19 26.06 L28.03 28.46 L23.88 26.06 L23.88 21.26 L28.03 18.86 L32.19 21.26Z' stroke-opacity='0.034'/%3E%3Cpath d='M11.40 33.27 L7.24 35.67 L3.09 33.27 L3.09 28.46 L7.24 26.06 L11.40 28.46Z' stroke-opacity='0.046'/%3E%3Cpath d='M19.72 33.27 L15.56 35.67 L11.40 33.27 L11.40 28.46 L15.56 26.06 L19.72 28.46Z' stroke-opacity='0.058'/%3E%3Cpath d='M28.03 33.27 L23.88 35.67 L19.72 33.27 L19.72 28.46 L23.88 26.06 L28.03 28.46Z' stroke-opacity='0.031'/%3E%3Cpath d='M40.51 54.87 L36.35 57.27 L32.19 54.87 L32.19 50.07 L36.35 47.67 L40.51 50.07Z' stroke-opacity='0.035'/%3E%3Cpath d='M48.82 54.87 L44.67 57.27 L40.51 54.87 L40.51 50.07 L44.67 47.67 L48.82 50.07Z' stroke-opacity='0.049'/%3E%3Cpath d='M57.14 54.87 L52.98 57.27 L48.82 54.87 L48.82 50.07 L52.98 47.67 L57.14 50.07Z' stroke-opacity='0.030'/%3E%3Cpath d='M36.35 62.07 L32.19 64.47 L28.03 62.07 L28.03 57.27 L32.19 54.87 L36.35 57.27Z' stroke-opacity='0.053'/%3E%3Cpath d='M44.67 62.07 L40.51 64.47 L36.35 62.07 L36.35 57.27 L40.51 54.87 L44.67 57.27Z' stroke-opacity='0.081'/%3E%3Cpath d='M52.98 62.07 L48.82 64.47 L44.67 62.07 L44.67 57.27 L48.82 54.87 L52.98 57.27Z' stroke-opacity='0.079'/%3E%3Cpath d='M61.30 62.07 L57.14 64.47 L52.98 62.07 L52.98 57.27 L57.14 54.87 L61.30 57.27Z' stroke-opacity='0.045'/%3E%3Cpath d='M32.19 69.28 L28.03 71.68 L23.88 69.28 L23.88 64.47 L28.03 62.07 L32.19 64.47Z' stroke-opacity='0.030'/%3E%3Cpath d='M40.51 69.28 L36.35 71.68 L32.19 69.28 L32.19 64.47 L36.35 62.07 L40.51 64.47Z' stroke-opacity='0.074'/%3E%3Cpath d='M48.82 69.28 L44.67 71.68 L40.51 69.28 L40.51 64.47 L44.67 62.07 L48.82 64.47Z' stroke-opacity='0.087'/%3E%3Cpath d='M57.14 69.28 L52.98 71.68 L48.82 69.28 L48.82 64.47 L52.98 62.07 L57.14 64.47Z' stroke-opacity='0.069'/%3E%3Cpath d='M65.46 69.28 L61.30 71.68 L57.14 69.28 L57.14 64.47 L61.30 62.07 L65.46 64.47Z' stroke-opacity='0.020'/%3E%3Cpath d='M36.35 76.48 L32.19 78.88 L28.03 76.48 L28.03 71.68 L32.19 69.28 L36.35 71.68Z' stroke-opacity='0.027'/%3E%3Cpath d='M44.67 76.48 L40.51 78.88 L36.35 76.48 L36.35 71.68 L40.51 69.28 L44.67 71.68Z' stroke-opacity='0.056'/%3E%3Cpath d='M52.98 76.48 L48.82 78.88 L44.67 76.48 L44.67 71.68 L48.82 69.28 L52.98 71.68Z' stroke-opacity='0.053'/%3E%3Cpath d='M61.30 76.48 L57.14 78.88 L52.98 76.48 L52.98 71.68 L57.14 69.28 L61.30 71.68Z' stroke-opacity='0.020'/%3E%3C/g%3E%3Cg fill='none' stroke='%23cfe1ff' stroke-opacity='.11' stroke-width='.35'%3E%3Cpath d='M-2.97 -3.43 L-5.94 -1.71 L-8.91 -3.43 L-8.91 -6.86 L-5.94 -8.57 L-2.97 -6.86Z'/%3E%3Cpath d='M2.97 -3.43 L0.00 -1.71 L-2.97 -3.43 L-2.97 -6.86 L-0.00 -8.57 L2.97 -6.86Z'/%3E%3Cpath d='M8.91 -3.43 L5.94 -1.71 L2.97 -3.43 L2.97 -6.86 L5.94 -8.57 L8.91 -6.86Z'/%3E%3Cpath d='M14.85 -3.43 L11.88 -1.71 L8.91 -3.43 L8.91 -6.86 L11.88 -8.57 L14.85 -6.86Z' fill='%2306173f' fill-opacity='0.21'/%3E%3Cpath d='M20.79 -3.43 L17.82 -1.71 L14.85 -3.43 L14.85 -6.86 L17.82 -8.57 L20.79 -6.86Z'/%3E%3Cpath d='M26.73 -3.43 L23.76 -1.71 L20.79 -3.43 L20.79 -6.86 L23.76 -8.57 L26.73 -6.86Z' fill='%2306173f' fill-opacity='0.21'/%3E%3Cpath d='M32.67 -3.43 L29.70 -1.71 L26.73 -3.43 L26.73 -6.86 L29.70 -8.57 L32.67 -6.86Z' fill='%2306173f' fill-opacity='0.19'/%3E%3Cpath d='M38.61 -3.43 L35.64 -1.71 L32.67 -3.43 L32.67 -6.86 L35.64 -8.57 L38.61 -6.86Z' fill='%2306173f' fill-opacity='0.15'/%3E%3Cpath d='M44.55 -3.43 L41.58 -1.71 L38.61 -3.43 L38.61 -6.86 L41.58 -8.57 L44.55 -6.86Z'/%3E%3Cpath d='M50.49 -3.43 L47.52 -1.71 L44.55 -3.43 L44.55 -6.86 L47.52 -8.57 L50.49 -6.86Z'/%3E%3Cpath d='M56.43 -3.43 L53.46 -1.71 L50.49 -3.43 L50.49 -6.86 L53.46 -8.57 L56.43 -6.86Z' fill='%2306173f' fill-opacity='0.16'/%3E%3Cpath d='M62.37 -3.43 L59.40 -1.71 L56.43 -3.43 L56.43 -6.86 L59.40 -8.57 L62.37 -6.86Z'/%3E%3Cpath d='M0.00 1.71 L-2.97 3.43 L-5.94 1.71 L-5.94 -1.71 L-2.97 -3.43 L-0.00 -1.71Z'/%3E%3Cpath d='M5.94 1.71 L2.97 3.43 L-0.00 1.71 L0.00 -1.71 L2.97 -3.43 L5.94 -1.71Z'/%3E%3Cpath d='M11.88 1.71 L8.91 3.43 L5.94 1.71 L5.94 -1.71 L8.91 -3.43 L11.88 -1.71Z'/%3E%3Cpath d='M17.82 1.71 L14.85 3.43 L11.88 1.71 L11.88 -1.71 L14.85 -3.43 L17.82 -1.71Z'/%3E%3Cpath d='M23.76 1.71 L20.79 3.43 L17.82 1.71 L17.82 -1.71 L20.79 -3.43 L23.76 -1.71Z' fill='%2306173f' fill-opacity='0.26'/%3E%3Cpath d='M29.70 1.71 L26.73 3.43 L23.76 1.71 L23.76 -1.71 L26.73 -3.43 L29.70 -1.71Z'/%3E%3Cpath d='M35.64 1.71 L32.67 3.43 L29.70 1.71 L29.70 -1.71 L32.67 -3.43 L35.64 -1.71Z'/%3E%3Cpath d='M41.58 1.71 L38.61 3.43 L35.64 1.71 L35.64 -1.71 L38.61 -3.43 L41.58 -1.71Z' fill='%2306173f' fill-opacity='0.18'/%3E%3Cpath d='M47.52 1.71 L44.55 3.43 L41.58 1.71 L41.58 -1.71 L44.55 -3.43 L47.52 -1.71Z'/%3E%3Cpath d='M53.46 1.71 L50.49 3.43 L47.52 1.71 L47.52 -1.71 L50.49 -3.43 L53.46 -1.71Z'/%3E%3Cpath d='M59.40 1.71 L56.43 3.43 L53.46 1.71 L53.46 -1.71 L56.43 -3.43 L59.40 -1.71Z'/%3E%3Cpath d='M65.34 1.71 L62.37 3.43 L59.40 1.71 L59.40 -1.71 L62.37 -3.43 L65.34 -1.71Z'/%3E%3Cpath d='M-2.97 6.86 L-5.94 8.57 L-8.91 6.86 L-8.91 3.43 L-5.94 1.71 L-2.97 3.43Z'/%3E%3Cpath d='M2.97 6.86 L0.00 8.57 L-2.97 6.86 L-2.97 3.43 L-0.00 1.71 L2.97 3.43Z'/%3E%3Cpath d='M8.91 6.86 L5.94 8.57 L2.97 6.86 L2.97 3.43 L5.94 1.71 L8.91 3.43Z' fill='%2306173f' fill-opacity='0.15'/%3E%3Cpath d='M14.85 6.86 L11.88 8.57 L8.91 6.86 L8.91 3.43 L11.88 1.71 L14.85 3.43Z'/%3E%3Cpath d='M20.79 6.86 L17.82 8.57 L14.85 6.86 L14.85 3.43 L17.82 1.71 L20.79 3.43Z'/%3E%3Cpath d='M26.73 6.86 L23.76 8.57 L20.79 6.86 L20.79 3.43 L23.76 1.71 L26.73 3.43Z'/%3E%3Cpath d='M32.67 6.86 L29.70 8.57 L26.73 6.86 L26.73 3.43 L29.70 1.71 L32.67 3.43Z'/%3E%3Cpath d='M38.61 6.86 L35.64 8.57 L32.67 6.86 L32.67 3.43 L35.64 1.71 L38.61 3.43Z'/%3E%3Cpath d='M44.55 6.86 L41.58 8.57 L38.61 6.86 L38.61 3.43 L41.58 1.71 L44.55 3.43Z'/%3E%3Cpath d='M50.49 6.86 L47.52 8.57 L44.55 6.86 L44.55 3.43 L47.52 1.71 L50.49 3.43Z'/%3E%3Cpath d='M56.43 6.86 L53.46 8.57 L50.49 6.86 L50.49 3.43 L53.46 1.71 L56.43 3.43Z'/%3E%3Cpath d='M62.37 6.86 L59.40 8.57 L56.43 6.86 L56.43 3.43 L59.40 1.71 L62.37 3.43Z'/%3E%3Cpath d='M0.00 12.00 L-2.97 13.72 L-5.94 12.00 L-5.94 8.57 L-2.97 6.86 L-0.00 8.57Z'/%3E%3Cpath d='M5.94 12.00 L2.97 13.72 L-0.00 12.00 L0.00 8.57 L2.97 6.86 L5.94 8.57Z'/%3E%3Cpath d='M11.88 12.00 L8.91 13.72 L5.94 12.00 L5.94 8.57 L8.91 6.86 L11.88 8.57Z'/%3E%3Cpath d='M17.82 12.00 L14.85 13.72 L11.88 12.00 L11.88 8.57 L14.85 6.86 L17.82 8.57Z'/%3E%3Cpath d='M23.76 12.00 L20.79 13.72 L17.82 12.00 L17.82 8.57 L20.79 6.86 L23.76 8.57Z'/%3E%3Cpath d='M29.70 12.00 L26.73 13.72 L23.76 12.00 L23.76 8.57 L26.73 6.86 L29.70 8.57Z'/%3E%3Cpath d='M35.64 12.00 L32.67 13.72 L29.70 12.00 L29.70 8.57 L32.67 6.86 L35.64 8.57Z'/%3E%3Cpath d='M41.58 12.00 L38.61 13.72 L35.64 12.00 L35.64 8.57 L38.61 6.86 L41.58 8.57Z' fill='%2306173f' fill-opacity='0.19'/%3E%3Cpath d='M47.52 12.00 L44.55 13.72 L41.58 12.00 L41.58 8.57 L44.55 6.86 L47.52 8.57Z'/%3E%3Cpath d='M53.46 12.00 L50.49 13.72 L47.52 12.00 L47.52 8.57 L50.49 6.86 L53.46 8.57Z'/%3E%3Cpath d='M59.40 12.00 L56.43 13.72 L53.46 12.00 L53.46 8.57 L56.43 6.86 L59.40 8.57Z'/%3E%3Cpath d='M65.34 12.00 L62.37 13.72 L59.40 12.00 L59.40 8.57 L62.37 6.86 L65.34 8.57Z' fill='%2306173f' fill-opacity='0.23'/%3E%3Cpath d='M-2.97 17.15 L-5.94 18.86 L-8.91 17.15 L-8.91 13.72 L-5.94 12.00 L-2.97 13.72Z'/%3E%3Cpath d='M2.97 17.15 L0.00 18.86 L-2.97 17.15 L-2.97 13.72 L-0.00 12.00 L2.97 13.72Z'/%3E%3Cpath d='M8.91 17.15 L5.94 18.86 L2.97 17.15 L2.97 13.72 L5.94 12.00 L8.91 13.72Z'/%3E%3Cpath d='M14.85 17.15 L11.88 18.86 L8.91 17.15 L8.91 13.72 L11.88 12.00 L14.85 13.72Z'/%3E%3Cpath d='M20.79 17.15 L17.82 18.86 L14.85 17.15 L14.85 13.72 L17.82 12.00 L20.79 13.72Z'/%3E%3Cpath d='M26.73 17.15 L23.76 18.86 L20.79 17.15 L20.79 13.72 L23.76 12.00 L26.73 13.72Z'/%3E%3Cpath d='M32.67 17.15 L29.70 18.86 L26.73 17.15 L26.73 13.72 L29.70 12.00 L32.67 13.72Z'/%3E%3Cpath d='M38.61 17.15 L35.64 18.86 L32.67 17.15 L32.67 13.72 L35.64 12.00 L38.61 13.72Z'/%3E%3Cpath d='M44.55 17.15 L41.58 18.86 L38.61 17.15 L38.61 13.72 L41.58 12.00 L44.55 13.72Z'/%3E%3Cpath d='M50.49 17.15 L47.52 18.86 L44.55 17.15 L44.55 13.72 L47.52 12.00 L50.49 13.72Z'/%3E%3Cpath d='M56.43 17.15 L53.46 18.86 L50.49 17.15 L50.49 13.72 L53.46 12.00 L56.43 13.72Z'/%3E%3Cpath d='M62.37 17.15 L59.40 18.86 L56.43 17.15 L56.43 13.72 L59.40 12.00 L62.37 13.72Z'/%3E%3Cpath d='M0.00 22.29 L-2.97 24.01 L-5.94 22.29 L-5.94 18.86 L-2.97 17.15 L-0.00 18.86Z' fill='%2306173f' fill-opacity='0.23'/%3E%3Cpath d='M5.94 22.29 L2.97 24.01 L-0.00 22.29 L0.00 18.86 L2.97 17.15 L5.94 18.86Z'/%3E%3Cpath d='M11.88 22.29 L8.91 24.01 L5.94 22.29 L5.94 18.86 L8.91 17.15 L11.88 18.86Z'/%3E%3Cpath d='M17.82 22.29 L14.85 24.01 L11.88 22.29 L11.88 18.86 L14.85 17.15 L17.82 18.86Z'/%3E%3Cpath d='M23.76 22.29 L20.79 24.01 L17.82 22.29 L17.82 18.86 L20.79 17.15 L23.76 18.86Z'/%3E%3Cpath d='M29.70 22.29 L26.73 24.01 L23.76 22.29 L23.76 18.86 L26.73 17.15 L29.70 18.86Z'/%3E%3Cpath d='M35.64 22.29 L32.67 24.01 L29.70 22.29 L29.70 18.86 L32.67 17.15 L35.64 18.86Z'/%3E%3Cpath d='M41.58 22.29 L38.61 24.01 L35.64 22.29 L35.64 18.86 L38.61 17.15 L41.58 18.86Z' fill='%2306173f' fill-opacity='0.21'/%3E%3Cpath d='M47.52 22.29 L44.55 24.01 L41.58 22.29 L41.58 18.86 L44.55 17.15 L47.52 18.86Z'/%3E%3Cpath d='M53.46 22.29 L50.49 24.01 L47.52 22.29 L47.52 18.86 L50.49 17.15 L53.46 18.86Z' fill='%2306173f' fill-opacity='0.15'/%3E%3Cpath d='M59.40 22.29 L56.43 24.01 L53.46 22.29 L53.46 18.86 L56.43 17.15 L59.40 18.86Z'/%3E%3Cpath d='M65.34 22.29 L62.37 24.01 L59.40 22.29 L59.40 18.86 L62.37 17.15 L65.34 18.86Z' fill='%2306173f' fill-opacity='0.16'/%3E%3Cpath d='M-2.97 27.44 L-5.94 29.15 L-8.91 27.44 L-8.91 24.01 L-5.94 22.29 L-2.97 24.01Z'/%3E%3Cpath d='M2.97 27.44 L0.00 29.15 L-2.97 27.44 L-2.97 24.01 L-0.00 22.29 L2.97 24.01Z'/%3E%3Cpath d='M8.91 27.44 L5.94 29.15 L2.97 27.44 L2.97 24.01 L5.94 22.29 L8.91 24.01Z' fill='%2306173f' fill-opacity='0.19'/%3E%3Cpath d='M14.85 27.44 L11.88 29.15 L8.91 27.44 L8.91 24.01 L11.88 22.29 L14.85 24.01Z'/%3E%3Cpath d='M20.79 27.44 L17.82 29.15 L14.85 27.44 L14.85 24.01 L17.82 22.29 L20.79 24.01Z'/%3E%3Cpath d='M26.73 27.44 L23.76 29.15 L20.79 27.44 L20.79 24.01 L23.76 22.29 L26.73 24.01Z'/%3E%3Cpath d='M32.67 27.44 L29.70 29.15 L26.73 27.44 L26.73 24.01 L29.70 22.29 L32.67 24.01Z'/%3E%3Cpath d='M38.61 27.44 L35.64 29.15 L32.67 27.44 L32.67 24.01 L35.64 22.29 L38.61 24.01Z'/%3E%3Cpath d='M44.55 27.44 L41.58 29.15 L38.61 27.44 L38.61 24.01 L41.58 22.29 L44.55 24.01Z'/%3E%3Cpath d='M50.49 27.44 L47.52 29.15 L44.55 27.44 L44.55 24.01 L47.52 22.29 L50.49 24.01Z'/%3E%3Cpath d='M56.43 27.44 L53.46 29.15 L50.49 27.44 L50.49 24.01 L53.46 22.29 L56.43 24.01Z'/%3E%3Cpath d='M62.37 27.44 L59.40 29.15 L56.43 27.44 L56.43 24.01 L59.40 22.29 L62.37 24.01Z'/%3E%3Cpath d='M0.00 32.58 L-2.97 34.29 L-5.94 32.58 L-5.94 29.15 L-2.97 27.44 L-0.00 29.15Z'/%3E%3Cpath d='M5.94 32.58 L2.97 34.29 L-0.00 32.58 L0.00 29.15 L2.97 27.44 L5.94 29.15Z'/%3E%3Cpath d='M11.88 32.58 L8.91 34.29 L5.94 32.58 L5.94 29.15 L8.91 27.44 L11.88 29.15Z'/%3E%3Cpath d='M17.82 32.58 L14.85 34.29 L11.88 32.58 L11.88 29.15 L14.85 27.44 L17.82 29.15Z'/%3E%3Cpath d='M23.76 32.58 L20.79 34.29 L17.82 32.58 L17.82 29.15 L20.79 27.44 L23.76 29.15Z'/%3E%3Cpath d='M29.70 32.58 L26.73 34.29 L23.76 32.58 L23.76 29.15 L26.73 27.44 L29.70 29.15Z'/%3E%3Cpath d='M35.64 32.58 L32.67 34.29 L29.70 32.58 L29.70 29.15 L32.67 27.44 L35.64 29.15Z'/%3E%3Cpath d='M41.58 32.58 L38.61 34.29 L35.64 32.58 L35.64 29.15 L38.61 27.44 L41.58 29.15Z' fill='%2306173f' fill-opacity='0.19'/%3E%3Cpath d='M47.52 32.58 L44.55 34.29 L41.58 32.58 L41.58 29.15 L44.55 27.44 L47.52 29.15Z'/%3E%3Cpath d='M53.46 32.58 L50.49 34.29 L47.52 32.58 L47.52 29.15 L50.49 27.44 L53.46 29.15Z'/%3E%3Cpath d='M59.40 32.58 L56.43 34.29 L53.46 32.58 L53.46 29.15 L56.43 27.44 L59.40 29.15Z'/%3E%3Cpath d='M65.34 32.58 L62.37 34.29 L59.40 32.58 L59.40 29.15 L62.37 27.44 L65.34 29.15Z'/%3E%3Cpath d='M-2.97 37.72 L-5.94 39.44 L-8.91 37.72 L-8.91 34.29 L-5.94 32.58 L-2.97 34.29Z'/%3E%3Cpath d='M2.97 37.72 L0.00 39.44 L-2.97 37.72 L-2.97 34.29 L-0.00 32.58 L2.97 34.29Z'/%3E%3Cpath d='M8.91 37.72 L5.94 39.44 L2.97 37.72 L2.97 34.29 L5.94 32.58 L8.91 34.29Z'/%3E%3Cpath d='M14.85 37.72 L11.88 39.44 L8.91 37.72 L8.91 34.29 L11.88 32.58 L14.85 34.29Z' fill='%2306173f' fill-opacity='0.26'/%3E%3Cpath d='M20.79 37.72 L17.82 39.44 L14.85 37.72 L14.85 34.29 L17.82 32.58 L20.79 34.29Z'/%3E%3Cpath d='M26.73 37.72 L23.76 39.44 L20.79 37.72 L20.79 34.29 L23.76 32.58 L26.73 34.29Z'/%3E%3Cpath d='M32.67 37.72 L29.70 39.44 L26.73 37.72 L26.73 34.29 L29.70 32.58 L32.67 34.29Z'/%3E%3Cpath d='M38.61 37.72 L35.64 39.44 L32.67 37.72 L32.67 34.29 L35.64 32.58 L38.61 34.29Z'/%3E%3Cpath d='M44.55 37.72 L41.58 39.44 L38.61 37.72 L38.61 34.29 L41.58 32.58 L44.55 34.29Z'/%3E%3Cpath d='M50.49 37.72 L47.52 39.44 L44.55 37.72 L44.55 34.29 L47.52 32.58 L50.49 34.29Z' fill='%2306173f' fill-opacity='0.22'/%3E%3Cpath d='M56.43 37.72 L53.46 39.44 L50.49 37.72 L50.49 34.29 L53.46 32.58 L56.43 34.29Z' fill='%2306173f' fill-opacity='0.15'/%3E%3Cpath d='M62.37 37.72 L59.40 39.44 L56.43 37.72 L56.43 34.29 L59.40 32.58 L62.37 34.29Z'/%3E%3Cpath d='M0.00 42.87 L-2.97 44.58 L-5.94 42.87 L-5.94 39.44 L-2.97 37.72 L-0.00 39.44Z'/%3E%3Cpath d='M5.94 42.87 L2.97 44.58 L-0.00 42.87 L0.00 39.44 L2.97 37.72 L5.94 39.44Z'/%3E%3Cpath d='M11.88 42.87 L8.91 44.58 L5.94 42.87 L5.94 39.44 L8.91 37.72 L11.88 39.44Z' fill='%2306173f' fill-opacity='0.14'/%3E%3Cpath d='M17.82 42.87 L14.85 44.58 L11.88 42.87 L11.88 39.44 L14.85 37.72 L17.82 39.44Z'/%3E%3Cpath d='M23.76 42.87 L20.79 44.58 L17.82 42.87 L17.82 39.44 L20.79 37.72 L23.76 39.44Z' fill='%2306173f' fill-opacity='0.19'/%3E%3Cpath d='M29.70 42.87 L26.73 44.58 L23.76 42.87 L23.76 39.44 L26.73 37.72 L29.70 39.44Z' fill='%2306173f' fill-opacity='0.26'/%3E%3Cpath d='M35.64 42.87 L32.67 44.58 L29.70 42.87 L29.70 39.44 L32.67 37.72 L35.64 39.44Z'/%3E%3Cpath d='M41.58 42.87 L38.61 44.58 L35.64 42.87 L35.64 39.44 L38.61 37.72 L41.58 39.44Z'/%3E%3Cpath d='M47.52 42.87 L44.55 44.58 L41.58 42.87 L41.58 39.44 L44.55 37.72 L47.52 39.44Z'/%3E%3Cpath d='M53.46 42.87 L50.49 44.58 L47.52 42.87 L47.52 39.44 L50.49 37.72 L53.46 39.44Z'/%3E%3Cpath d='M59.40 42.87 L56.43 44.58 L53.46 42.87 L53.46 39.44 L56.43 37.72 L59.40 39.44Z'/%3E%3Cpath d='M65.34 42.87 L62.37 44.58 L59.40 42.87 L59.40 39.44 L62.37 37.72 L65.34 39.44Z' fill='%2306173f' fill-opacity='0.25'/%3E%3Cpath d='M-2.97 48.01 L-5.94 49.73 L-8.91 48.01 L-8.91 44.58 L-5.94 42.87 L-2.97 44.58Z'/%3E%3Cpath d='M2.97 48.01 L0.00 49.73 L-2.97 48.01 L-2.97 44.58 L-0.00 42.87 L2.97 44.58Z'/%3E%3Cpath d='M8.91 48.01 L5.94 49.73 L2.97 48.01 L2.97 44.58 L5.94 42.87 L8.91 44.58Z'/%3E%3Cpath d='M14.85 48.01 L11.88 49.73 L8.91 48.01 L8.91 44.58 L11.88 42.87 L14.85 44.58Z' fill='%2306173f' fill-opacity='0.15'/%3E%3Cpath d='M20.79 48.01 L17.82 49.73 L14.85 48.01 L14.85 44.58 L17.82 42.87 L20.79 44.58Z'/%3E%3Cpath d='M26.73 48.01 L23.76 49.73 L20.79 48.01 L20.79 44.58 L23.76 42.87 L26.73 44.58Z'/%3E%3Cpath d='M32.67 48.01 L29.70 49.73 L26.73 48.01 L26.73 44.58 L29.70 42.87 L32.67 44.58Z'/%3E%3Cpath d='M38.61 48.01 L35.64 49.73 L32.67 48.01 L32.67 44.58 L35.64 42.87 L38.61 44.58Z'/%3E%3Cpath d='M44.55 48.01 L41.58 49.73 L38.61 48.01 L38.61 44.58 L41.58 42.87 L44.55 44.58Z' fill='%2306173f' fill-opacity='0.27'/%3E%3Cpath d='M50.49 48.01 L47.52 49.73 L44.55 48.01 L44.55 44.58 L47.52 42.87 L50.49 44.58Z'/%3E%3Cpath d='M56.43 48.01 L53.46 49.73 L50.49 48.01 L50.49 44.58 L53.46 42.87 L56.43 44.58Z'/%3E%3Cpath d='M62.37 48.01 L59.40 49.73 L56.43 48.01 L56.43 44.58 L59.40 42.87 L62.37 44.58Z'/%3E%3Cpath d='M0.00 53.16 L-2.97 54.87 L-5.94 53.16 L-5.94 49.73 L-2.97 48.01 L-0.00 49.73Z' fill='%2306173f' fill-opacity='0.21'/%3E%3Cpath d='M5.94 53.16 L2.97 54.87 L-0.00 53.16 L0.00 49.73 L2.97 48.01 L5.94 49.73Z'/%3E%3Cpath d='M11.88 53.16 L8.91 54.87 L5.94 53.16 L5.94 49.73 L8.91 48.01 L11.88 49.73Z'/%3E%3Cpath d='M17.82 53.16 L14.85 54.87 L11.88 53.16 L11.88 49.73 L14.85 48.01 L17.82 49.73Z'/%3E%3Cpath d='M23.76 53.16 L20.79 54.87 L17.82 53.16 L17.82 49.73 L20.79 48.01 L23.76 49.73Z'/%3E%3Cpath d='M29.70 53.16 L26.73 54.87 L23.76 53.16 L23.76 49.73 L26.73 48.01 L29.70 49.73Z'/%3E%3Cpath d='M35.64 53.16 L32.67 54.87 L29.70 53.16 L29.70 49.73 L32.67 48.01 L35.64 49.73Z'/%3E%3Cpath d='M41.58 53.16 L38.61 54.87 L35.64 53.16 L35.64 49.73 L38.61 48.01 L41.58 49.73Z'/%3E%3Cpath d='M47.52 53.16 L44.55 54.87 L41.58 53.16 L41.58 49.73 L44.55 48.01 L47.52 49.73Z'/%3E%3Cpath d='M53.46 53.16 L50.49 54.87 L47.52 53.16 L47.52 49.73 L50.49 48.01 L53.46 49.73Z'/%3E%3Cpath d='M59.40 53.16 L56.43 54.87 L53.46 53.16 L53.46 49.73 L56.43 48.01 L59.40 49.73Z'/%3E%3Cpath d='M65.34 53.16 L62.37 54.87 L59.40 53.16 L59.40 49.73 L62.37 48.01 L65.34 49.73Z'/%3E%3Cpath d='M-2.97 58.30 L-5.94 60.02 L-8.91 58.30 L-8.91 54.87 L-5.94 53.16 L-2.97 54.87Z'/%3E%3Cpath d='M2.97 58.30 L0.00 60.02 L-2.97 58.30 L-2.97 54.87 L-0.00 53.16 L2.97 54.87Z'/%3E%3Cpath d='M8.91 58.30 L5.94 60.02 L2.97 58.30 L2.97 54.87 L5.94 53.16 L8.91 54.87Z'/%3E%3Cpath d='M14.85 58.30 L11.88 60.02 L8.91 58.30 L8.91 54.87 L11.88 53.16 L14.85 54.87Z'/%3E%3Cpath d='M20.79 58.30 L17.82 60.02 L14.85 58.30 L14.85 54.87 L17.82 53.16 L20.79 54.87Z'/%3E%3Cpath d='M26.73 58.30 L23.76 60.02 L20.79 58.30 L20.79 54.87 L23.76 53.16 L26.73 54.87Z'/%3E%3Cpath d='M32.67 58.30 L29.70 60.02 L26.73 58.30 L26.73 54.87 L29.70 53.16 L32.67 54.87Z'/%3E%3Cpath d='M38.61 58.30 L35.64 60.02 L32.67 58.30 L32.67 54.87 L35.64 53.16 L38.61 54.87Z'/%3E%3Cpath d='M44.55 58.30 L41.58 60.02 L38.61 58.30 L38.61 54.87 L41.58 53.16 L44.55 54.87Z'/%3E%3Cpath d='M50.49 58.30 L47.52 60.02 L44.55 58.30 L44.55 54.87 L47.52 53.16 L50.49 54.87Z' fill='%2306173f' fill-opacity='0.14'/%3E%3Cpath d='M56.43 58.30 L53.46 60.02 L50.49 58.30 L50.49 54.87 L53.46 53.16 L56.43 54.87Z'/%3E%3Cpath d='M62.37 58.30 L59.40 60.02 L56.43 58.30 L56.43 54.87 L59.40 53.16 L62.37 54.87Z'/%3E%3Cpath d='M0.00 63.45 L-2.97 65.16 L-5.94 63.45 L-5.94 60.02 L-2.97 58.30 L-0.00 60.02Z'/%3E%3Cpath d='M5.94 63.45 L2.97 65.16 L-0.00 63.45 L0.00 60.02 L2.97 58.30 L5.94 60.02Z'/%3E%3Cpath d='M11.88 63.45 L8.91 65.16 L5.94 63.45 L5.94 60.02 L8.91 58.30 L11.88 60.02Z'/%3E%3Cpath d='M17.82 63.45 L14.85 65.16 L11.88 63.45 L11.88 60.02 L14.85 58.30 L17.82 60.02Z'/%3E%3Cpath d='M23.76 63.45 L20.79 65.16 L17.82 63.45 L17.82 60.02 L20.79 58.30 L23.76 60.02Z'/%3E%3Cpath d='M29.70 63.45 L26.73 65.16 L23.76 63.45 L23.76 60.02 L26.73 58.30 L29.70 60.02Z'/%3E%3Cpath d='M35.64 63.45 L32.67 65.16 L29.70 63.45 L29.70 60.02 L32.67 58.30 L35.64 60.02Z'/%3E%3Cpath d='M41.58 63.45 L38.61 65.16 L35.64 63.45 L35.64 60.02 L38.61 58.30 L41.58 60.02Z'/%3E%3Cpath d='M47.52 63.45 L44.55 65.16 L41.58 63.45 L41.58 60.02 L44.55 58.30 L47.52 60.02Z'/%3E%3Cpath d='M53.46 63.45 L50.49 65.16 L47.52 63.45 L47.52 60.02 L50.49 58.30 L53.46 60.02Z'/%3E%3Cpath d='M59.40 63.45 L56.43 65.16 L53.46 63.45 L53.46 60.02 L56.43 58.30 L59.40 60.02Z'/%3E%3Cpath d='M65.34 63.45 L62.37 65.16 L59.40 63.45 L59.40 60.02 L62.37 58.30 L65.34 60.02Z'/%3E%3Cpath d='M-2.97 68.59 L-5.94 70.30 L-8.91 68.59 L-8.91 65.16 L-5.94 63.45 L-2.97 65.16Z'/%3E%3Cpath d='M2.97 68.59 L0.00 70.30 L-2.97 68.59 L-2.97 65.16 L-0.00 63.45 L2.97 65.16Z'/%3E%3Cpath d='M8.91 68.59 L5.94 70.30 L2.97 68.59 L2.97 65.16 L5.94 63.45 L8.91 65.16Z'/%3E%3Cpath d='M14.85 68.59 L11.88 70.30 L8.91 68.59 L8.91 65.16 L11.88 63.45 L14.85 65.16Z'/%3E%3Cpath d='M20.79 68.59 L17.82 70.30 L14.85 68.59 L14.85 65.16 L17.82 63.45 L20.79 65.16Z'/%3E%3Cpath d='M26.73 68.59 L23.76 70.30 L20.79 68.59 L20.79 65.16 L23.76 63.45 L26.73 65.16Z' fill='%2306173f' fill-opacity='0.23'/%3E%3Cpath d='M32.67 68.59 L29.70 70.30 L26.73 68.59 L26.73 65.16 L29.70 63.45 L32.67 65.16Z'/%3E%3Cpath d='M38.61 68.59 L35.64 70.30 L32.67 68.59 L32.67 65.16 L35.64 63.45 L38.61 65.16Z'/%3E%3Cpath d='M44.55 68.59 L41.58 70.30 L38.61 68.59 L38.61 65.16 L41.58 63.45 L44.55 65.16Z'/%3E%3Cpath d='M50.49 68.59 L47.52 70.30 L44.55 68.59 L44.55 65.16 L47.52 63.45 L50.49 65.16Z'/%3E%3Cpath d='M56.43 68.59 L53.46 70.30 L50.49 68.59 L50.49 65.16 L53.46 63.45 L56.43 65.16Z'/%3E%3Cpath d='M62.37 68.59 L59.40 70.30 L56.43 68.59 L56.43 65.16 L59.40 63.45 L62.37 65.16Z'/%3E%3Cpath d='M0.00 73.73 L-2.97 75.45 L-5.94 73.73 L-5.94 70.30 L-2.97 68.59 L-0.00 70.30Z'/%3E%3Cpath d='M5.94 73.73 L2.97 75.45 L-0.00 73.73 L0.00 70.30 L2.97 68.59 L5.94 70.30Z'/%3E%3Cpath d='M11.88 73.73 L8.91 75.45 L5.94 73.73 L5.94 70.30 L8.91 68.59 L11.88 70.30Z'/%3E%3Cpath d='M17.82 73.73 L14.85 75.45 L11.88 73.73 L11.88 70.30 L14.85 68.59 L17.82 70.30Z'/%3E%3Cpath d='M23.76 73.73 L20.79 75.45 L17.82 73.73 L17.82 70.30 L20.79 68.59 L23.76 70.30Z'/%3E%3Cpath d='M29.70 73.73 L26.73 75.45 L23.76 73.73 L23.76 70.30 L26.73 68.59 L29.70 70.30Z'/%3E%3Cpath d='M35.64 73.73 L32.67 75.45 L29.70 73.73 L29.70 70.30 L32.67 68.59 L35.64 70.30Z'/%3E%3Cpath d='M41.58 73.73 L38.61 75.45 L35.64 73.73 L35.64 70.30 L38.61 68.59 L41.58 70.30Z'/%3E%3Cpath d='M47.52 73.73 L44.55 75.45 L41.58 73.73 L41.58 70.30 L44.55 68.59 L47.52 70.30Z' fill='%2306173f' fill-opacity='0.16'/%3E%3Cpath d='M53.46 73.73 L50.49 75.45 L47.52 73.73 L47.52 70.30 L50.49 68.59 L53.46 70.30Z'/%3E%3Cpath d='M59.40 73.73 L56.43 75.45 L53.46 73.73 L53.46 70.30 L56.43 68.59 L59.40 70.30Z'/%3E%3Cpath d='M65.34 73.73 L62.37 75.45 L59.40 73.73 L59.40 70.30 L62.37 68.59 L65.34 70.30Z'/%3E%3Cpath d='M-2.97 78.88 L-5.94 80.59 L-8.91 78.88 L-8.91 75.45 L-5.94 73.73 L-2.97 75.45Z'/%3E%3Cpath d='M2.97 78.88 L0.00 80.59 L-2.97 78.88 L-2.97 75.45 L-0.00 73.73 L2.97 75.45Z'/%3E%3Cpath d='M8.91 78.88 L5.94 80.59 L2.97 78.88 L2.97 75.45 L5.94 73.73 L8.91 75.45Z'/%3E%3Cpath d='M14.85 78.88 L11.88 80.59 L8.91 78.88 L8.91 75.45 L11.88 73.73 L14.85 75.45Z'/%3E%3Cpath d='M20.79 78.88 L17.82 80.59 L14.85 78.88 L14.85 75.45 L17.82 73.73 L20.79 75.45Z'/%3E%3Cpath d='M26.73 78.88 L23.76 80.59 L20.79 78.88 L20.79 75.45 L23.76 73.73 L26.73 75.45Z' fill='%2306173f' fill-opacity='0.14'/%3E%3Cpath d='M32.67 78.88 L29.70 80.59 L26.73 78.88 L26.73 75.45 L29.70 73.73 L32.67 75.45Z'/%3E%3Cpath d='M38.61 78.88 L35.64 80.59 L32.67 78.88 L32.67 75.45 L35.64 73.73 L38.61 75.45Z'/%3E%3Cpath d='M44.55 78.88 L41.58 80.59 L38.61 78.88 L38.61 75.45 L41.58 73.73 L44.55 75.45Z'/%3E%3Cpath d='M50.49 78.88 L47.52 80.59 L44.55 78.88 L44.55 75.45 L47.52 73.73 L50.49 75.45Z'/%3E%3Cpath d='M56.43 78.88 L53.46 80.59 L50.49 78.88 L50.49 75.45 L53.46 73.73 L56.43 75.45Z'/%3E%3Cpath d='M62.37 78.88 L59.40 80.59 L56.43 78.88 L56.43 75.45 L59.40 73.73 L62.37 75.45Z'/%3E%3Cpath d='M0.00 84.02 L-2.97 85.74 L-5.94 84.02 L-5.94 80.59 L-2.97 78.88 L-0.00 80.59Z'/%3E%3Cpath d='M5.94 84.02 L2.97 85.74 L-0.00 84.02 L0.00 80.59 L2.97 78.88 L5.94 80.59Z'/%3E%3Cpath d='M11.88 84.02 L8.91 85.74 L5.94 84.02 L5.94 80.59 L8.91 78.88 L11.88 80.59Z'/%3E%3Cpath d='M17.82 84.02 L14.85 85.74 L11.88 84.02 L11.88 80.59 L14.85 78.88 L17.82 80.59Z'/%3E%3Cpath d='M23.76 84.02 L20.79 85.74 L17.82 84.02 L17.82 80.59 L20.79 78.88 L23.76 80.59Z'/%3E%3Cpath d='M29.70 84.02 L26.73 85.74 L23.76 84.02 L23.76 80.59 L26.73 78.88 L29.70 80.59Z'/%3E%3Cpath d='M35.64 84.02 L32.67 85.74 L29.70 84.02 L29.70 80.59 L32.67 78.88 L35.64 80.59Z'/%3E%3Cpath d='M41.58 84.02 L38.61 85.74 L35.64 84.02 L35.64 80.59 L38.61 78.88 L41.58 80.59Z'/%3E%3Cpath d='M47.52 84.02 L44.55 85.74 L41.58 84.02 L41.58 80.59 L44.55 78.88 L47.52 80.59Z' fill='%2306173f' fill-opacity='0.26'/%3E%3Cpath d='M53.46 84.02 L50.49 85.74 L47.52 84.02 L47.52 80.59 L50.49 78.88 L53.46 80.59Z'/%3E%3Cpath d='M59.40 84.02 L56.43 85.74 L53.46 84.02 L53.46 80.59 L56.43 78.88 L59.40 80.59Z'/%3E%3Cpath d='M65.34 84.02 L62.37 85.74 L59.40 84.02 L59.40 80.59 L62.37 78.88 L65.34 80.59Z'/%3E%3Cpath d='M-2.97 89.17 L-5.94 90.88 L-8.91 89.17 L-8.91 85.74 L-5.94 84.02 L-2.97 85.74Z'/%3E%3Cpath d='M2.97 89.17 L0.00 90.88 L-2.97 89.17 L-2.97 85.74 L-0.00 84.02 L2.97 85.74Z'/%3E%3Cpath d='M8.91 89.17 L5.94 90.88 L2.97 89.17 L2.97 85.74 L5.94 84.02 L8.91 85.74Z'/%3E%3Cpath d='M14.85 89.17 L11.88 90.88 L8.91 89.17 L8.91 85.74 L11.88 84.02 L14.85 85.74Z'/%3E%3Cpath d='M20.79 89.17 L17.82 90.88 L14.85 89.17 L14.85 85.74 L17.82 84.02 L20.79 85.74Z'/%3E%3Cpath d='M26.73 89.17 L23.76 90.88 L20.79 89.17 L20.79 85.74 L23.76 84.02 L26.73 85.74Z'/%3E%3Cpath d='M32.67 89.17 L29.70 90.88 L26.73 89.17 L26.73 85.74 L29.70 84.02 L32.67 85.74Z' fill='%2306173f' fill-opacity='0.19'/%3E%3Cpath d='M38.61 89.17 L35.64 90.88 L32.67 89.17 L32.67 85.74 L35.64 84.02 L38.61 85.74Z'/%3E%3Cpath d='M44.55 89.17 L41.58 90.88 L38.61 89.17 L38.61 85.74 L41.58 84.02 L44.55 85.74Z' fill='%2306173f' fill-opacity='0.25'/%3E%3Cpath d='M50.49 89.17 L47.52 90.88 L44.55 89.17 L44.55 85.74 L47.52 84.02 L50.49 85.74Z'/%3E%3Cpath d='M56.43 89.17 L53.46 90.88 L50.49 89.17 L50.49 85.74 L53.46 84.02 L56.43 85.74Z'/%3E%3Cpath d='M62.37 89.17 L59.40 90.88 L56.43 89.17 L56.43 85.74 L59.40 84.02 L62.37 85.74Z'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 100% 100%;
@@ -433,7 +433,7 @@
 
 /* The frame of the text and Pendulum boxes, as on real cards: a braided
    golden bronze, or grey stone on Pendulum monsters. */
-.mq-card__face {
+:is(.mq-card__face, .mq-card-panel) {
   --rim-mid: #b95e26;
   /* braid shades, precomputed: Firefox drops a border-image with color-mix */
   /* corner square: a raised rim with a smaller square indented in it */
@@ -442,7 +442,7 @@
   --rim-lo: #a1511c;
   --rim-hi2: #c67731;
 }
-.mq-card__face[data-pendulum] {
+:is(.mq-card__face, .mq-card-panel)[data-pendulum] {
   --rim-mid: #4f5f6f;
   --rim-sq: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect width='10' height='10' fill='%2355606c'/%3E%3Cpath d='M0 0H10L9 1H1V9L0 10Z' fill='%237e8f9c'/%3E%3Cpath d='M10 10H0L1 9H9V1L10 0Z' fill='%232b343d'/%3E%3Crect x='2.6' y='2.6' width='4.8' height='4.8' fill='%234a545f'/%3E%3Cpath d='M2.6 2.6H7.4L6.7 3.3H3.3V6.7L2.6 7.4Z' fill='%232b343d'/%3E%3Cpath d='M7.4 7.4H2.6L3.3 6.7H6.7V3.3L7.4 2.6Z' fill='%237e8f9c'/%3E%3C/svg%3E");
   --rim-hi: #5f707f;
@@ -487,14 +487,14 @@
 .mq-card__face[data-frame="normal"] .mq-card__body { font-style: italic; }
 /* Xyz: a plain grey text box (no old paper) that lets the streaks and
    stars behind it show through */
-.mq-card__face[data-frame="xyz"] {
+:is(.mq-card__face, .mq-card-panel)[data-frame="xyz"] {
   --box-paper: none;
   --box-base: color-mix(in oklab, var(--box) 60%, transparent);
 }
 /* Pendulum monsters (Xyz Pendulums too): the lower half of the card is a
    Spell's, so the text box is a Spell's: solid whitish green on old paper.
    `initial` drops the Xyz overrides above, back to the defaults. */
-.mq-card__face[data-pendulum] {
+:is(.mq-card__face, .mq-card-panel)[data-pendulum] {
   --box: var(--spell-box);
   --box-paper: initial;
   --box-base: initial;
@@ -566,37 +566,114 @@
   -webkit-text-stroke: 0.03em currentColor;
 }
 
-/* A card's texts in a readable panel, tinted like its text box. */
-/* .mq-card-panel takes its colours from the palette above. */
+/* A card's texts in a readable panel, dressed like the large card: the
+   frame colour with the same old paper (or Xyz sky, Link grid), a slate rim,
+   a bevelled name bar and a text box in a worn braid. Colours, paper and
+   braid come from the shared custom properties above. The panel is not a
+   container, so --u (one "cqw" of a card, scaled to the panel's 36rem
+   width) stands in for it. */
+.mq-card-panel {
+  --u: 0.32rem;
+  --name-color: #1c1917;
+  --frame-paper: var(--paper);
+  --frame-gloss: linear-gradient(155deg, rgb(255 255 255 / 0.12), transparent 38%, rgb(0 0 0 / 0.08));
+  --frame-sky: none;
+  --pendulum-split: 40%;
+  position: relative;
+  padding: calc(var(--u) * 5.2);
+  border-radius: calc(var(--u) * 1.6);
+  background: var(--frame-sky), var(--frame-paper), var(--frame-gloss), var(--frame);
+  box-shadow: 0 0.2rem 0.8rem rgb(0 0 0 / 0.35);
+  color: #1c1917;
+}
+.mq-card-panel[data-pendulum] {
+  background:
+    var(--frame-sky),
+    var(--frame-paper),
+    var(--frame-gloss),
+    linear-gradient(
+      in oklab to bottom,
+      var(--frame) 0 calc(var(--pendulum-split) - 12%),
+      var(--spell) calc(var(--pendulum-split) + 4%) 100%
+    );
+}
+/* the slate outer border, as on the card */
+.mq-card-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 calc(var(--u) * 0.55) #5d647e,
+    inset 0 0 0 calc(var(--u) * 1.1) #535971,
+    inset 0 0 0 calc(var(--u) * 1.65) #4a4f65,
+    inset 0 0 0 calc(var(--u) * 2.2) #3e4055,
+    inset 0 0 0 calc(var(--u) * 2.75) #2f3245,
+    inset 0 0 0 calc(var(--u) * 3.1) #1a2134,
+    inset 0 0 0 calc(var(--u) * 3.4) #0d0e12;
+}
 .mq-card-panel__name {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin-bottom: calc(var(--u) * 2);
   /* room for the close button in the corner */
-  padding: 0.6rem 2rem 0.6rem 0.9rem;
-  border: 3px solid #1c1917;
-  border-bottom: 0;
-  border-radius: 0.6rem 0.6rem 0 0;
-  background: var(--frame);
-  color: #1c1917;
+  padding: 0.35rem 2rem 0.35rem 0.8rem;
+  /* the name bar's bevel, as on the card: light top and left, dark bottom and right */
+  border: calc(var(--u) * 1.2) solid;
+  border-color:
+    color-mix(in oklab, var(--frame) 55%, #fff)
+    color-mix(in oklab, var(--frame) 70%, #000)
+    color-mix(in oklab, var(--frame) 60%, #000)
+    color-mix(in oklab, var(--frame) 65%, #fff);
+  color: var(--name-color);
   font-family: "Cinzel", ui-serif, Georgia, serif;
   font-size: 1.35rem;
   font-weight: 700;
 }
 .mq-card-panel:is([data-frame="xyz"], [data-frame="link"], [data-frame="spell"], [data-frame="trap"]) .mq-card-panel__name {
-  color: #fafaf9;
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
 }
 .mq-card-panel__name h2 { flex: 1; min-width: 0; }
+/* the text box: braided frame, paper and corner squares as on the card; the
+   body inside scrolls, so the squares sit on this wrapper */
+.mq-card-panel__box {
+  position: relative;
+  border: calc(var(--u) * 0.7) solid var(--rim-mid);
+  border-image: repeating-linear-gradient(
+      135deg,
+      var(--rim-mid) 0,
+      var(--rim-hi) calc(var(--u) * 0.18),
+      var(--rim-mid) calc(var(--u) * 0.36),
+      var(--rim-lo) calc(var(--u) * 0.52),
+      var(--rim-mid) calc(var(--u) * 0.66),
+      var(--rim-hi2) calc(var(--u) * 0.8),
+      var(--rim-mid) calc(var(--u) * 0.95)
+    ) 1;
+  box-shadow: inset 0 0 0 calc(var(--u) * 0.25) rgb(30 15 5 / 0.35);
+  background:
+    var(--box-paper, var(--paper-soft)),
+    var(--box-base, var(--box));
+}
+.mq-card-panel__box::before {
+  --sq: var(--rim-sq);
+  content: "";
+  position: absolute;
+  inset: calc(var(--u) * -1.07);
+  background:
+    var(--sq) left top / calc(var(--u) * 2) calc(var(--u) * 2) no-repeat,
+    var(--sq) right top / calc(var(--u) * 2) calc(var(--u) * 2) no-repeat,
+    var(--sq) left bottom / calc(var(--u) * 2) calc(var(--u) * 2) no-repeat,
+    var(--sq) right bottom / calc(var(--u) * 2) calc(var(--u) * 2) no-repeat;
+  pointer-events: none;
+}
 .mq-card-panel__body {
   display: grid;
   gap: 0.6rem;
   max-height: 70vh;
   overflow-y: auto;
   padding: 1rem 1.1rem;
-  border: 3px solid #1c1917;
-  border-radius: 0 0 0.6rem 0.6rem;
-  background: var(--box);
   color: #1c1917;
   /* the card's book serif; Crimson Pro runs small, so a size up from 1rem */
   font-family: "Crimson Pro", ui-serif, Georgia, serif;
@@ -611,7 +688,7 @@
   padding: 0.6rem 0.8rem;
   border: 2px solid color-mix(in oklab, var(--spell) 55%, #1c1917);
   border-radius: 0.4rem;
-  background: var(--spell-box);
+  background: var(--paper-soft), var(--spell-box);
 }
 .mq-card-panel__pendulum p { white-space: pre-line; }
 .mq-card-panel__pendulum h3 {

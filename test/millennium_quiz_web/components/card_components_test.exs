@@ -218,6 +218,12 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
 
     assert count(doc, "#text [phx-click=close]") == 2
     assert count(doc, "#text .mq-card-panel[data-frame=effect]") == 1
+
+    assert count(
+             doc,
+             "#text .mq-card-panel[data-pendulum] .mq-card-panel__box > .mq-card-panel__body"
+           ) == 1
+
     assert text(doc, "#text-title") == "Odd-Eyes Pendulum Dragon"
     assert text(doc, ".mq-card-panel__pendulum") =~ ~r/Scale 4\s+Reduce damage to 0\./
     # the scale between its blue and red crystal
