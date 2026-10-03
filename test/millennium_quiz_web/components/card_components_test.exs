@@ -53,7 +53,7 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(doc, ".mq-card__stars .mq-card__star") == 7
     assert count(doc, ".mq-card__stars--rank") == 0
     assert count(doc, ".mq-card__art img[src='/cards/12/artwork']") == 1
-    assert text(doc, ".mq-card__type") == "[Spellcaster / Normal]"
+    assert text(doc, ".mq-card__type") == "[Spellcaster/Normal]"
     assert text(doc, ".mq-card__body") == "The ultimate wizard."
     assert text(doc, ".mq-card__stats") =~ ~r/ATK\/2500\s+DEF\/2100/
   end
@@ -75,7 +75,9 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(doc, ".mq-card__stars--rank .mq-card__star") == 4
     assert count(doc, ".mq-card__scale") == 2
     assert text(doc, ".mq-card__scale--left") == "3"
-    assert text(doc, ".mq-card__pendulum-text") == "Once per turn: draw 1 card."
+    # no line break before the text: the paragraph keeps line breaks
+    assert doc |> LazyHTML.query(".mq-card__pendulum-text") |> LazyHTML.text() ==
+             "Once per turn: draw 1 card."
   end
 
   test "a Link monster shows its arrows and rating instead of stars and DEF" do
@@ -218,10 +220,10 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert count(doc, "#text .mq-card-panel[data-frame=effect]") == 1
     assert text(doc, "#text-title") == "Odd-Eyes Pendulum Dragon"
     assert text(doc, ".mq-card-panel__pendulum") =~ ~r/Scale 4\s+Reduce damage to 0\./
-    # the scale between its blue and red marker
+    # the scale between its blue and red crystal
     assert count(doc, ".mq-card-panel__scale > svg") == 2
-    assert count(doc, ".mq-card-panel__scale > svg:first-child path[fill='#2563eb']") == 1
-    assert count(doc, ".mq-card-panel__scale > svg:last-child path[fill='#dc2626']") == 1
+    assert count(doc, ".mq-card-panel__scale > svg:first-child polygon[fill='#3d84f0']") == 1
+    assert count(doc, ".mq-card-panel__scale > svg:last-child polygon[fill='#e8364c']") == 1
     assert html =~ "[Dragon / Pendulum / Effect]"
     assert html =~ "Double damage."
     assert text(doc, ".mq-card-panel__stats") =~ ~r/ATK\/2500\s+DEF\/2000/
@@ -329,6 +331,45 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
       |> Enum.map(&(Regex.run(~r/rotate\((\d+) /, &1) |> List.last()))
 
     assert turns == ["225", "0", "135"]
+  end
+
+  test "icons drawn twice on a page get their own gradient ids" do
+    ids = fn html ->
+      ~r/ id="([^"]+)"/ |> Regex.scan(html, capture: :all_but_first) |> List.flatten()
+    end
+
+    attr = fn -> render_component(&attribute_icon/1, attribute: "DARK") end
+    star = fn -> render_component(&level_star/1, rank: false) end
+
+    all = ids.(attr.()) ++ ids.(attr.()) ++ ids.(star.()) ++ ids.(star.())
+    assert all != []
+    assert length(all) == length(Enum.uniq(all))
+  end
+
+  test "long names are squeezed horizontally instead of shrunk" do
+    squeeze = fn name ->
+      render_card(%{name: name})
+      |> LazyHTML.query(".mq-card__title > span")
+      |> LazyHTML.attribute("style")
+      |> hd()
+    end
+
+    assert squeeze.("Dark Magician") == "--squeeze: 1"
+    # capitals count wider than small caps, spaces narrower
+    assert squeeze.("Mystical Space Typhoon") == "--squeeze: 0.647"
+    assert squeeze.("Odd-Eyes Pendulum Dragon") == "--squeeze: 0.6"
+    # never narrower than half width
+    assert squeeze.(String.duplicate("Long name ", 8)) == "--squeeze: 0.5"
+  end
+
+  test "ATK and DEF values sit in fixed fields after their labels" do
+    doc = render_card(%{name: "X", atk: "0", def: "?"})
+
+    assert doc |> LazyHTML.query(".mq-stat__value") |> Enum.map(&LazyHTML.text/1) == ["0", "?"]
+    assert text(doc, ".mq-card__stats") =~ ~r/ATK\/0\s+DEF\/\?/
+
+    link = render_card(%{name: "X", frame_type: "link", atk: "2300", link_arrows: ["⬆", "⬇"]})
+    assert text(link, ".mq-stat--link") == "LINK-2"
   end
 
   test "a card from an old snapshot gets a plain frame and no artwork" do
