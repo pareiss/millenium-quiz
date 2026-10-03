@@ -795,7 +795,8 @@ defmodule MillenniumQuizWeb.CardComponents do
 
   # Real cards squeeze long names horizontally instead of cutting them. The
   # name's width is estimated in small-cap widths (capitals and digits are
-  # wider, spaces and punctuation narrower); about 14 fit the name bar at
+  # wider, spaces and punctuation narrower, CJK characters twice as wide);
+  # about 14 fit the name bar at
   # full width. Longer names are narrowed in proportion, down to half width
   # (beyond that they are cut with "…").
   defp squeeze(name) do
@@ -805,11 +806,19 @@ defmodule MillenniumQuizWeb.CardComponents do
       |> Enum.map(fn
         c when c in [" ", "'", ".", ",", ":", "!", "-"] -> 0.45
         "/" -> 0.6
-        c -> if c =~ ~r/^[A-Z0-9]$/, do: 1.25, else: 1.0
+        c -> char_width(c)
       end)
       |> Enum.sum()
 
     if width <= 14, do: 1, else: max(0.5, Float.round(14 / width, 3))
+  end
+
+  defp char_width(c) do
+    cond do
+      c =~ ~r/^[\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}]/u -> 2.0
+      c =~ ~r/^[\p{Lu}0-9]/u -> 1.25
+      true -> 1.0
+    end
   end
 
   # "effect_pendulum" -> "effect"; old snapshots fall back on the card kind.

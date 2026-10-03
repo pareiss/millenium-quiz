@@ -365,6 +365,11 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert squeeze.("Odd-Eyes Pendulum Dragon") == "--squeeze: 0.6"
     # never narrower than half width
     assert squeeze.(String.duplicate("Long name ", 8)) == "--squeeze: 0.5"
+
+    # Accented capitals count as wide like ASCII ones, CJK characters wider still.
+    assert squeeze.("ÉÉÉÉÉÉÉÉÉÉÉÉ") == squeeze.("EEEEEEEEEEEE")
+    assert squeeze.("ブラック・マジシャン・ガール") == "--squeeze: 0.56"
+    assert squeeze.("青眼の白龍") == "--squeeze: 1"
   end
 
   test "ATK and DEF values sit in fixed fields after their labels" do
