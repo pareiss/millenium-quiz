@@ -1,0 +1,142 @@
+defmodule MillenniumQuizWeb.CardComponentsTest do
+  use ExUnit.Case, async: true
+
+  import Phoenix.LiveViewTest
+  import MillenniumQuizWeb.CardComponents
+
+  @blank %{
+    id: nil,
+    name: nil,
+    text: "",
+    set: nil,
+    kind: nil,
+    property: nil,
+    frame_type: nil,
+    monster_type_line: nil,
+    attribute: nil,
+    level: nil,
+    rank: nil,
+    link_arrows: [],
+    atk: nil,
+    def: nil,
+    pendulum_scale: nil,
+    pendulum_text: nil
+  }
+
+  defp render_card(attrs, size \\ "small") do
+    card = Map.merge(@blank, attrs)
+    render_component(&card/1, card: card, size: size) |> LazyHTML.from_fragment()
+  end
+
+  defp count(doc, selector), do: doc |> LazyHTML.query(selector) |> Enum.count()
+
+  defp text(doc, selector),
+    do: doc |> LazyHTML.query(selector) |> LazyHTML.text() |> String.trim()
+
+  test "a monster has its frame, Attribute, Level stars, artwork, type line and stats" do
+    doc =
+      render_card(%{
+        id: 12,
+        name: "Dark Magician",
+        text: "The ultimate wizard.",
+        kind: "Monster",
+        frame_type: "normal",
+        monster_type_line: "Spellcaster / Normal",
+        attribute: "DARK",
+        level: 7,
+        atk: "2500",
+        def: "2100"
+      })
+
+    assert count(doc, ".mq-card__face[data-frame=normal]") == 1
+    assert count(doc, ".mq-card__attr[aria-label=DARK]") == 1
+    assert count(doc, ".mq-card__stars .mq-card__star") == 7
+    assert count(doc, ".mq-card__stars--rank") == 0
+    assert count(doc, ".mq-card__art img[src='/cards/12/artwork']") == 1
+    assert text(doc, ".mq-card__type") == "[Spellcaster / Normal]"
+    assert text(doc, ".mq-card__body") == "The ultimate wizard."
+    assert text(doc, ".mq-card__stats") =~ ~r/ATK\/2500\s+DEF\/2100/
+  end
+
+  test "an Xyz Pendulum has Rank stars, two scales and its Pendulum Effect" do
+    doc =
+      render_card(%{
+        name: "Plain Card",
+        frame_type: "xyz_pendulum",
+        kind: "Monster",
+        rank: 4,
+        pendulum_scale: 3,
+        pendulum_text: "Once per turn: draw 1 card.",
+        atk: "2000",
+        def: "?"
+      })
+
+    assert count(doc, ".mq-card__face[data-frame=xyz][data-pendulum]") == 1
+    assert count(doc, ".mq-card__stars--rank .mq-card__star") == 4
+    assert count(doc, ".mq-card__scale") == 2
+    assert text(doc, ".mq-card__scale--left") == "3"
+    assert text(doc, ".mq-card__pendulum-text") == "Once per turn: draw 1 card."
+  end
+
+  test "a Link monster shows its arrows and rating instead of stars and DEF" do
+    doc =
+      render_card(%{
+        name: "Decode Talker",
+        frame_type: "link",
+        kind: "Monster",
+        # YAML Yugi's arrows, one with an emoji variation selector
+        link_arrows: ["↙", "⬆️", "↘"],
+        atk: "2300"
+      })
+
+    assert count(doc, ".mq-card__stars") == 0
+    assert count(doc, ".mq-card__arrow") == 8
+    assert count(doc, ".mq-card__arrow.is-active") == 3
+    assert count(doc, ".mq-card__arrow--top.is-active") == 1
+    assert text(doc, ".mq-card__stats") =~ ~r/ATK\/2300\s+LINK-3/
+    refute text(doc, ".mq-card__stats") =~ "DEF"
+  end
+
+  test "a Spell shows its kind and property icon, and no stats" do
+    doc =
+      render_card(%{
+        name: "Mystical Space Typhoon",
+        kind: "Spell",
+        property: "Quick-Play",
+        frame_type: "spell"
+      })
+
+    assert count(doc, ".mq-card__face[data-frame=spell]") == 1
+    assert count(doc, ".mq-card__attr[aria-label=Spell]") == 1
+    assert text(doc, ".mq-card__line") =~ "Spell Card"
+    assert count(doc, ".mq-card__property[aria-label=Quick-Play]") == 1
+    assert count(doc, ".mq-card__stats, .mq-card__stars, .mq-card__type") == 0
+
+    normal = render_card(%{name: "Raigeki", kind: "Trap", property: "Normal", frame_type: "trap"})
+    assert count(normal, ".mq-card__property") == 0
+    assert count(normal, ".mq-card__attr[aria-label=Trap]") == 1
+  end
+
+  test "a card from an old snapshot gets a plain frame and no artwork" do
+    doc = render_card(%{name: "Monster Reborn", text: "Revive."})
+
+    assert count(doc, ".mq-card__face[data-frame=unknown]") == 1
+    assert count(doc, "img") == 0
+    assert text(doc, ".mq-card__body") == "Revive."
+  end
+
+  test "the dialog closes on Esc, the backdrop and its close button" do
+    card = Map.merge(@blank, %{name: "Monster Reborn", text: "Revive.", set: "Starter Deck"})
+
+    html =
+      render_component(&card_dialog/1, id: "zoom", card: card, on_close: "close", inner_block: [])
+
+    doc = LazyHTML.from_fragment(html)
+
+    assert count(doc, "#zoom[role=dialog][aria-modal=true][aria-label='Monster Reborn']") == 1
+    assert count(doc, "#zoom[phx-window-keydown=close][phx-key=escape]") == 1
+    assert count(doc, "#zoom [phx-click=close]") == 2
+    assert count(doc, "#zoom .mq-card--large") == 1
+    assert html =~ "As printed in Starter Deck"
+  end
+end

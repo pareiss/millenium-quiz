@@ -6,6 +6,8 @@ defmodule MillenniumQuizWeb.GameLive do
   """
   use MillenniumQuizWeb, :live_view
 
+  import MillenniumQuizWeb.CardComponents
+
   alias MillenniumQuiz.{Game, Games, GameNotifier}
 
   @impl true
@@ -39,6 +41,11 @@ defmodule MillenniumQuizWeb.GameLive do
             <.reveal_panel game={@game} />
         <% end %>
 
+        <.zoomed_card
+          :if={@zoom && @status == :active && @game.phase in [:answering, :revealed]}
+          game={@game}
+          zoom={@zoom}
+        />
         <.end_game_modal :if={@confirm_end and @status == :active and @game.phase != :finished} />
       </div>
 
@@ -343,21 +350,46 @@ defmodule MillenniumQuizWeb.GameLive do
 
   attr :cards, :list, required: true
 
-  # The cards a question is about, with their text as of the format's date.
+  # The cards a question is about, drawn with their text as of the format's
+  # date. A tap enlarges a card.
   defp question_cards(assigns) do
     ~H"""
-    <div :if={@cards != []} class="grid gap-3 sm:grid-cols-2" id="question-cards">
+    <div :if={@cards != []} class="flex flex-wrap gap-3" id="question-cards">
       <article
         :for={{card, i} <- Enum.with_index(@cards)}
         id={"question-card-#{i}"}
-        class="rounded-field border border-amber-700/30 bg-amber-50 p-4 text-stone-900 shadow-sm dark:bg-stone-900 dark:text-stone-100 dark:border-amber-500/30"
+        class="w-36 sm:w-44"
       >
-        <h3 class="font-semibold">{card.name}</h3>
-        <p class="mt-1 text-sm leading-relaxed whitespace-pre-line">{card.text}</p>
-        <p :if={card.set} class="mt-2 text-xs opacity-60">As printed in {card.set}</p>
+        <div class="group relative transition hover:-translate-y-1 hover:drop-shadow-lg">
+          <.card card={card} />
+          <%!-- Over the card, so the card's text stays readable for screen readers --%>
+          <button
+            type="button"
+            phx-click="zoom_card"
+            phx-value-card={i}
+            id={"zoom-card-#{i}"}
+            class="absolute inset-0 cursor-zoom-in rounded-[0.4rem] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-label={"Enlarge #{card.name}"}
+          />
+        </div>
+        <p :if={card.set} class="mt-1.5 text-xs text-base-content/60">As printed in {card.set}</p>
       </article>
     </div>
     <.card_credit :if={@cards != []} />
+    """
+  end
+
+  attr :game, Game, required: true
+  attr :zoom, :integer, required: true
+
+  defp zoomed_card(assigns) do
+    question = Game.current_question(assigns.game)
+    assigns = assign(assigns, :card, question && Enum.at(question.cards, assigns.zoom))
+
+    ~H"""
+    <.card_dialog :if={@card} id="card-zoom" card={@card} on_close="close_card">
+      <p class="text-xs text-white/70 text-center">Tap outside the card or press Esc to close.</p>
+    </.card_dialog>
     """
   end
 
@@ -624,6 +656,15 @@ defmodule MillenniumQuizWeb.GameLive do
 
   def handle_event("next_round", _params, socket), do: run(socket, &Games.next_round/1)
 
+  def handle_event("zoom_card", %{"card" => index}, socket) do
+    case Integer.parse(index) do
+      {index, ""} when index >= 0 -> {:noreply, assign(socket, :zoom, index)}
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_card", _params, socket), do: {:noreply, assign(socket, :zoom, nil)}
+
   def handle_event("confirm_end", _params, socket),
     do: {:noreply, assign(socket, :confirm_end, true)}
 
@@ -670,8 +711,11 @@ defmodule MillenniumQuizWeb.GameLive do
     end
   end
 
+  # Any change to the game closes an enlarged card: it belongs to a moment
+  # (the next player shouldn't find it open).
   defp assign_view(socket, view) do
     socket
+    |> assign(:zoom, nil)
     |> assign(:status, view.status)
     |> assign(:game, view.game)
     |> assign(:page_title, "#{view.game.format_name} · Q#{view.game.round}")

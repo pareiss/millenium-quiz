@@ -159,6 +159,28 @@ defmodule MillenniumQuizWeb.GameLiveTest do
            )
 
     assert has_element?(view, "#question-card-0", "As printed in Starter Deck: Yugi Evolution")
+    assert has_element?(view, "#question-card-0 img[src='/cards/#{reborn.id}/artwork']")
+    assert has_element?(view, "#question-card-0 .mq-card__face[data-frame=spell]")
+    assert has_element?(view, "#question-card-0 .mq-card__line", "Spell Card")
+
+    # a tap enlarges the card; Esc and the backdrop close it again
+    view |> element("#zoom-card-0") |> render_click()
+    assert has_element?(view, "#card-zoom .mq-card--large", "Monster Reborn")
+    view |> element("#card-zoom") |> render_keydown(%{"key" => "Escape"})
+    refute has_element?(view, "#card-zoom")
+
+    view |> element("#zoom-card-0") |> render_click()
+    view |> element("#card-zoom > div[phx-click=close_card]") |> render_click()
+    refute has_element?(view, "#card-zoom")
+
+    # it is closed by the next answer, and comes back on the reveal
+    view |> element("#zoom-card-0") |> render_click()
+    view |> element("#choice-0") |> render_click()
+    refute has_element?(view, "#card-zoom")
+    view |> element("#choice-0") |> render_click()
+    assert has_element?(view, "#reveal #question-card-0")
+    view |> element("#zoom-card-0") |> render_click()
+    assert has_element?(view, "#card-zoom", "Monster Reborn")
 
     # the same card in a later format shows the current text
     later = format_fixture(%{"date" => "2020-01-01"})

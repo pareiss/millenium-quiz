@@ -47,6 +47,14 @@ frame, type line, Attribute, Level/Rank, Link Arrows, ATK/DEF, Pendulum Scale
 and Effect, materials and archetypes. It also stores the artwork (picture
 only, 624x624 JPEG), served at `/cards/<id>/artwork`, so cards can be drawn
 locally with the text of any date.
+
+Questions show their cards drawn by `MillenniumQuizWeb.CardComponents.card/1`:
+frame, Attribute, Level/Rank stars, Link Arrows, Pendulum Scales, artwork,
+type line, the text of the format's date and ATK/DEF. A tap enlarges a card.
+The frames are CSS (`.mq-card` in `app.css`) and the icons are SVGs drawn for
+this app; no Konami card templates or icons are used. Only the main text is
+dated: Pendulum Effects show their current wording. Games paused before
+cards were drawn show their cards with a plain frame and no artwork.
 `bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_cards()"` fetches
 every card again, e.g. after new errata.
 
@@ -220,6 +228,5 @@ TLS terminates at the Ingress. The app itself does not redirect to https.
 
 ## Next: Yu-Gi-Oh! features
 
-- **Drawn cards:** the card pool has everything printed on a card plus its artwork (`/cards/<id>/artwork`). A `<.card>` component could draw the frame, artwork and stats with the text of the format's date, instead of the text boxes shown now.
 - **Board states / gameplay:** the open-source engine is ygopro-core / EDOPro (Project Ignis), C++ and Lua under the AGPL. A first step is questions with a board state stored as JSON and rendered by a component. The engine itself would run as its own container next to the app.
 - `Game` is not tied to a question type. A `kind` field on questions (`:multiple_choice`, `:card_image`, `:board_state`) would only change rendering and answer checking.
