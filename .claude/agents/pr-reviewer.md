@@ -1,7 +1,7 @@
 ---
 name: pr-reviewer
 description: Independent reviewer for millennium-quiz pull requests. Reviews one PR from its diff and the code at its head commit, using only the project's written docs. Started by bin/review-pr, one process per PR.
-model: sonnet
+model: opus
 tools: Read, Grep, Glob
 ---
 
