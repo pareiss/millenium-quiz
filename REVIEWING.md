@@ -90,4 +90,12 @@ here (see "Decisions and known false positives" at the end).
 Add an entry when a review finding is rejected for a reason that will come up
 again, or when a design decision should stop being questioned.
 
-- *(none yet)*
+- **CI results name a different commit than the PR's head.** For pull
+  requests, GitHub Actions tests a temporary merge commit of the head into the
+  base branch, and `.review/tests.md` says so. The results are for the PR's
+  code; don't flag the commit mismatch.
+- **Multi-line `lore` values in Yugipedia errata tables.** `ErrataParser` reads
+  each `| loreN = …` parameter as one line; line breaks inside a card text are
+  `<br />` and are handled. A value continuing on the next source line doesn't
+  occur (0 of 300 random `Card Errata:` pages, checked 2026-10-03). Don't flag
+  it unless a real page shows it.
