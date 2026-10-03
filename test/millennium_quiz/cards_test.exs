@@ -116,6 +116,38 @@ defmodule MillenniumQuiz.CardsTest do
       assert Repo.aggregate(Card, :count) == 1
     end
 
+    test "the artwork is downloaded once: a refresh keeps it" do
+      test = self()
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        if conn.host == "images.ygoprodeck.com", do: send(test, :image_request)
+        CardSourcesStub.handle(conn)
+      end)
+
+      {:ok, card} = Cards.import(83_764_719)
+      assert_received :image_request
+      stored = Cards.get_artwork(card.id)
+
+      {:ok, _} = Cards.refresh(Cards.get_card!(card.id))
+      refute_received :image_request
+      assert Cards.get_artwork(card.id) == stored
+    end
+
+    test "a downloaded artwork that is not a plain image is not stored" do
+      Req.Test.stub(MillenniumQuiz.Cards, fn
+        %{host: "images.ygoprodeck.com"} = conn ->
+          conn
+          |> Plug.Conn.put_resp_content_type("text/html")
+          |> Plug.Conn.send_resp(200, "<script>alert(1)</script>")
+
+        conn ->
+          CardSourcesStub.handle(conn)
+      end)
+
+      assert {:ok, card} = Cards.import(83_764_719)
+      assert Cards.get_artwork(card.id) == nil
+    end
+
     test "unknown cards are an error" do
       assert {:error, :not_found} = Cards.import(12345)
     end

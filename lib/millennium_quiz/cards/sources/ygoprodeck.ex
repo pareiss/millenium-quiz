@@ -49,9 +49,14 @@ defmodule MillenniumQuiz.Cards.Sources.YGOPRODeck do
     end
   end
 
+  # Served from our own origin later, so only plain image types are accepted
+  # (no SVG, which can carry scripts).
+  @image_types ~w(image/jpeg image/png image/webp)
+
   @doc """
   Downloads the artwork of a card id (the cropped picture, 624x624 JPEG).
-  YGOPRODeck asks to download images once and host them yourself.
+  YGOPRODeck asks to download images once and host them yourself. Responses
+  that are not a plain image are rejected.
   """
   def artwork(id) do
     url = "#{@images_url}/cards_cropped/#{id}.jpg"
@@ -60,11 +65,13 @@ defmodule MillenniumQuiz.Cards.Sources.YGOPRODeck do
       {:ok, %{status: 200, body: data} = response} when byte_size(data) > 0 ->
         content_type =
           case Req.Response.get_header(response, "content-type") do
-            [type | _] -> type
+            [type | _] -> type |> String.split(";") |> hd() |> String.trim() |> String.downcase()
             [] -> "image/jpeg"
           end
 
-        {:ok, %{artwork_id: id, data: data, content_type: content_type, source_url: url}}
+        if content_type in @image_types,
+          do: {:ok, %{artwork_id: id, data: data, content_type: content_type, source_url: url}},
+          else: {:error, {:unexpected_content_type, content_type}}
 
       {:ok, %{status: 404}} ->
         {:error, :not_found}

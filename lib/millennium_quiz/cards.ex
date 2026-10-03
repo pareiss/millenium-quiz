@@ -84,12 +84,19 @@ defmodule MillenniumQuiz.Cards do
   end
 
   @doc """
-  Refreshes every card in the pool, one after the other (the sources are
-  rate limited). Returns `{refreshed, failed_card_names}`.
+  Refreshes every card in the pool, one after the other, with a short pause
+  between cards (the sources are rate limited; `:refresh_pause_ms` in the
+  `MillenniumQuiz.Cards` config, default 250). Returns
+  `{refreshed, failed_card_names}`.
   """
   def refresh_all do
+    pause = Application.get_env(:millennium_quiz, __MODULE__, [])[:refresh_pause_ms] || 250
+
     Repo.all(from c in Card, order_by: c.id)
-    |> Enum.reduce({0, []}, fn card, {ok, failed} ->
+    |> Enum.with_index()
+    |> Enum.reduce({0, []}, fn {card, index}, {ok, failed} ->
+      if index > 0, do: Process.sleep(pause)
+
       case refresh(card) do
         {:ok, _} -> {ok + 1, failed}
         {:error, _} -> {ok, failed ++ [card.name]}
@@ -99,6 +106,20 @@ defmodule MillenniumQuiz.Cards do
 
   @doc "The stored artwork of a card, or nil."
   def get_artwork(card_id), do: Repo.get_by(CardArtwork, card_id: card_id)
+
+  @doc "The stored artwork's `%{artwork_id, content_type, fetched_at}`, without the image, or nil."
+  def artwork_info(card_id) do
+    Repo.one(
+      from a in CardArtwork,
+        where: a.card_id == ^card_id,
+        select: map(a, [:artwork_id, :content_type, :fetched_at])
+    )
+  end
+
+  @doc "The stored artwork's image data, or nil."
+  def artwork_data(card_id) do
+    Repo.one(from a in CardArtwork, where: a.card_id == ^card_id, select: a.data)
+  end
 
   defp fetch_and_store(info, card) do
     with {:ok, yaml} <- YamlYugi.fetch(info.passwords),
@@ -124,32 +145,42 @@ defmodule MillenniumQuiz.Cards do
       |> Ecto.Changeset.put_assoc(:card_texts, texts)
       |> Ecto.Changeset.unique_constraint(:password)
       |> Ecto.Changeset.unique_constraint(:konami_id)
-      |> put_artwork(info, yaml.password)
       |> Repo.insert_or_update()
       |> existing_on_conflict(yaml)
       |> case do
-        {:ok, card} -> {:ok, %{card | artwork: %Ecto.Association.NotLoaded{}}}
-        error -> error
+        {:ok, card} ->
+          ensure_artwork(card, info, yaml.password)
+          {:ok, %{card | artwork: %Ecto.Association.NotLoaded{}}}
+
+        error ->
+          error
       end
     end
   end
 
-  # The artwork of the printed password; a failed download doesn't stop the
-  # import (the card can be refreshed later).
-  defp put_artwork(changeset, info, password) do
+  # The artwork of the printed password, downloaded once: only when the card
+  # has none yet or a different one, and only after the card was written. A
+  # failed download doesn't stop the import (a refresh tries again).
+  defp ensure_artwork(card, info, password) do
     artwork_id = if password in info.passwords, do: password, else: hd(info.passwords)
 
-    case YGOPRODeck.artwork(artwork_id) do
-      {:ok, artwork} ->
-        Ecto.Changeset.put_assoc(
-          changeset,
-          :artwork,
-          struct(CardArtwork, Map.put(artwork, :fetched_at, DateTime.utc_now(:second)))
-        )
+    stored =
+      Repo.one(from a in CardArtwork, where: a.card_id == ^card.id, select: a.artwork_id)
+
+    with true <- stored != artwork_id,
+         {:ok, artwork} <- YGOPRODeck.artwork(artwork_id) do
+      %CardArtwork{card_id: card.id, fetched_at: DateTime.utc_now(:second)}
+      |> struct(artwork)
+      |> Repo.insert!(
+        on_conflict: {:replace, [:artwork_id, :content_type, :data, :source_url, :fetched_at]},
+        conflict_target: :card_id
+      )
+    else
+      false ->
+        :already_stored
 
       {:error, reason} ->
         Logger.warning("No artwork for card #{artwork_id}: #{inspect(reason)}")
-        changeset
     end
   end
 
