@@ -29,6 +29,106 @@ defmodule MillenniumQuiz.CardsTest do
     end
   end
 
+  describe "suggest/2" do
+    defp pool(names, attrs \\ %{}) do
+      names
+      |> Enum.with_index(1)
+      |> Enum.map(fn {name, i} ->
+        Repo.insert!(
+          struct!(
+            Card,
+            Map.merge(
+              %{name: name, password: 70_000_000 + i, fetched_at: ~U[2026-01-01 00:00:00Z]},
+              attrs
+            )
+          )
+        )
+      end)
+    end
+
+    defp names(results), do: Enum.map(results, & &1.name)
+
+    test "ranks exact, prefix, word start, contains, then alphabetically" do
+      pool([
+        "Dark Hole Dragon",
+        "Red Dark",
+        "Darkness",
+        "Mydark",
+        "Dark",
+        "A Dark Day",
+        "Dark Ace"
+      ])
+
+      assert [
+               "Dark",
+               "Dark Ace",
+               "Dark Hole Dragon",
+               "Darkness",
+               "A Dark Day",
+               "Red Dark",
+               "Mydark"
+             ] =
+               names(Cards.suggest("dark"))
+    end
+
+    test "is case-insensitive and trims the query" do
+      pool(["Blue-Eyes White Dragon"])
+      assert ["Blue-Eyes White Dragon"] = names(Cards.suggest("  BLUE-eyes "))
+      assert ["Blue-Eyes White Dragon"] = names(Cards.suggest("white DRAGON"))
+    end
+
+    test "LIKE wildcards and backslashes are literal" do
+      pool(["100% Dragon", "Sand_Man", "Sandman", "Back\\slash", "Plain"])
+
+      assert ["100% Dragon"] = names(Cards.suggest("0%"))
+      assert [] = names(Cards.suggest("%%"))
+      assert ["Sand_Man"] = names(Cards.suggest("d_m"))
+      assert ["Back\\slash"] = names(Cards.suggest("k\\s"))
+    end
+
+    test "limit, default 8" do
+      pool(for i <- 1..12, do: "Dragon #{String.pad_leading("#{i}", 2, "0")}")
+      assert 8 = length(Cards.suggest("dragon"))
+      assert ["Dragon 01", "Dragon 02"] = names(Cards.suggest("dragon", limit: 2))
+    end
+
+    test "needs 2 characters" do
+      pool(["Ra", "Dark"])
+      assert [] = Cards.suggest("")
+      assert [] = Cards.suggest(" d ")
+      assert ["Ra"] = names(Cards.suggest("ra"))
+      assert 2 = Cards.suggest_min_length()
+    end
+
+    test "returns what a suggestion list needs" do
+      [card] = pool(["Dark Hole"], %{konami_id: 4_000, card_type: "Spell", kind: "spell"})
+
+      assert [
+               %{
+                 id: id,
+                 name: "Dark Hole",
+                 password: 70_000_001,
+                 konami_id: 4_000,
+                 card_type: "Spell",
+                 kind: "spell"
+               }
+             ] = Cards.suggest("hole")
+
+      assert id == card.id
+    end
+
+    test ":before keeps cards released by the date and cards of unknown date" do
+      pool(["Old Dragon"], %{tcg_release_date: ~D[2002-03-08]})
+      [_] = pool(["Dragon Newer"], %{tcg_release_date: ~D[2020-01-01], password: 71_000_000})
+      [_] = pool(["Dragon Unknown"], %{password: 72_000_000})
+
+      assert ["Dragon Newer", "Dragon Unknown", "Old Dragon"] = names(Cards.suggest("dragon"))
+
+      assert ["Dragon Unknown", "Old Dragon"] =
+               names(Cards.suggest("dragon", before: ~D[2010-01-01]))
+    end
+  end
+
   describe "import/1" do
     test "stores names, texts and every errata version with its release date" do
       assert {:ok, card} = Cards.import(83_764_719)

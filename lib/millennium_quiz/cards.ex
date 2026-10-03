@@ -47,6 +47,85 @@ defmodule MillenniumQuiz.Cards do
     end
   end
 
+  @suggest_min_length 2
+  @suggest_limit 8
+
+  def suggest_min_length, do: @suggest_min_length
+
+  @doc """
+  Suggests cards of the local pool by name, for the `[Card Name]` links in a
+  question text. Never touches the network.
+
+  Matching is case-insensitive "contains"; `%`, `_` and `\\` in the query are
+  literal characters. Results are ranked exact match, name starts with the
+  query, a word starts with the query, anything else; then alphabetically.
+
+  The minimum length is 2 (`suggest_min_length/0`), unlike the remote
+  search's 3: that limit protects the YGOPRODeck rate limit, while this is a
+  local query on a small table, and 2 letters already find short names such
+  as "Ra" or "Man-Eater Bug" while typing.
+
+  Options: `:limit` (default #{@suggest_limit}) and `:before` (a `Date`; like
+  `search/2`, only cards released in the TCG by then, cards without a known
+  release date are kept).
+
+  Returns a list of maps with `:id, :name, :password, :konami_id, :card_type,
+  :kind, :tcg_release_date`, or `[]` for a too short query.
+  """
+  def suggest(query, opts \\ []) when is_binary(query) do
+    query = String.trim(query)
+    limit = Keyword.get(opts, :limit, @suggest_limit)
+    before = Keyword.get(opts, :before)
+
+    if String.length(query) < @suggest_min_length do
+      []
+    else
+      like = escape_like(query)
+      lower = String.downcase(query)
+
+      Repo.all(
+        from c in released_by(Card, before),
+          where: fragment("lower(?) LIKE lower(?)", c.name, ^"%#{like}%"),
+          order_by: [
+            asc:
+              fragment(
+                """
+                CASE WHEN lower(?) = lower(?) THEN 0
+                     WHEN lower(?) LIKE lower(?) THEN 1
+                     WHEN lower(?) LIKE lower(?) THEN 2
+                     ELSE 3 END
+                """,
+                c.name,
+                ^lower,
+                c.name,
+                ^"#{like}%",
+                c.name,
+                ^"% #{like}%"
+              ),
+            asc: fragment("lower(?)", c.name),
+            asc: c.id
+          ],
+          limit: ^limit,
+          select: %{
+            id: c.id,
+            name: c.name,
+            password: c.password,
+            konami_id: c.konami_id,
+            card_type: c.card_type,
+            kind: c.kind,
+            tcg_release_date: c.tcg_release_date
+          }
+      )
+    end
+  end
+
+  defp released_by(queryable, nil), do: queryable
+
+  defp released_by(queryable, %Date{} = date),
+    do: from(c in queryable, where: is_nil(c.tcg_release_date) or c.tcg_release_date <= ^date)
+
+  defp escape_like(string), do: String.replace(string, ["\\", "%", "_"], &"\\#{&1}")
+
   def get_card!(id), do: Card |> Repo.get!(id) |> Repo.preload(:card_texts)
 
   @doc "Cards by id with their texts, in the order of `ids`."
