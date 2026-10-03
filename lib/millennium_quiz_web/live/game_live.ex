@@ -6,6 +6,8 @@ defmodule MillenniumQuizWeb.GameLive do
   """
   use MillenniumQuizWeb, :live_view
 
+  import MillenniumQuizWeb.CardComponents
+
   alias MillenniumQuiz.{Game, Games, GameNotifier}
 
   @impl true
@@ -39,6 +41,11 @@ defmodule MillenniumQuizWeb.GameLive do
             <.reveal_panel game={@game} />
         <% end %>
 
+        <.zoomed_card
+          :if={@zoom && @status == :active && @game.phase in [:answering, :revealed]}
+          game={@game}
+          zoom={@zoom}
+        />
         <.end_game_modal :if={@confirm_end and @status == :active and @game.phase != :finished} />
       </div>
 
@@ -343,27 +350,87 @@ defmodule MillenniumQuizWeb.GameLive do
 
   attr :cards, :list, required: true
 
-  # The cards a question is about, with their text as of the format's date.
+  # The cards a question is about, drawn with their text as of the format's
+  # date. A tap enlarges a card; a tap on a long text shows it in a panel.
   defp question_cards(assigns) do
     ~H"""
-    <div :if={@cards != []} class="grid gap-3 sm:grid-cols-2" id="question-cards">
+    <div :if={@cards != []} class="flex flex-wrap gap-3" id="question-cards">
       <article
         :for={{card, i} <- Enum.with_index(@cards)}
         id={"question-card-#{i}"}
-        class="rounded-field border border-amber-700/30 bg-amber-50 p-4 text-stone-900 shadow-sm dark:bg-stone-900 dark:text-stone-100 dark:border-amber-500/30"
+        class="w-36 sm:w-44"
       >
-        <h3 class="font-semibold">{card.name}</h3>
-        <p class="mt-1 text-sm leading-relaxed whitespace-pre-line">{card.text}</p>
-        <p :if={card.set} class="mt-2 text-xs opacity-60">As printed in {card.set}</p>
+        <div
+          class="relative cursor-zoom-in transition hover:-translate-y-1 hover:drop-shadow-lg"
+          phx-click="zoom_card"
+          phx-value-card={i}
+        >
+          <.card card={card} on_text="read_card" text_value={i} />
+          <%!-- For keyboards; mice can click anywhere on the card --%>
+          <button
+            type="button"
+            phx-click="zoom_card"
+            phx-value-card={i}
+            id={"zoom-card-#{i}"}
+            class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:inset-x-2 focus-visible:top-1/3 focus-visible:rounded-field focus-visible:bg-primary focus-visible:px-2 focus-visible:py-1.5 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-primary-content focus-visible:shadow-lg"
+          >
+            Enlarge {card.name}
+          </button>
+        </div>
+        <p :if={card.set} class="mt-1.5 text-center text-xs text-base-content/60">
+          As printed in {card.set}
+        </p>
       </article>
     </div>
     <.card_credit :if={@cards != []} />
     """
   end
 
+  attr :game, Game, required: true
+  attr :zoom, :any, required: true, doc: "`{:card | :text, index}`"
+
+  defp zoomed_card(assigns) do
+    {view, index} = assigns.zoom
+    question = Game.current_question(assigns.game)
+
+    assigns =
+      assign(assigns,
+        view: view,
+        index: index,
+        card: question && Enum.at(question.cards, index)
+      )
+
+    ~H"""
+    <.card_dialog
+      :if={@card && @view == :card}
+      id="card-zoom"
+      card={@card}
+      on_close="close_card"
+      on_text="read_card"
+      text_value={@index}
+    >
+      <.card_credit class="text-center text-white/70" />
+      <p class="text-xs text-white/70 text-center">Tap outside the card or press Esc to close.</p>
+    </.card_dialog>
+    <.card_text_dialog
+      :if={@card && @view == :text}
+      id="card-text"
+      card={@card}
+      on_close="close_card"
+      on_back="zoom_card"
+      back_value={@index}
+    >
+      <.card_credit class="text-center text-white/70" />
+    </.card_text_dialog>
+    """
+  end
+
+  attr :class, :any, default: "text-base-content/50"
+
+  # Yugipedia's texts are CC BY-SA: credited wherever card texts are shown.
   defp card_credit(assigns) do
     ~H"""
-    <p class="text-xs text-base-content/50">
+    <p class={["text-xs", @class]}>
       Card texts from
       <a href="https://yugipedia.com" target="_blank" rel="noopener" class="link">Yugipedia</a>
       (CC BY-SA 4.0) and <a
@@ -609,20 +676,25 @@ defmodule MillenniumQuizWeb.GameLive do
 
   @impl true
   def handle_event("answer", %{"choice" => choice}, socket) do
-    case Integer.parse(choice) do
-      {choice, ""} -> run(socket, &Games.answer(&1, choice))
-      _ -> {:noreply, socket}
+    case parse_index(choice) do
+      {:ok, choice} -> run(socket, &Games.answer(&1, choice))
+      :error -> {:noreply, socket}
     end
   end
 
   def handle_event("choose", %{"question" => index}, socket) do
-    case Integer.parse(index) do
-      {index, ""} -> run(socket, &Games.choose(&1, index))
-      _ -> {:noreply, socket}
+    case parse_index(index) do
+      {:ok, index} -> run(socket, &Games.choose(&1, index))
+      :error -> {:noreply, socket}
     end
   end
 
   def handle_event("next_round", _params, socket), do: run(socket, &Games.next_round/1)
+
+  def handle_event("zoom_card", %{"card" => index}, socket), do: zoom(socket, :card, index)
+  def handle_event("read_card", %{"card" => index}, socket), do: zoom(socket, :text, index)
+
+  def handle_event("close_card", _params, socket), do: {:noreply, assign(socket, :zoom, nil)}
 
   def handle_event("confirm_end", _params, socket),
     do: {:noreply, assign(socket, :confirm_end, true)}
@@ -660,6 +732,28 @@ defmodule MillenniumQuizWeb.GameLive do
     end
   end
 
+  # Only cards of the current question can be enlarged.
+  defp zoom(socket, view, index) do
+    question = Game.current_question(socket.assigns.game)
+    cards = if question, do: length(question.cards), else: 0
+
+    case parse_index(index) do
+      {:ok, index} when index < cards -> {:noreply, assign(socket, :zoom, {view, index})}
+      _ -> {:noreply, socket}
+    end
+  end
+
+  # Event values come from the client: only a non-negative integer as a
+  # string is an index; anything else (another type, garbage) is ignored.
+  defp parse_index(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {index, ""} when index >= 0 -> {:ok, index}
+      _ -> :error
+    end
+  end
+
+  defp parse_index(_value), do: :error
+
   defp run(socket, fun) do
     case fun.(socket.assigns.game_id) do
       {:ok, view} ->
@@ -670,8 +764,11 @@ defmodule MillenniumQuizWeb.GameLive do
     end
   end
 
+  # Any change to the game closes an enlarged card: it belongs to a moment
+  # (the next player shouldn't find it open).
   defp assign_view(socket, view) do
     socket
+    |> assign(:zoom, nil)
     |> assign(:status, view.status)
     |> assign(:game, view.game)
     |> assign(:page_title, "#{view.game.format_name} · Q#{view.game.round}")

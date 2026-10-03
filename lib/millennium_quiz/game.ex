@@ -37,6 +37,21 @@ defmodule MillenniumQuiz.Game do
   @max_players 4
   @modes [:free, :ascending]
 
+  # What is printed on a card besides its name and text, copied as stored.
+  @card_details [
+    :kind,
+    :property,
+    :frame_type,
+    :monster_type_line,
+    :attribute,
+    :level,
+    :rank,
+    :link_arrows,
+    :atk,
+    :def,
+    :pendulum_scale
+  ]
+
   defstruct format_id: nil,
             format_name: nil,
             format_date: nil,
@@ -66,7 +81,29 @@ defmodule MillenniumQuiz.Game do
           cards: [card()],
           result: result() | nil
         }
-  @type card :: %{name: String.t(), text: String.t(), set: String.t() | nil}
+  @typedoc """
+  A card as printed on the format's date. `id` is the card pool id (for the
+  artwork); it and the printed details are nil in snapshots taken before
+  they were stored.
+  """
+  @type card :: %{
+          id: integer() | nil,
+          name: String.t(),
+          text: String.t(),
+          set: String.t() | nil,
+          kind: String.t() | nil,
+          property: String.t() | nil,
+          frame_type: String.t() | nil,
+          monster_type_line: String.t() | nil,
+          attribute: String.t() | nil,
+          level: integer() | nil,
+          rank: integer() | nil,
+          link_arrows: [String.t()],
+          atk: String.t() | nil,
+          def: String.t() | nil,
+          pendulum_scale: integer() | nil,
+          pendulum_text: String.t() | nil
+        }
   @type t :: %__MODULE__{
           format_id: integer() | nil,
           format_name: String.t() | nil,
@@ -185,13 +222,15 @@ defmodule MillenniumQuiz.Game do
     }
   end
 
-  # Card texts as they read on the format's date (English for now).
+  # Cards as they read on the format's date (English for now).
   defp snapshot_cards(%Ecto.Association.NotLoaded{}, _date), do: []
 
   defp snapshot_cards(question_cards, date) do
     for %{card: card} <- question_cards do
-      %{text: text, set: set} = Cards.text_on(card, date)
-      %{name: card.name, text: text, set: set}
+      card
+      |> Map.take(@card_details)
+      |> Map.merge(Cards.printed_on(card, date))
+      |> Map.merge(%{id: card.id, name: card.name})
     end
   end
 
@@ -387,8 +426,7 @@ defmodule MillenniumQuiz.Game do
             points: q["points"],
             choices: q["choices"],
             correct: q["correct"],
-            cards:
-              Enum.map(q["cards"] || [], &%{name: &1["name"], text: &1["text"], set: &1["set"]}),
+            cards: Enum.map(q["cards"] || [], &card_from_map/1),
             result: q["result"] && result_from_map(q["result"], no_picks)
           }
         end),
@@ -414,6 +452,20 @@ defmodule MillenniumQuiz.Game do
       turn_order: map["turn_order"],
       phase: :finished
     }
+  end
+
+  # Older snapshots only have name, text and set.
+  defp card_from_map(card) do
+    details = Map.new(@card_details, &{&1, card[Atom.to_string(&1)]})
+
+    Map.merge(details, %{
+      id: card["id"],
+      name: card["name"],
+      text: card["text"],
+      set: card["set"],
+      link_arrows: card["link_arrows"] || [],
+      pendulum_text: card["pendulum_text"]
+    })
   end
 
   defp result_from_map(%{"picks" => picks} = result, _no_picks),

@@ -2,7 +2,8 @@ defmodule MillenniumQuiz.GameTest do
   use ExUnit.Case, async: true
 
   alias MillenniumQuiz.Game
-  alias MillenniumQuiz.Quiz.{Choice, Question, Topic}
+  alias MillenniumQuiz.Cards.{Card, CardText}
+  alias MillenniumQuiz.Quiz.{Choice, Question, QuestionCard, Topic}
 
   @format %{id: 1, name: "Test", date: ~D[2005-04-01]}
   @no_shuffle [shuffle: &Function.identity/1]
@@ -153,6 +154,85 @@ defmodule MillenniumQuiz.GameTest do
     game = play(new_game(mode: :ascending), 0, [1])
     json = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
     assert Game.from_map(json) == game
+  end
+
+  test "cards are snapshotted as printed on the format's date, with their details" do
+    card = %Card{
+      id: 7,
+      name: "Plain Card",
+      kind: "Monster",
+      frame_type: "xyz_pendulum",
+      monster_type_line: "Dragon / Xyz / Pendulum / Effect",
+      attribute: "DARK",
+      rank: 7,
+      atk: "3000",
+      def: "?",
+      pendulum_scale: 4,
+      pendulum_texts: %{"en" => "Once per turn: draw 1 card."},
+      card_texts: [
+        %CardText{
+          language: "en",
+          version: 0,
+          text: "Old.",
+          set: "Old Set",
+          released_on: ~D[2004-01-01]
+        },
+        %CardText{
+          language: "en",
+          version: 1,
+          text: "New.",
+          set: "New Set",
+          released_on: ~D[2010-01-01]
+        }
+      ]
+    }
+
+    [first | rest] = questions()
+
+    {:ok, game} =
+      Game.new(
+        @format,
+        ["Ann", "Bob"],
+        [%{first | question_cards: [%QuestionCard{card: card}]} | rest],
+        @no_shuffle
+      )
+
+    assert [snapshot] = Enum.find(game.questions, &(&1.id == 1)).cards
+
+    assert snapshot == %{
+             id: 7,
+             name: "Plain Card",
+             text: "Old.",
+             set: "Old Set",
+             kind: "Monster",
+             property: nil,
+             frame_type: "xyz_pendulum",
+             monster_type_line: "Dragon / Xyz / Pendulum / Effect",
+             attribute: "DARK",
+             level: nil,
+             rank: 7,
+             link_arrows: [],
+             atk: "3000",
+             def: "?",
+             pendulum_scale: 4,
+             pendulum_text: "Once per turn: draw 1 card."
+           }
+
+    json = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+    assert Game.from_map(json) == game
+  end
+
+  test "cards from older snapshots load without their details" do
+    map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+    old_card = %{"name" => "Monster Reborn", "text" => "Revive.", "set" => nil}
+
+    map =
+      update_in(map, ["questions"], fn [q | rest] -> [Map.put(q, "cards", [old_card]) | rest] end)
+
+    assert [card] = hd(Game.from_map(map).questions).cards
+
+    assert %{id: nil, name: "Monster Reborn", text: "Revive.", frame_type: nil, link_arrows: []} =
+             card
   end
 
   test "snapshots from before formats keep their category name" do

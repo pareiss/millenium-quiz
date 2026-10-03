@@ -159,6 +159,66 @@ defmodule MillenniumQuizWeb.GameLiveTest do
            )
 
     assert has_element?(view, "#question-card-0", "As printed in Starter Deck: Yugi Evolution")
+    assert has_element?(view, "#question-card-0 img[src='/cards/#{reborn.id}/artwork']")
+    assert has_element?(view, "#question-card-0 .mq-card__face[data-frame=spell]")
+    assert has_element?(view, "#question-card-0 .mq-card__line", "Spell Card")
+
+    # a tap enlarges the card; Esc and the backdrop close it again
+    view |> element("#zoom-card-0") |> render_click()
+    assert has_element?(view, "#card-zoom .mq-card--large", "Monster Reborn")
+    # the Yugipedia credit is shown with the enlarged text
+    assert has_element?(view, "#card-zoom a[href='https://yugipedia.com']")
+    view |> element("#card-zoom") |> render_keydown(%{"key" => "Escape"})
+    refute has_element?(view, "#card-zoom")
+
+    view |> element("#zoom-card-0") |> render_click()
+    view |> element("#card-zoom > div[phx-click=close_card]") |> render_click()
+    refute has_element?(view, "#card-zoom")
+
+    # a card that the question doesn't have can't be enlarged
+    render_click(view, "zoom_card", %{"card" => "5"})
+    render_click(view, "read_card", %{"card" => "1"})
+    assert :sys.get_state(view.pid).socket.assigns.zoom == nil
+
+    # malformed values are ignored instead of crashing the LiveView
+    for {event, key} <- [{"zoom_card", "card"}, {"read_card", "card"}, {"answer", "choice"}],
+        value <- [1, nil, %{"x" => 1}, "-1", "abc"] do
+      render_click(view, event, %{key => value})
+    end
+
+    assert Process.alive?(view.pid)
+    assert :sys.get_state(view.pid).socket.assigns.zoom == nil
+    assert has_element?(view, "#choice-0")
+
+    # the hover texts work on thumbnails: nothing lies over the card
+    refute has_element?(view, "#question-card-0 button.absolute")
+
+    # a tap on the text box opens the texts in a readable panel
+    view |> element("#question-card-0 .mq-card__texts") |> render_click()
+    assert has_element?(view, "#card-text .mq-card-panel__body", "Select 1 monster")
+    assert has_element?(view, "#card-text a[href='https://yugipedia.com']")
+    # a click on the panel goes back to the enlarged card
+    view |> element("#card-text article") |> render_click()
+    refute has_element?(view, "#card-text")
+    assert has_element?(view, "#card-zoom .mq-card--large", "Monster Reborn")
+
+    render_click(view, "read_card", %{"card" => "0"})
+    view |> element("#card-text-back") |> render_click()
+    assert has_element?(view, "#card-zoom")
+
+    render_click(view, "read_card", %{"card" => "0"})
+    view |> element("#card-text-close") |> render_click()
+    refute has_element?(view, "#card-text")
+    refute has_element?(view, "#card-zoom")
+
+    # it is closed by the next answer, and comes back on the reveal
+    view |> element("#zoom-card-0") |> render_click()
+    view |> element("#choice-0") |> render_click()
+    refute has_element?(view, "#card-zoom")
+    view |> element("#choice-0") |> render_click()
+    assert has_element?(view, "#reveal #question-card-0")
+    view |> element("#zoom-card-0") |> render_click()
+    assert has_element?(view, "#card-zoom", "Monster Reborn")
 
     # the same card in a later format shows the current text
     later = format_fixture(%{"date" => "2020-01-01"})
