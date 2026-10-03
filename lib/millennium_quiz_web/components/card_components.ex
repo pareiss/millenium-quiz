@@ -581,63 +581,93 @@ defmodule MillenniumQuizWeb.CardComponents do
   attr :class, :any, default: nil
 
   def property_icon(assigns) do
-    assigns = assign(assigns, :label, assigns.label || assigns.property)
+    assigns =
+      assign(assigns,
+        label: assigns.label || assigns.property,
+        # gradient and filter ids must be unique on the page
+        id: "mq-prop-#{System.unique_integer([:positive])}"
+      )
 
     ~H"""
-    <svg
-      viewBox="0 0 24 24"
-      class={@class}
-      role="img"
-      aria-label={@label}
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2.2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
+    <svg viewBox="0 0 24 24" class={@class} role="img" aria-label={@label}>
       <title>{@label}</title>
-      <%= case @property do %>
-        <% "Quick-Play" -> %>
-          <path d="M13.5 2 4.5 13.5h6.5L9.5 22l10-12.5h-6.5z" fill="currentColor" stroke-width="1" />
-        <% "Continuous" -> %>
-          <%!-- a little below the middle: the flat sign then lines up with
-               the middle of the text beside it --%>
-          <path d="M6.5 9.4a4 4 0 1 0 0 8c2.6 0 3.6-2 5.5-4s2.9-4 5.5-4a4 4 0 1 1 0 8c-2.6 0-3.6-2-5.5-4s-2.9-4-5.5-4z" />
-        <% "Equip" -> %>
-          <%!-- a cross with square ends and sharp corners --%>
-          <path
-            d="M10.2 3.2h3.6v7h7v3.6h-7v7h-3.6v-7h-7v-3.6h7z"
-            fill="currentColor"
-            stroke="none"
-          />
-        <% "Field" -> %>
-          <%!-- a four-pointed star --%>
-          <path
-            d="M12 1.5 14.6 9.4 22.5 12 14.6 14.6 12 22.5 9.4 14.6 1.5 12 9.4 9.4z"
-            fill="currentColor"
-            stroke-width="1"
-          />
-        <% "Ritual" -> %>
-          <%!-- a flame: a small tongue on the left, a tall one sweeping right from
-               its tip, a tongue on the right, and a small inner flame cut out at
-               the bottom --%>
-          <path
-            d="M12 21.2C7 21.2 3.1 18.9 3.1 15.2C3.1 12.4 4 10.2 5.2 8.2C5.6 10.4 6.2 12.6 7.1 14.6C7.6 12 7.9 7.6 7.6 2.2C11.4 4 14.4 7.2 16.4 11.2C16.3 9.4 16.4 7.6 16.9 5.8C19.6 8.4 20.9 11.8 20.9 15.2C20.9 18.9 17 21.2 12 21.2ZM12.3 13.4C10.8 15 10 16.9 10.3 19.2C11.5 19.9 13 19.9 14.2 19.2C14.3 18.3 14.1 17.4 13.8 17C13.5 17.5 13.2 17.7 12.9 17.5C12.9 16 12.7 14.6 12.3 13.4Z"
-            fill="currentColor"
-            fill-rule="evenodd"
-            stroke-width="1"
-          />
-        <% "Counter" -> %>
-          <%!-- a thick arrow: it starts as a point at the top right, runs
-               down and hooks sharply to the left into a large head --%>
-          <path
-            d="M19.6 2.8C21.7 5.6 22.1 10.2 20.6 13.8C19.2 17.2 15.9 19.6 12.4 20L12.6 22.6L2.4 15.4L12.4 8.4L12.3 12.3C15 12.2 17.3 11.3 18.6 9.4C19.6 7.8 19.9 5.6 19.6 2.8Z"
-            fill="currentColor"
-            stroke="none"
-          />
-        <% _ -> %>
-          <circle cx="12" cy="12" r="3" fill="currentColor" />
-      <% end %>
+      <defs>
+        <radialGradient id={"#{@id}-disc"} cx="40%" cy="35%" r="70%">
+          <stop offset="0" stop-color="#6b4a30" />
+          <stop offset="0.55" stop-color="#2e1f14" />
+          <stop offset="1" stop-color="#0e0906" />
+        </radialGradient>
+        <filter id={"#{@id}-rust"} x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.22" numOctaves="2" seed="9" />
+          <feColorMatrix values="0 0 0 0 0.62 0 0 0 0 0.45 0 0 0 0 0.3 2.4 0 0 0 -1.1" />
+        </filter>
+        <linearGradient id={"#{@id}-silver"} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fbf9f4" />
+          <stop offset="1" stop-color="#bdb6aa" />
+        </linearGradient>
+        <clipPath id={"#{@id}-in"}><circle cx="12" cy="12" r="9.7" /></clipPath>
+      </defs>
+      <%!-- a round badge as on real cards: dark, rusty marble in a silver ring --%>
+      <circle cx="12" cy="12" r="11" fill={"url(##{@id}-disc)"} />
+      <rect
+        width="24"
+        height="24"
+        filter={"url(##{@id}-rust)"}
+        opacity="0.6"
+        clip-path={"url(##{@id}-in)"}
+      />
+      <circle cx="12" cy="12" r="10.4" fill="none" stroke={"url(##{@id}-silver)"} stroke-width="1.5" />
+      <circle cx="12" cy="12" r="11.5" fill="none" stroke="#1a120c" stroke-width="0.8" />
+      <g
+        fill={"url(##{@id}-silver)"}
+        stroke="#1a120c"
+        stroke-width="0.6"
+        stroke-linejoin="round"
+        clip-path={"url(##{@id}-in)"}
+      >
+        <%= case @property do %>
+          <% "Quick-Play" -> %>
+            <g transform="translate(12 12) scale(0.96) translate(-12 -12)">
+              <path d="M13.5 2 4.5 13.5h6.5L9.5 22l10-12.5h-6.5z" />
+            </g>
+          <% "Continuous" -> %>
+            <%!-- a thick infinity sign, its loops cut out --%>
+            <g transform="translate(12 12) scale(0.92) translate(-12 -12)">
+              <path
+                fill-rule="evenodd"
+                d="M6.5 6.5a5.5 5.5 0 1 0 0 11c2.4 0 3.8-1.6 5.5-3.6 1.7 2 3.1 3.6 5.5 3.6a5.5 5.5 0 1 0 0-11c-2.4 0-3.8 1.6-5.5 3.6-1.7-2-3.1-3.6-5.5-3.6zM6.5 9.4a2.6 2.6 0 1 0 0 5.2c1.2 0 2.2-1.2 3.6-2.6-1.4-1.4-2.4-2.6-3.6-2.6zM17.5 9.4c-1.2 0-2.2 1.2-3.6 2.6 1.4 1.4 2.4 2.6 3.6 2.6a2.6 2.6 0 1 0 0-5.2z"
+              />
+            </g>
+          <% "Equip" -> %>
+            <%!-- a cross with square arms reaching the ring --%>
+            <path d="M10 1h4v9h9v4h-9v9h-4v-9H1v-4h9z" />
+          <% "Field" -> %>
+            <%!-- a four-pointed star --%>
+            <g transform="translate(12 12) scale(0.96) translate(-12 -12)">
+              <path d="M12 1.5 14.6 9.4 22.5 12 14.6 14.6 12 22.5 9.4 14.6 1.5 12 9.4 9.4z" />
+              <%!-- fine lines from the centre to the points, as on the original --%>
+              <path d="M12 3.5V20.5M3.5 12H20.5" fill="none" stroke-width="0.45" />
+            </g>
+          <% "Ritual" -> %>
+            <%!-- a flame: a small tongue on the left, a tall one sweeping right
+                 from its tip, a tongue on the right, and a small inner flame
+                 cut out at the bottom --%>
+            <g transform="translate(12 12) scale(0.9) translate(-12 -12)">
+              <path
+                fill-rule="evenodd"
+                d="M12 21.2C7 21.2 3.1 18.9 3.1 15.2C3.1 12.4 4 10.2 5.2 8.2C5.6 10.4 6.2 12.6 7.1 14.6C7.6 12 7.9 7.6 7.6 2.2C11.4 4 14.4 7.2 16.4 11.2C16.3 9.4 16.4 7.6 16.9 5.8C19.6 8.4 20.9 11.8 20.9 15.2C20.9 18.9 17 21.2 12 21.2ZM12.3 13.4C10.8 15 10 16.9 10.3 19.2C11.5 19.9 13 19.9 14.2 19.2C14.3 18.3 14.1 17.4 13.8 17C13.5 17.5 13.2 17.7 12.9 17.5C12.9 16 12.7 14.6 12.3 13.4Z"
+              />
+            </g>
+          <% "Counter" -> %>
+            <%!-- a thick arrow: it starts as a point at the top right, runs
+                 down and hooks sharply to the left into a large head --%>
+            <g transform="translate(12 12) scale(0.92) translate(-12 -12)">
+              <path d="M19.6 2.8C21.7 5.6 22.1 10.2 20.6 13.8C19.2 17.2 15.9 19.6 12.4 20L12.6 22.6L2.4 15.4L12.4 8.4L12.3 12.3C15 12.2 17.3 11.3 18.6 9.4C19.6 7.8 19.9 5.6 19.6 2.8Z" />
+            </g>
+          <% _ -> %>
+            <circle cx="12" cy="12" r="3" />
+        <% end %>
+      </g>
     </svg>
     """
   end
