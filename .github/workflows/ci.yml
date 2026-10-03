@@ -1,0 +1,87 @@
+# The checks of `mix precommit`, without rewriting files: compile with warnings
+# as errors, unused deps, formatting, and the tests with coverage. The outputs
+# are uploaded as the "ci-results" artifact, which bin/review-pr hands to the
+# reviewer.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.17.3"
+          otp-version: "27.3"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ runner.os }}-1.17.3-27.3-${{ hashFiles('mix.lock') }}
+          restore-keys: mix-${{ runner.os }}-1.17.3-27.3-
+
+      - run: mix deps.get
+
+      - name: Checks
+        shell: bash
+        run: |
+          mkdir -p ci-results
+          status=0
+          check() {
+            local name="$1"; shift
+            if "$@" >"ci-results/$name.txt" 2>&1; then
+              echo "- $name: passed" >>ci-results/summary.md
+            else
+              echo "- $name: FAILED (\`$*\`)" >>ci-results/summary.md
+              status=1
+            fi
+          }
+          echo "# CI results for ${GITHUB_SHA}" >ci-results/summary.md
+          echo >>ci-results/summary.md
+          check compile mix compile --warnings-as-errors --force
+          check unused-deps mix deps.unlock --check-unused
+          check format mix format --check-formatted
+          check tests mix test --cover
+          cat ci-results/summary.md
+          cat ci-results/tests.txt
+          exit $status
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-results
+          path: ci-results/
+          retention-days: 30
