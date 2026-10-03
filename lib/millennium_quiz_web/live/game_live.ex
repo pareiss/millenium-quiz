@@ -253,6 +253,7 @@ defmodule MillenniumQuizWeb.GameLive do
         <p class="text-xl sm:text-2xl font-semibold leading-snug" id="question-text">
           <.question_text question={@question} />
         </p>
+        <.question_link_popovers question={@question} />
         <.question_cards cards={@question.cards} />
         <div class="grid gap-3 sm:grid-cols-2">
           <button
@@ -288,18 +289,130 @@ defmodule MillenniumQuizWeb.GameLive do
   attr :question, :map, required: true
 
   defp question_text(assigns) do
+    assigns = assign(assigns, :segments, numbered_segments(assigns.question))
+
     ~H"""
-    <span :for={seg <- question_segments(@question)} data-card-index={card_index(seg)}>{segment_text(
-      seg
-    )}</span>
+    <%= for {seg, n} <- @segments do %>
+      <%= case seg do %>
+        <% {:text, text} -> %>
+          <span>{text}</span>
+        <% {:card, name, index} -> %>
+          <button
+            type="button"
+            id={"question-link-#{n}"}
+            phx-click="zoom_card"
+            phx-value-card={index}
+            data-card-index={index}
+            aria-label={"Show card: #{name}"}
+            title={"Show card: #{name}"}
+            class="cursor-zoom-in rounded-sm font-semibold underline decoration-dotted decoration-2 decoration-[#c39a55] underline-offset-4 hover:bg-[#c39a55]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c39a55]"
+          >
+            {name}
+          </button>
+      <% end %>
+    <% end %>
     """
   end
 
-  defp card_index({:card, _name, index}), do: index
-  defp card_index({:text, _text}), do: nil
+  # Segments with a running number for the card links (their DOM ids).
+  defp numbered_segments(question) do
+    {segments, _} =
+      question
+      |> question_segments()
+      |> Enum.map_reduce(0, fn
+        {:card, _, _} = seg, n -> {{seg, n}, n + 1}
+        seg, n -> {{seg, nil}, n}
+      end)
 
-  defp segment_text({:text, text}), do: text
-  defp segment_text({:card, name, _index}), do: "[#{name}]"
+    segments
+  end
+
+  attr :question, :map, required: true
+
+  # The drawn cards that hovering or focusing a link in the question text
+  # shows: one per distinct linked card, hidden (so artwork is not loaded)
+  # until the hook places it next to the link. Kept outside the text, as a
+  # card is made of blocks. Decorative for assistive technology: the link's
+  # own label names the card. No popover on devices without hover.
+  defp question_link_popovers(assigns) do
+    indexes =
+      assigns.question
+      |> question_segments()
+      |> Enum.flat_map(fn
+        {:card, _name, index} -> [index]
+        _ -> []
+      end)
+      |> Enum.uniq()
+
+    assigns = assign(assigns, :indexes, indexes)
+
+    ~H"""
+    <div
+      :if={@indexes != []}
+      id="question-link-popovers"
+      aria-hidden="true"
+      phx-hook=".CardLinkPopover"
+    >
+      <div
+        :for={i <- @indexes}
+        id={"question-link-popover-#{i}"}
+        class="mq-linkpop w-44"
+        data-card-index={i}
+      >
+        <.card card={Enum.at(@question.cards, i)} />
+      </div>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".CardLinkPopover">
+        export default {
+          mounted() {
+            this.open = null
+            this.hide = () => {
+              if (this.open) delete this.open.dataset.open
+              this.open = null
+            }
+            this.show = (event) => {
+              if (!window.matchMedia("(hover: hover)").matches) return
+              const link = event.target.closest && event.target.closest("#question-text [data-card-index]")
+              if (!link) return
+              const pop = this.el.querySelector(`[data-card-index="${link.dataset.cardIndex}"]`)
+              if (!pop) return
+              this.hide()
+              pop.dataset.open = ""
+              const anchor = link.getBoundingClientRect()
+              const box = pop.getBoundingClientRect()
+              const margin = 8
+              const left = Math.max(margin, Math.min(anchor.left + anchor.width / 2 - box.width / 2, window.innerWidth - box.width - margin))
+              const above = anchor.top - box.height - margin
+              const top = above >= margin ? above : Math.min(anchor.bottom + margin, Math.max(margin, window.innerHeight - box.height - margin))
+              pop.style.left = `${left}px`
+              pop.style.top = `${top}px`
+              this.open = pop
+            }
+            this.onKey = (event) => { if (event.key === "Escape") this.hide() }
+            this.hideOut = (event) => {
+              if (event.target.closest && event.target.closest("#question-text [data-card-index]")) this.hide()
+            }
+            document.addEventListener("mouseover", this.show)
+            document.addEventListener("focusin", this.show)
+            document.addEventListener("mouseout", this.hideOut)
+            document.addEventListener("focusout", this.hideOut)
+            document.addEventListener("keydown", this.onKey)
+            window.addEventListener("scroll", this.hide, true)
+            document.addEventListener("click", this.hide)
+          },
+          destroyed() {
+            document.removeEventListener("mouseover", this.show)
+            document.removeEventListener("focusin", this.show)
+            document.removeEventListener("mouseout", this.hideOut)
+            document.removeEventListener("focusout", this.hideOut)
+            document.removeEventListener("keydown", this.onKey)
+            window.removeEventListener("scroll", this.hide, true)
+            document.removeEventListener("click", this.hide)
+          }
+        }
+      </script>
+    </div>
+    """
+  end
 
   attr :game, Game, required: true
 
@@ -321,6 +434,7 @@ defmodule MillenniumQuizWeb.GameLive do
       <p class="text-xl font-semibold leading-snug" id="question-text">
         <.question_text question={@question} />
       </p>
+      <.question_link_popovers question={@question} />
       <.question_cards cards={@question.cards} />
       <p class="text-sm text-base-content/60">Chosen by {@chooser.name}</p>
 

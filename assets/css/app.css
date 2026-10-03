@@ -738,3 +738,20 @@
   opacity: 0.75;
   text-transform: uppercase;
 }
+
+/* Popover with the drawn card for a card link in a question text. Placed
+   with fixed coordinates by the CardLinkPopover hook, so it never moves the
+   layout. Devices without hover tap the link instead. */
+.mq-linkpop {
+  position: fixed;
+  z-index: 40;
+  display: none;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 16px rgb(0 0 0 / 0.45));
+}
+.mq-linkpop[data-open] { display: block; }
+@media (prefers-reduced-motion: no-preference) {
+  .mq-linkpop[data-open] { animation: mq-linkpop-in 120ms ease-out; }
+}
+@keyframes mq-linkpop-in { from { opacity: 0; } }
+@media (hover: none) { .mq-linkpop { display: none !important; } }
