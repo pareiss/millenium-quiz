@@ -448,11 +448,13 @@ defmodule MillenniumQuizWeb.CardComponents do
             stroke-width="1"
           />
         <% "Ritual" -> %>
-          <%!-- a flame with three tongues, the middle one tallest; the left
-               tongue curves right, the middle and right ones slightly left --%>
+          <%!-- a flame: a small tongue on the left, a tall one sweeping right from
+               its tip, a tongue on the right, and a small inner flame cut out at
+               the bottom --%>
           <path
-            d="M12 22.5C7.3 22.5 4.6 19.4 4.6 15.6C4.6 11.6 5.8 8.4 7.8 5.2C7.2 8.8 7.9 12.4 9.3 15.2Q10 16.4 10.6 15.2C9.9 11 10 5.6 11.6 1.2C13.2 5.4 13.7 10.2 13.5 15.2Q14.1 16.4 14.8 15.2C15.6 12 15.6 8.2 16.4 5C18.4 8 19.4 11.8 19.4 15.6C19.4 19.4 16.7 22.5 12 22.5Z"
+            d="M12 21.2C7 21.2 3.1 18.9 3.1 15.2C3.1 12.4 4 10.2 5.2 8.2C5.6 10.4 6.2 12.6 7.1 14.6C7.6 12 7.9 7.6 7.6 2.2C11.4 4 14.4 7.2 16.4 11.2C16.3 9.4 16.4 7.6 16.9 5.8C19.6 8.4 20.9 11.8 20.9 15.2C20.9 18.9 17 21.2 12 21.2ZM12.3 13.4C10.8 15 10 16.9 10.3 19.2C11.5 19.9 13 19.9 14.2 19.2C14.3 18.3 14.1 17.4 13.8 17C13.5 17.5 13.2 17.7 12.9 17.5C12.9 16 12.7 14.6 12.3 13.4Z"
             fill="currentColor"
+            fill-rule="evenodd"
             stroke-width="1"
           />
         <% "Counter" -> %>
