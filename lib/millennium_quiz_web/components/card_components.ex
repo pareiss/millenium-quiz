@@ -439,7 +439,12 @@ defmodule MillenniumQuizWeb.CardComponents do
         <% "Continuous" -> %>
           <path d="M6.5 8a4 4 0 1 0 0 8c2.6 0 3.6-2 5.5-4s2.9-4 5.5-4a4 4 0 1 1 0 8c-2.6 0-3.6-2-5.5-4s-2.9-4-5.5-4z" />
         <% "Equip" -> %>
-          <path d="M12 3.5v17M3.5 12h17" stroke-width="3.4" />
+          <%!-- a cross with square ends and sharp corners --%>
+          <path
+            d="M10.2 3.2h3.6v7h7v3.6h-7v7h-3.6v-7h-7v-3.6h7z"
+            fill="currentColor"
+            stroke="none"
+          />
         <% "Field" -> %>
           <%!-- a four-pointed star --%>
           <path
