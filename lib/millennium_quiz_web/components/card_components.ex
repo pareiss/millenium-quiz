@@ -130,14 +130,13 @@ defmodule MillenniumQuizWeb.CardComponents do
               [{type_line(@card.monster_type_line)}]
             </p>
             <p class="mq-card__body">{@card.text}</p>
-            <p :if={@card[:atk]} class="mq-card__stats">
-              <%!-- values right-aligned in a four-digit field, as on real cards --%>
-              <span class="mq-stat">ATK/<span class="mq-stat__value">{@card.atk}</span></span>
-              <span :if={@link?} class="mq-stat mq-stat--link">LINK-{length(@arrows)}</span>
-              <span :if={!@link?} class="mq-stat">
-                DEF/<span class="mq-stat__value">{@card.def}</span>
-              </span>
-            </p>
+            <.stats
+              :if={@card[:atk]}
+              class="mq-card__stats"
+              card={@card}
+              link?={@link?}
+              arrows={@arrows}
+            />
           </div>
         </div>
       </div>
@@ -293,8 +292,10 @@ defmodule MillenniumQuizWeb.CardComponents do
             />
           </header>
           <div class="mq-card-panel__body">
-            <p :if={@card[:monster_type_line]} class="font-bold">[{@card.monster_type_line}]</p>
-            <p :if={kind(@card) in ["Spell", "Trap"]} class="font-bold">
+            <p :if={@card[:monster_type_line]} class="mq-card-panel__type">
+              [{type_line(@card.monster_type_line)}]
+            </p>
+            <p :if={kind(@card) in ["Spell", "Trap"]} class="mq-card-panel__type">
               [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(
                 @card
               )}]
@@ -309,12 +310,14 @@ defmodule MillenniumQuizWeb.CardComponents do
               </h3>
               <p>{@card.pendulum_text}</p>
             </section>
-            <p class="whitespace-pre-line">{@card.text}</p>
-            <p :if={@card[:atk]} class="mq-card-panel__stats">
-              <span>ATK/{@card.atk}</span>
-              <span :if={@link?}>LINK-{length(@card[:link_arrows] || [])}</span>
-              <span :if={!@link?}>DEF/{@card.def}</span>
-            </p>
+            <p class="mq-card-panel__text whitespace-pre-line">{@card.text}</p>
+            <.stats
+              :if={@card[:atk]}
+              class="mq-card-panel__stats"
+              card={@card}
+              link?={@link?}
+              arrows={@arrows}
+            />
           </div>
         </article>
         <%!-- outside the panel, so its links don't also go back to the card --%>
@@ -784,6 +787,25 @@ defmodule MillenniumQuizWeb.CardComponents do
     names = arrows |> lit_positions() |> Enum.map(&String.replace(&1, "-", " "))
 
     "Link #{length(arrows)}: #{Enum.join(names, ", ")}"
+  end
+
+  attr :class, :string, required: true
+  attr :card, :map, required: true
+  attr :link?, :boolean, required: true
+  attr :arrows, :list, required: true
+
+  # The ATK/DEF (or ATK/LINK-n) row, shared by the card and its text panel.
+  defp stats(assigns) do
+    ~H"""
+    <p class={@class}>
+      <%!-- values right-aligned in a four-digit field, as on real cards --%>
+      <span class="mq-stat">ATK/<span class="mq-stat__value">{@card.atk}</span></span>
+      <span :if={@link?} class="mq-stat mq-stat--link">LINK-{length(@arrows)}</span>
+      <span :if={!@link?} class="mq-stat">
+        DEF/<span class="mq-stat__value">{@card.def}</span>
+      </span>
+    </p>
+    """
   end
 
   # Real cards print the type line without spaces: "Dragon/Pendulum/Effect".
