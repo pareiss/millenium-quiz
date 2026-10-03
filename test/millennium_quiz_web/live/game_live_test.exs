@@ -241,6 +241,75 @@ defmodule MillenniumQuizWeb.GameLiveTest do
            )
   end
 
+  describe "cycle_card" do
+    defp zoom_of(view), do: :sys.get_state(view.pid).socket.assigns.zoom
+
+    defp start_with_cards(conn, card_ids) do
+      format = format_fixture(%{"date" => "2020-01-01"})
+
+      for topic <- format.topics do
+        {:ok, _} =
+          Quiz.create_question(
+            topic,
+            %{"text" => "Who?", "choices" => choices_params()},
+            card_ids
+          )
+      end
+
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+      view |> element("#question-0") |> render_click()
+      view
+    end
+
+    test "steps through the cards of a question, wrapping around", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {:ok, plain} = Cards.import(11_111_111)
+      view = start_with_cards(conn, [reborn.id, plain.id])
+
+      # nothing is open: nothing to cycle
+      render_hook(view, "cycle_card", %{"dir" => "next"})
+      assert zoom_of(view) == nil
+
+      for kind <- [:card, :text] do
+        event = if kind == :card, do: "zoom_card", else: "read_card"
+        render_hook(view, event, %{"card" => "0"})
+
+        render_hook(view, "cycle_card", %{"dir" => "next"})
+        assert zoom_of(view) == {kind, 1}
+        render_hook(view, "cycle_card", %{"dir" => "next"})
+        assert zoom_of(view) == {kind, 0}
+        render_hook(view, "cycle_card", %{"dir" => "prev"})
+        assert zoom_of(view) == {kind, 1}
+        render_hook(view, "cycle_card", %{"dir" => "prev"})
+        assert zoom_of(view) == {kind, 0}
+
+        # malformed values are ignored
+        for params <- [%{}, %{"dir" => nil}, %{"dir" => 1}, %{"dir" => "up"}, %{"dir" => %{}}] do
+          render_hook(view, "cycle_card", params)
+        end
+
+        assert zoom_of(view) == {kind, 0}
+        render_hook(view, "close_card", %{})
+      end
+
+      assert zoom_of(view) == nil
+    end
+
+    test "does nothing for a question with a single card", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      view = start_with_cards(conn, [reborn.id])
+
+      render_hook(view, "zoom_card", %{"card" => "0"})
+      render_hook(view, "cycle_card", %{"dir" => "next"})
+      assert zoom_of(view) == {:card, 0}
+      render_hook(view, "cycle_card", %{"dir" => "prev"})
+      assert zoom_of(view) == {:card, 0}
+    end
+  end
+
   test "unknown games redirect home", %{conn: conn} do
     assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/games/#{Ecto.UUID.generate()}")
   end
