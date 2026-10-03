@@ -287,6 +287,7 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     end
 
     link_doc = doc.(link)
+    assert count(link_doc, ".mq-card-panel:not([data-pendulum])") == 1
     assert text(link_doc, ".mq-card-panel__stats .mq-stat--link") == "LINK-3"
     assert text(link_doc, ".mq-card-panel__stats") =~ ~r/ATK\/2300\s+LINK-3/
     refute text(link_doc, ".mq-card-panel__stats") =~ "DEF"
