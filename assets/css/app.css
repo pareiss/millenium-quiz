@@ -400,9 +400,21 @@
 /* the two lines between the scales and the Pendulum Effect */
 .mq-card__scale--left,
 .mq-card__scale--right {
-  /* a bevelled bar like the frame: lighter on one side, darker on the other */
-  border: 0 solid;
-  border-image: linear-gradient(90deg, var(--rim-light), var(--rim-mid) 45%, var(--rim-dark)) 1;
+  /* the same worn braid as the frame, reaching from the frame above to the
+     line below (through the box's vertical padding) */
+  border: 0 solid var(--rim-mid);
+  border-image: repeating-linear-gradient(
+      135deg,
+      var(--rim-mid) 0,
+      var(--rim-hi) 0.18cqw,
+      var(--rim-mid) 0.36cqw,
+      var(--rim-lo) 0.52cqw,
+      var(--rim-mid) 0.66cqw,
+      var(--rim-hi2) 0.8cqw,
+      var(--rim-mid) 0.95cqw
+    ) 1;
+  margin-block: -0.6cqw;
+  padding-block: 0.6cqw;
 }
 .mq-card__scale--left,
 .mq-card__scale--right { position: relative; }
