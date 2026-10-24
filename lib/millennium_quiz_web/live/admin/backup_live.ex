@@ -23,7 +23,10 @@ defmodule MillenniumQuizWeb.Admin.BackupLive do
       <section class="rounded-box border border-base-300 bg-base-100 p-5 space-y-3">
         <h2 class="font-semibold">Download backup</h2>
         <p class="text-sm text-base-content/70">
-          Keep the file somewhere safe, for example in git. After a database loss, restore it below.
+          The file is saved on this device, usually in the Downloads folder. Download a new one
+          after every time you change questions, and keep it somewhere safe: a cloud drive, an
+          email to yourself or a USB stick. If the site ever loses its data, restore the file
+          below.
         </p>
         <a href={~p"/admin/backup.json"} class="btn btn-primary" id="download-backup" download>
           <.icon name="hero-arrow-down-tray" class="size-5" /> Download backup

@@ -76,6 +76,39 @@ and the cards linked to each question (by YGOPRODeck id and name). It does
 not contain games, accounts or the card pool: admins come from `ADMIN_*`, and
 cards are fetched again by their id when a backup is restored.
 
+### Step by step for editors (no technical knowledge needed)
+
+A backup is a small file with all the questions you wrote. If the website ever
+loses its data, that file brings everything back. Without it, the questions
+would be gone, so take a backup regularly.
+
+**Make a backup**
+
+1. Open the website and log in at `/admin/login` with your admin name and password.
+2. Click **Backup** in the menu at the top (on a phone, tap the menu button at the top right first).
+3. Click **Download backup**. Your browser saves a file named like
+   `millennium-quiz-backup-2026-10-24.json`, normally in your **Downloads** folder
+   (on a phone, in the Files or Downloads app).
+4. Copy that file to a safe place that is *not* only this device: a cloud drive,
+   an email to yourself, or a USB stick. Leave the file as it is; do not open or edit it.
+
+**How often**
+
+- Download a new backup **every time you have added or changed questions**. It takes half a minute.
+- Whoever runs the website should also take one **at least once a week** and **before every update of the site**.
+- Keep the **last three to five** files (the date is in the name) and delete older ones. A new backup does not replace the old one, so you can always go back.
+
+**Bring the questions back (restore)**
+
+1. Log in and open **Backup** as above.
+2. Under **Restore from a backup file**, choose the file from your device (tap or click **Choose file**) and wait until its name appears.
+3. Click **Restore** and confirm.
+4. Wait. The pictures and texts of all cards are fetched again, which can take several minutes. Stay on the page to see the result; if you leave, the restore keeps going in the background.
+5. Read the result list. "Formats created" is what came back. A format that already exists is skipped (nothing is ever overwritten or doubled), so restoring twice is safe. If a card could not be found, the question still comes back without that card picture; open it in the admin and add the card again.
+6. Check your formats in the admin to be sure everything is there.
+
+The technical details follow.
+
 - **Admin page:** `/admin/backup` ("Backup" in the admin menu) downloads the
   file (`millennium-quiz-backup-YYYY-MM-DD.json`) and restores one (a `.json`
   file up to 5 MB). On the Gigalixir free tier there is no SSH, so use this
