@@ -1079,9 +1079,12 @@ defmodule MillenniumQuizWeb.GameLive do
     |> assign(:status, view.status)
     |> assign(:game, view.game)
     |> lock_new_turn(view.game)
-    |> assign(:page_title, "#{view.game.format_name} · Q#{view.game.round}")
+    |> assign(:page_title, page_title(view.game))
     |> maybe_assign_qr()
   end
+
+  defp page_title(%{phase: :finished} = game), do: "#{game.format_name} · Final results"
+  defp page_title(game), do: "#{game.format_name} · Q#{game.round}"
 
   # A turn is a phase of a round, and each player's answer is one. The first
   # view after mounting never locks (a resumed game must be usable at once);

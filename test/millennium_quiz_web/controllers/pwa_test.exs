@@ -11,13 +11,12 @@ defmodule MillenniumQuizWeb.PwaTest do
     assert attrs(doc, "link[rel=apple-touch-icon]", "href") == ["/images/apple-touch-icon.png"]
   end
 
-  test "theme colour and colour scheme for light and dark, content under the notch", %{conn: conn} do
+  test "the browser bar follows the site's theme, the page extends under the notch", %{conn: conn} do
     doc = page(conn)
 
-    assert attrs(doc, "meta[name=theme-color]", "media") == [
-             "(prefers-color-scheme: light)",
-             "(prefers-color-scheme: dark)"
-           ]
+    # one meta; the theme script repaints it on every theme change (checked in a browser)
+    assert attrs(doc, "meta[name=theme-color]", "content") == ["#fdfaf4"]
+    assert attrs(doc, "meta[name=theme-color]", "media") == []
 
     assert attrs(doc, "meta[name=color-scheme]", "content") == ["light dark"]
     [viewport] = attrs(doc, "meta[name=viewport]", "content")

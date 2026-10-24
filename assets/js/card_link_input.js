@@ -163,6 +163,10 @@ export const CardLinkInput = {
 
   render() {
     if (this.suggestions.length === 0 || this.dismissed) return this.hide(false)
+    // placed when the list opens or its suggestions change, not on every arrow
+    // key: no flipping above/below and no repeated scrolling while browsing it
+    const place = this.list.hidden || this.placedFor !== this.suggestions
+    this.placedFor = this.suggestions
     const items = this.suggestions.map((s, i) => {
       const li = document.createElement("li")
       li.id = `${this.list.id}-option-${i}`
@@ -192,7 +196,7 @@ export const CardLinkInput = {
     })
     this.list.replaceChildren(...items)
     this.list.hidden = false
-    this.place()
+    if (place) this.place()
     this.el.setAttribute("aria-expanded", "true")
     this.el.setAttribute("aria-activedescendant", `${this.list.id}-option-${this.active}`)
   },
