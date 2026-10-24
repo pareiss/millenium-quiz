@@ -63,6 +63,20 @@ defmodule MillenniumQuiz.RateLimit do
     check({rule, id}, limit, window_ms)
   end
 
+  @doc """
+  Like `check_rule/2` but counts nothing: `:ok` while the current window still
+  has room, `{:error, window_ms}` (the whole window, as the rest isn't known)
+  otherwise. For checks whose hits are counted somewhere else or only on
+  failure.
+  """
+  def peek(rule, id) when is_map_key(@defaults, rule) do
+    {limit, window_ms} = limit(rule)
+
+    if enabled?() and Backend.get({rule, id}, window_ms) >= limit,
+      do: {:error, window_ms},
+      else: :ok
+  end
+
   @doc "The `{max_hits, window_ms}` of a rule, with configuration applied."
   def limit(rule) when is_map_key(@defaults, rule) do
     config = Application.get_env(:millennium_quiz, __MODULE__, [])

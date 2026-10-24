@@ -148,6 +148,36 @@ defmodule MillenniumQuizWeb.RateLimitsTest do
 
       assert RateLimit.check_rule(:password_user, user.id) != :ok
     end
+
+    test "a successful change uses one hit: the last allowed attempt goes through",
+         %{conn: conn, user: user} do
+      limits(password_user: {2, 60_000})
+      {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+      assert change_password(view, "not the password") =~ "is not valid"
+
+      # the page accepts the right password and hands the form to the controller...
+      change_password(view, valid_user_password())
+      assert has_element?(view, "#password-form[phx-trigger-action]")
+
+      # ...which must not find the limit used up
+      conn =
+        put(conn, ~p"/admin/password", %{
+          "current_password" => valid_user_password(),
+          "user" => %{
+            "password" => "another password",
+            "password_confirmation" => "another password"
+          }
+        })
+
+      assert redirected_to(conn) == ~p"/admin/users"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Password updated"
+
+      assert MillenniumQuiz.Accounts.get_user_by_username_and_password(
+               user.username,
+               "another password"
+             )
+    end
   end
 
   describe "global caps" do
@@ -249,6 +279,8 @@ defmodule MillenniumQuizWeb.RateLimitsTest do
       assert response(limited, 200) == data
       assert [limited_etag] = get_resp_header(limited, "etag")
       refute limited_etag =~ "-400"
+      # kept only briefly under the resized URL
+      assert get_resp_header(limited, "cache-control") == ["private, max-age=60"]
 
       # another client still gets its rendition
       other = get(%{build_conn() | remote_ip: {10, 9, 9, 10}}, "/cards/#{card.id}/artwork?w=400")

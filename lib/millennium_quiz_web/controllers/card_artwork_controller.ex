@@ -41,8 +41,15 @@ defmodule MillenniumQuizWeb.CardArtworkController do
         |> put_resp_content_type("image/jpeg", nil)
         |> send_resp(200, jpeg)
 
-      _ ->
-        # no (valid) width, or resizing failed: the original, under its own ETag
+      result ->
+        # no (valid) width, resizing failed or the client is over its limit: the
+        # original, under its own ETag. Over the limit it is only kept briefly
+        # under the resized URL, so the real rendition is fetched later.
+        conn =
+          if result == :limited,
+            do: put_resp_header(conn, "cache-control", "private, max-age=60"),
+            else: conn
+
         conn
         |> put_resp_header("etag", ~s("#{base_etag}"))
         |> put_resp_content_type(artwork.content_type, nil)

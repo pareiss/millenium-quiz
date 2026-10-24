@@ -186,11 +186,21 @@ if config_env() == :prod do
 
     default_port = if security == "ssl", do: "465", else: "587"
 
+    # credentials: both or neither (a relay that needs none is allowed)
+    username = System.get_env("SMTP_USERNAME")
+    password = System.get_env("SMTP_PASSWORD")
+
+    if is_nil(username) != is_nil(password) do
+      raise "SMTP_USERNAME and SMTP_PASSWORD must be set together"
+    end
+
+    auth = if username, do: :always, else: :never
+
     tls_config =
       case security do
-        "starttls" -> [tls: :always, auth: :always, tls_options: tls_options]
-        "ssl" -> [ssl: true, tls: :never, auth: :always, sockopts: tls_options]
-        "none" -> [tls: :never, auth: :if_available]
+        "starttls" -> [tls: :always, auth: auth, tls_options: tls_options]
+        "ssl" -> [ssl: true, tls: :never, auth: auth, sockopts: tls_options]
+        "none" -> [tls: :never, auth: if(username, do: :if_available, else: :never)]
       end
 
     config :millennium_quiz,
@@ -199,8 +209,8 @@ if config_env() == :prod do
              adapter: Swoosh.Adapters.SMTP,
              relay: smtp_host,
              port: String.to_integer(System.get_env("SMTP_PORT", default_port)),
-             username: System.get_env("SMTP_USERNAME"),
-             password: System.get_env("SMTP_PASSWORD")
+             username: username,
+             password: password
            ] ++ tls_config
   else
     config :millennium_quiz, MillenniumQuiz.Mailer, adapter: Swoosh.Adapters.Logger, level: :debug
