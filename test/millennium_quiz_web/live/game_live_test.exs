@@ -65,6 +65,8 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     view |> element("#choice-1") |> render_click()
 
     assert has_element?(view, "#reveal-choice-0.border-success")
+    # the call to action stays at the foot of the screen
+    assert has_element?(view, "#reveal-bar.sticky #next-round")
     assert has_element?(view, "#round-results li", "+10")
     assert has_element?(view, "#round-results li", "+0")
     view |> element("#next-round") |> render_click()
@@ -80,6 +82,24 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert has_element?(view, "#final")
     assert has_element?(view, "#final-standings")
     assert has_element?(view, "#play-again[href*='mode=free']")
+
+    # a finished game is no "Question 2 of 2"; the standings are in the panel
+    assert has_element?(view, "#round-label", "Final results")
+    refute has_element?(view, "#round-label", "Question")
+    refute has_element?(view, "#scoreboard")
+    refute has_element?(view, "#pause-game")
+    assert has_element?(view, "#final-bar.sticky #play-again")
+  end
+
+  test "a running game shows its round and scoreboard", %{conn: conn, format: format} do
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :free)
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+
+    assert has_element?(view, "#round-label", "Question 1")
+    assert has_element?(view, "#scoreboard #score-0", "Ann")
+    assert has_element?(view, "#scoreboard #score-1", "Bob")
+    # the board lays out its topics by itself on a phone; --cols is for wider screens
+    assert has_element?(view, "#board.mq-board[style*='--cols: 2']")
   end
 
   test "Level Up! lets players choose a topic", %{conn: conn} do

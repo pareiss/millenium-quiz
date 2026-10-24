@@ -164,7 +164,7 @@ defmodule MillenniumQuizWeb.CardComponents do
     ~H"""
     <div
       id={@id}
-      class="mq-dialog fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
+      class="mq-dialog fixed inset-0 z-50 grid place-items-center overflow-y-auto p-2 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={@card.name}
@@ -175,34 +175,30 @@ defmodule MillenniumQuizWeb.CardComponents do
       phx-mounted={JS.focus(to: "##{@id}-close")}
     >
       <.cycle_keys :if={cycle?(assigns)} on_cycle={@on_cycle} />
-      <div class="fixed inset-0 bg-black/65 backdrop-blur-sm" phx-click={@on_close} />
-      <div class="relative flex w-[min(26rem,100%)] flex-col items-center gap-3 reveal-pop">
-        <button
-          type="button"
-          id={"#{@id}-close"}
-          class="btn btn-circle btn-sm absolute -top-2 -right-2 z-10 shadow"
-          phx-click={@on_close}
-          aria-label="Close"
-        >
-          <.icon name="hero-x-mark" class="size-4" />
-        </button>
-        <.card
-          card={@card}
-          size="large"
-          class="w-full"
-          on_text={@on_text}
-          text_value={@text_value}
-        />
-        <.cycle_controls
-          :if={cycle?(assigns)}
-          id={@id}
-          count={@count}
-          index={@index}
-          on_cycle={@on_cycle}
-          names={@names}
-        />
-        <p :if={@card.set} class="text-center text-sm text-white/90">As printed in {@card.set}</p>
-        {render_slot(@inner_block)}
+      <div class="fixed inset-0 bg-black/85" phx-click={@on_close} />
+      <div class="mq-stage mq-stage--card reveal-pop">
+        <.dialog_close id={"#{@id}-close"} on_close={@on_close} />
+        <div class="mq-stage__main">
+          <.card
+            card={@card}
+            size="large"
+            class="w-full"
+            on_text={@on_text}
+            text_value={@text_value}
+          />
+        </div>
+        <div class="mq-stage__side">
+          <.cycle_controls
+            :if={cycle?(assigns)}
+            id={@id}
+            count={@count}
+            index={@index}
+            on_cycle={@on_cycle}
+            names={@names}
+          />
+          <p :if={@card.set} class="text-center text-sm text-white/90">As printed in {@card.set}</p>
+          {render_slot(@inner_block)}
+        </div>
       </div>
     </div>
     """
@@ -236,7 +232,7 @@ defmodule MillenniumQuizWeb.CardComponents do
     ~H"""
     <div
       id={@id}
-      class="mq-dialog fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
+      class="mq-dialog fixed inset-0 z-50 grid place-items-center overflow-y-auto p-2 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={"#{@id}-title"}
@@ -247,122 +243,138 @@ defmodule MillenniumQuizWeb.CardComponents do
       phx-mounted={JS.focus(to: "##{@id}-close")}
     >
       <.cycle_keys :if={cycle?(assigns)} on_cycle={@on_cycle} />
-      <div class="fixed inset-0 bg-black/65 backdrop-blur-sm" phx-click={@on_close} />
-      <div class="relative flex w-[min(36rem,100%)] flex-col items-center gap-3 reveal-pop">
-        <article
-          class={[
-            "mq-card-panel relative w-full",
-            @on_back && "cursor-zoom-out"
-          ]}
-          data-frame={frame(@card)}
-          data-pendulum={pendulum?(@card)}
-          phx-click={@on_back}
-          phx-value-card={@on_back && @back_value}
-          title={@on_back && "Back to the card"}
-        >
-          <%!-- For keyboards; mice can click anywhere on the panel --%>
-          <button
-            :if={@on_back}
-            type="button"
-            id={"#{@id}-back"}
+      <div class="fixed inset-0 bg-black/85" phx-click={@on_close} />
+      <div class="mq-stage mq-stage--text reveal-pop">
+        <.dialog_close id={"#{@id}-close"} on_close={@on_close} />
+        <div class="mq-stage__main">
+          <article
+            class={[
+              "mq-card-panel relative w-full",
+              @on_back && "cursor-zoom-out"
+            ]}
+            data-frame={frame(@card)}
+            data-pendulum={pendulum?(@card)}
             phx-click={@on_back}
-            phx-value-card={@back_value}
-            class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:-top-2 focus-visible:left-2 focus-visible:z-10 focus-visible:rounded-field focus-visible:bg-primary focus-visible:px-2 focus-visible:py-1 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-primary-content"
+            phx-value-card={@on_back && @back_value}
+            title={@on_back && "Back to the card"}
           >
-            Back to the card
-          </button>
-          <button
-            type="button"
-            id={"#{@id}-close"}
-            class="btn btn-circle btn-sm absolute -top-2 -right-2 z-10 shadow"
-            phx-click={@on_close}
-            aria-label="Close"
-          >
-            <.icon name="hero-x-mark" class="size-4" />
-          </button>
-          <header class="mq-card-panel__name">
-            <h2 id={"#{@id}-title"}>{@card.name}</h2>
-            <p :if={stars_label(@card)} class="mq-card-panel__stars" title={stars_label(@card)}>
-              <span :if={(@card[:level] || @card[:rank]) != 1}>{@card[:level] || @card[:rank]}</span>
-              <.level_star rank={not is_nil(@card[:rank])} class="size-7" />
-              <span class="sr-only">{stars_label(@card)}</span>
-            </p>
-            <p :if={@link?} class="mq-card-panel__stars" title={link_label(@arrows)}>
-              <.link_arrow
-                :for={position <- lit_positions(@arrows)}
-                position={position}
-                class="size-6"
-              />
-              <span class="sr-only">{link_label(@arrows)}</span>
-            </p>
-            <span
-              :if={kind(@card) in ["Spell", "Trap"] and @card[:property] not in [nil, "Normal"]}
-              class="mq-card-panel__property"
-              title={"#{@card.property} #{kind(@card)}"}
-            ><.property_icon
-              property={@card.property}
-              label={"#{@card.property} #{kind(@card)}"}
-              class="size-7"
-            /></span>
-            <.attribute_icon
-              :if={@card[:attribute]}
-              attribute={@card.attribute}
-              class="size-8 shrink-0 cursor-help"
-            />
-            <.attribute_icon
-              :if={kind(@card) in ["Spell", "Trap"]}
-              attribute={kind(@card)}
-              class="size-8 shrink-0 cursor-help"
-            />
-          </header>
-          <div class="mq-card-panel__box">
-            <div class="mq-card-panel__body">
-              <p :if={@card[:monster_type_line]} class="mq-card-panel__type">
-                [{type_line(@card.monster_type_line)}]
+            <%!-- For keyboards; mice can click anywhere on the panel --%>
+            <button
+              :if={@on_back}
+              type="button"
+              id={"#{@id}-back"}
+              phx-click={@on_back}
+              phx-value-card={@back_value}
+              class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:-top-2 focus-visible:left-2 focus-visible:z-10 focus-visible:rounded-field focus-visible:bg-primary focus-visible:px-2 focus-visible:py-1 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-primary-content"
+            >
+              Back to the card
+            </button>
+            <header class="mq-card-panel__name">
+              <h2 id={"#{@id}-title"}>{@card.name}</h2>
+              <p :if={stars_label(@card)} class="mq-card-panel__stars" title={stars_label(@card)}>
+                <span :if={(@card[:level] || @card[:rank]) != 1}>{@card[:level] || @card[:rank]}</span>
+                <.level_star rank={not is_nil(@card[:rank])} class="size-7" />
+                <span class="sr-only">{stars_label(@card)}</span>
               </p>
-              <p :if={kind(@card) in ["Spell", "Trap"]} class="mq-card-panel__type">
-                [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(
-                  @card
-                )}]
+              <p :if={@link?} class="mq-card-panel__stars" title={link_label(@arrows)}>
+                <.link_arrow
+                  :for={position <- lit_positions(@arrows)}
+                  position={position}
+                  class="size-6"
+                />
+                <span class="sr-only">{link_label(@arrows)}</span>
               </p>
-              <section :if={@card[:pendulum_text]} class="mq-card-panel__pendulum">
-                <h3>
-                  <span>Pendulum Effect</span>
-                  <span class="mq-card-panel__scale" title="Pendulum Scale">
-                    <.scale_gem side="left" class="h-4 w-5" /> Scale {@card[:pendulum_scale]}
-                    <.scale_gem side="right" class="h-4 w-5" />
-                  </span>
-                </h3>
-                <p>{@card.pendulum_text}</p>
-              </section>
-              <p class="mq-card-panel__text whitespace-pre-line">{@card.text}</p>
-              <.stats
-                :if={@card[:atk]}
-                class="mq-card-panel__stats"
-                card={@card}
-                link?={@link?}
-                arrows={@arrows}
+              <span
+                :if={kind(@card) in ["Spell", "Trap"] and @card[:property] not in [nil, "Normal"]}
+                class="mq-card-panel__property"
+                title={"#{@card.property} #{kind(@card)}"}
+              ><.property_icon
+                property={@card.property}
+                label={"#{@card.property} #{kind(@card)}"}
+                class="size-7"
+              /></span>
+              <.attribute_icon
+                :if={@card[:attribute]}
+                attribute={@card.attribute}
+                class="size-8 shrink-0 cursor-help"
               />
+              <.attribute_icon
+                :if={kind(@card) in ["Spell", "Trap"]}
+                attribute={kind(@card)}
+                class="size-8 shrink-0 cursor-help"
+              />
+            </header>
+            <div class="mq-card-panel__box">
+              <div class="mq-card-panel__body">
+                <p :if={@card[:monster_type_line]} class="mq-card-panel__type">
+                  [{type_line(@card.monster_type_line)}]
+                </p>
+                <p :if={kind(@card) in ["Spell", "Trap"]} class="mq-card-panel__type">
+                  [{if @card[:property] in [nil, "Normal"], do: "Normal", else: @card.property} {kind(
+                    @card
+                  )}]
+                </p>
+                <section :if={@card[:pendulum_text]} class="mq-card-panel__pendulum">
+                  <h3>
+                    <span>Pendulum Effect</span>
+                    <span class="mq-card-panel__scale" title="Pendulum Scale">
+                      <.scale_gem side="left" class="h-4 w-5" /> Scale {@card[:pendulum_scale]}
+                      <.scale_gem side="right" class="h-4 w-5" />
+                    </span>
+                  </h3>
+                  <p>{@card.pendulum_text}</p>
+                </section>
+                <p class="mq-card-panel__text whitespace-pre-line">{@card.text}</p>
+                <.stats
+                  :if={@card[:atk]}
+                  class="mq-card-panel__stats"
+                  card={@card}
+                  link?={@link?}
+                  arrows={@arrows}
+                />
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
+        </div>
         <%!-- outside the panel, so its links don't also go back to the card --%>
-        <.cycle_controls
-          :if={cycle?(assigns)}
-          id={@id}
-          count={@count}
-          index={@index}
-          on_cycle={@on_cycle}
-          names={@names}
-        />
-        <p :if={@card.set} class="text-center text-sm text-white/90">As printed in {@card.set}</p>
-        {render_slot(@inner_block)}
+        <div class="mq-stage__side">
+          <.cycle_controls
+            :if={cycle?(assigns)}
+            id={@id}
+            count={@count}
+            index={@index}
+            on_cycle={@on_cycle}
+            names={@names}
+          />
+          <p :if={@card.set} class="text-center text-sm text-white/90">As printed in {@card.set}</p>
+          {render_slot(@inner_block)}
+        </div>
       </div>
     </div>
     """
   end
 
   defp cycle?(assigns), do: assigns.on_cycle != nil and assigns.count >= 2
+
+  attr :id, :string, required: true
+  attr :on_close, :string, required: true
+
+  # Outside the card, so it never covers the card's name or Attribute. Sticky:
+  # it stays in view when a tall dialog scrolls.
+  defp dialog_close(assigns) do
+    ~H"""
+    <button
+      type="button"
+      id={@id}
+      class="btn btn-circle sticky top-0 z-10 self-end shadow mq-stage__close"
+      phx-click={@on_close}
+      aria-label="Close"
+      title="Close"
+    >
+      <.icon name="hero-x-mark" class="size-5" />
+    </button>
+    """
+  end
 
   # One binding per key: phx-key takes a single key.
   attr :on_cycle, :string, required: true

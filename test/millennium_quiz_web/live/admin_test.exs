@@ -44,8 +44,26 @@ defmodule MillenniumQuizWeb.AdminTest do
     end
   end
 
+  test "without a login the header has no admin menu", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/")
+    refute has_element?(view, "#admin-menu")
+    assert has_element?(view, "#site-header a[href='/admin/login']")
+  end
+
   describe "logged in" do
     setup :register_and_log_in_user
+
+    test "the header folds the admin links into a menu on phones", %{conn: conn} do
+      format = format_fixture()
+      {:ok, view, _html} = live(conn, ~p"/admin/formats/#{format}")
+
+      assert has_element?(view, "#brand-link[aria-label='Millennium Quiz']")
+      assert has_element?(view, "#logout-link")
+      assert has_element?(view, "#admin-menu [aria-label='Admin menu']")
+      assert has_element?(view, "#admin-menu a#menu-formats")
+      assert has_element?(view, "#admin-menu a#menu-users")
+      assert has_element?(view, "#admin-menu a#menu-logout[data-method=delete]")
+    end
 
     test "creates a format with topics", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/formats/new")

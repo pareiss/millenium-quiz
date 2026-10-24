@@ -78,8 +78,10 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
 
         <ul
           :if={@results != []}
-          class="divide-y divide-base-300 rounded-field border border-base-300"
+          class="max-h-[min(22rem,50dvh)] divide-y divide-base-300 overflow-y-auto overscroll-contain rounded-field border border-base-300"
           id="card-results"
+          tabindex="0"
+          aria-label="Search results"
         >
           <li :for={result <- @results} class="flex items-center gap-3 px-3 py-2">
             <div class="flex-1 min-w-0">
@@ -167,15 +169,17 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
             Answers <span class="text-sm text-base-content/60">(2–6, tick the correct one)</span>
           </legend>
           <.inputs_for :let={choice} field={@form[:choices]}>
-            <div class="flex items-start gap-2">
+            <%!-- letter, answer, remove; "Correct" sits under the answer on a
+                 phone and in the row from sm up --%>
+            <div class="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
               <input type="hidden" name="question[choices_sort][]" value={choice.index} />
               <span class="mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-base-200 text-sm font-semibold">
                 {<<?A + choice.index>>}
               </span>
-              <div class="flex-1">
+              <div>
                 <.input field={choice[:text]} placeholder="Answer" maxlength="200" />
               </div>
-              <div class="mt-2">
+              <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:mt-2">
                 <.input
                   field={choice[:correct]}
                   type="checkbox"
@@ -188,9 +192,10 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
                 name="question[choices_drop][]"
                 value={choice.index}
                 phx-click={JS.dispatch("change")}
-                class="btn btn-ghost btn-square mt-0.5"
+                class="btn btn-ghost btn-square col-start-3 row-start-1 mt-0.5 sm:col-start-4"
                 id={"remove-choice-#{choice.index}"}
                 aria-label="Remove answer"
+                title="Remove answer"
               >
                 <.icon name="hero-x-mark" class="size-5" />
               </button>

@@ -142,6 +142,25 @@ export const CardLinkInput = {
     this.el.removeAttribute("aria-activedescendant")
   },
 
+  // Keeps the list in view: a virtual keyboard can leave no room under the
+  // textarea, so the list opens above it when there is more room there,
+  // else it is scrolled into view.
+  place() {
+    const list = this.list
+    delete list.dataset.placement
+    const vv = window.visualViewport
+    const top = vv ? vv.offsetTop : 0
+    const bottom = top + (vv ? vv.height : window.innerHeight)
+    const box = this.el.getBoundingClientRect()
+    const below = bottom - box.bottom
+    const above = box.top - top
+    if (list.offsetHeight > below && above > below) {
+      list.dataset.placement = "top"
+    } else if (list.offsetHeight > below) {
+      list.scrollIntoView({block: "nearest"})
+    }
+  },
+
   render() {
     if (this.suggestions.length === 0 || this.dismissed) return this.hide(false)
     const items = this.suggestions.map((s, i) => {
@@ -173,6 +192,7 @@ export const CardLinkInput = {
     })
     this.list.replaceChildren(...items)
     this.list.hidden = false
+    this.place()
     this.el.setAttribute("aria-expanded", "true")
     this.el.setAttribute("aria-activedescendant", `${this.list.id}-option-${this.active}`)
   },

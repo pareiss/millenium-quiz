@@ -456,6 +456,60 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     end
   end
 
+  describe "dialog layout" do
+    test "the close button sits outside the card, before it, and stays in view" do
+      card = Map.merge(@blank, %{id: 7, name: "Monster Reborn", text: "Revive."})
+
+      for {fun, kind} <- [{&card_dialog/1, "card"}, {&card_text_dialog/1, "text"}] do
+        doc =
+          render_component(fun, id: "d", card: card, on_close: "close", inner_block: [])
+          |> LazyHTML.from_fragment()
+
+        # a direct child of the stage, in front of the card (sticky, 44 px circle)
+        assert count(doc, "#d .mq-stage--#{kind} > #d-close.mq-stage__close.sticky") == 1
+        assert count(doc, "#d-close[aria-label=Close][title=Close]") == 1
+        assert count(doc, ".mq-card #d-close, .mq-card-panel #d-close") == 0
+        assert count(doc, "#d .mq-stage > .mq-stage__main") == 1
+        assert count(doc, "#d .mq-stage > .mq-stage__side") == 1
+      end
+    end
+
+    test "the backdrop is dark and not blurred" do
+      card = Map.merge(@blank, %{name: "Monster Reborn", text: "Revive."})
+
+      for fun <- [&card_dialog/1, &card_text_dialog/1] do
+        doc =
+          fun
+          |> render_component(id: "d", card: card, on_close: "close", inner_block: [])
+          |> LazyHTML.from_fragment()
+
+        assert count(doc, "#d > div.inset-0.bg-black\\/85[phx-click=close]") == 1
+        assert count(doc, "[class*=backdrop-blur]") == 0
+      end
+    end
+
+    test "controls and captions are in the side column, not in the card's" do
+      card = Map.merge(@blank, %{name: "Beta", text: "Hi.", set: "Starter Deck"})
+
+      doc =
+        render_component(&card_dialog/1,
+          id: "d",
+          card: card,
+          on_close: "close",
+          count: 2,
+          index: 0,
+          on_cycle: "cycle",
+          names: ["Alpha", "Beta"],
+          inner_block: []
+        )
+        |> LazyHTML.from_fragment()
+
+      assert count(doc, "#d .mq-stage__side > #d-cycle") == 1
+      assert text(doc, "#d .mq-stage__side") =~ "As printed in Starter Deck"
+      assert count(doc, "#d .mq-stage__main #d-cycle") == 0
+    end
+  end
+
   describe "carousel controls" do
     @names ["Alpha", "Beta", "Gamma"]
 
