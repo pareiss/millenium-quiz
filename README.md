@@ -455,8 +455,332 @@ file and the same environment variables, with the `Dockerfile` or a release.
 - [ ] The app's port is reachable only through the proxy.
 
 ## Next: Yu-Gi-Oh! features
-
 - **Board states / gameplay:** the open-source engine is ygopro-core / EDOPro (Project Ignis), C++ and Lua under the AGPL. A first step is questions with a board state stored as JSON and rendered by a component. The engine itself would run as its own container next to the app.
 - `Game` is not tied to a question type. A `kind` field on questions (`:multiple_choice`, `:card_image`, `:board_state`) would only change rendering and answer checking.
 - **Profile pictures per format:** every format gets its own list of iconic cards of that era, so players can pick a profile picture from the cards of the format they are about to quiz on. The avatars today are a fixed set of monster faces (`MillenniumQuiz.Avatars`); this would add a per-format list, chosen by an admin from the card pool (the cropped artwork is already stored and served at `/cards/<id>/artwork`), and a picker on the new-game page that offers the format's cards first. The game snapshot keeps the chosen avatar, so old games must keep loading.
 - **Visual redesign:** the current look is plain (warm cream background, amber accent, DaisyUI components). Two directions to pick from, or combine: (a) Millennium items, with gold and lapis colours, Egyptian-style borders and hieroglyph-like ornaments, and the Eye of Wadjet as the logo; or (b) a 5D's style with dark-metal panels, neon cyan and red accents, Duel Disk-like frames and angled shapes. It would mostly touch `assets/css/app.css`, the layouts and the core components, with the drawn cards in `card_components.ex` left as they are. Open: which direction, and whether the admin pages are included.
+
+## Gigalixir: a failed push
+
+<details><summary>The log of the push that failed with <code>Invalid arguments to esbuild.install</code> (fixed by running the asset build from a script, see <code>bin/build-assets</code>)</summary>
+
+```
+git push gigalixir HEAD:master
+Enumerating objects: 1713, done.
+Counting objects: 100% (1713/1713), done.
+Delta compression using up to 32 threads
+Compressing objects: 100% (1594/1594), done.
+Writing objects: 100% (1713/1713), 1.05 MiB | 1.46 MiB/s, done.
+Total 1713 (delta 953), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (953/953), done.
+remote:
+remote:      ____ _             _ _      _
+remote:     / ___(_) __ _  __ _| (_)_  _(_)_ __
+remote:    | |  _| |/ _` |/ _` | | \ \/ / | '__|
+remote:    | |_| | | (_| | (_| | | |>  <| | |
+remote:     \____|_|\__, |\__,_|_|_/_/\_\_|_|
+remote:              |___/
+remote:
+remote: Starting build 01a1700e-7118-74bb-b166-d0a9a857a21a
+remote: Preparing cache
+remote: Compiling code and generating slug.
+remote: Setting environment variables.
+remote: * ADMIN_PASSWORD
+remote: * ADMIN_USERNAME
+remote: * APP_NAME
+remote: * DATABASE_URL
+remote: * GAME_EXPIRY_DAYS
+remote: * GAME_EXPIRY_FINISHED_DAYS
+remote: * GAME_LIMIT
+remote: * LIBCLUSTER_KUBERNETES_NODE_BASENAME
+remote: * LIBCLUSTER_KUBERNETES_SELECTOR
+remote: * MIGRATE_ON_BOOT
+remote: * PHX_HOST
+remote: * PHX_SERVER
+remote: * POOL_SIZE
+remote: * PORT
+remote: * SECRET_KEY_BASE
+remote: * SOURCE_VERSION
+remote: * TRUSTED_PROXY_HOPS
+----->        Detecting assets directory
+       detected assets directory and phoenix in mix.exs file
+       Elixir+Phoenix+Releases app detected
+       Detecting assets directory
+       detected assets directory and phoenix in mix.exs file
+=====> Downloading Buildpack: https://github.com/gigalixir/gigalixir-buildpack-elixir.git
+=====> Detected Framework: Elixir
+-----> Will export the following config vars:
+       ADMIN_PASSWORD
+       ADMIN_USERNAME
+       APP_NAME
+       DATABASE_URL
+       GAME_EXPIRY_DAYS
+       GAME_EXPIRY_FINISHED_DAYS
+       GAME_LIMIT
+       LIBCLUSTER_KUBERNETES_NODE_BASENAME
+       LIBCLUSTER_KUBERNETES_SELECTOR
+       MIGRATE_ON_BOOT
+       PHX_HOST
+       PHX_SERVER
+       POOL_SIZE
+       PORT
+       SECRET_KEY_BASE
+       SOURCE_VERSION
+       TRUSTED_PROXY_HOPS
+       * MIX_ENV=prod
+-----> Checking Erlang and Elixir versions
+       Will use the following versions:
+       * Stack heroku-26
+       * Erlang 27.3.4
+       * Elixir v1.17.3
+-----> Using cached Erlang 27.3.4
+-----> Installing Erlang 27.3.4
+-----> Using cached Elixir v1.17.3
+-----> Installing Elixir v1.17.3
+-----> Installing Hex
+       * creating /tmp/build/.mix/archives/hex-2.6.0
+-----> Installing rebar
+       * creating /tmp/build/.mix/elixir/1-17/rebar3
+-----> Fetching app dependencies with mix
+       * Getting heroicons (https://github.com/tailwindlabs/heroicons.git - v2.2.0)
+       remote: Enumerating objects: 9314, done.
+remote: remote: Counting objects: 100% (9314/9314), done.
+remote: remote: Compressing objects: 100% (5403/5403), done.
+       remote: Total 9314 (delta 4193), reused 8262 (delta 3849), pack-reused 0 (from 0)
+       * Getting daisyui (https://github.com/saadeghi/daisyui.git - v5.5.20)
+       remote: Enumerating objects: 21781, done.
+remote: remote: Counting objects: 100% (21781/21781), done.
+remote: remote: Compressing objects: 100% (10620/10620), done.
+       remote: Total 21781 (delta 12968), reused 16870 (delta 8997), pack-reused 0 (from 0)
+       Resolving Hex dependencies...
+       Resolution completed in 0.137s
+       * Getting phoenix (Hex package)
+       * Getting phoenix_ecto (Hex package)
+       * Getting ecto_sql (Hex package)
+       * Getting postgrex (Hex package)
+       * Getting phoenix_html (Hex package)
+       * Getting phoenix_live_view (Hex package)
+       * Getting phoenix_live_dashboard (Hex package)
+       * Getting esbuild (Hex package)
+       * Getting tailwind (Hex package)
+       * Getting swoosh (Hex package)
+       * Getting req (Hex package)
+       * Getting image (Hex package)
+       * Getting telemetry_metrics (Hex package)
+       * Getting telemetry_poller (Hex package)
+       * Getting gettext (Hex package)
+       * Getting jason (Hex package)
+       * Getting dns_cluster (Hex package)
+       * Getting bandit (Hex package)
+       * Getting bcrypt_elixir (Hex package)
+       * Getting eqrcode (Hex package)
+       * Getting gen_smtp (Hex package)
+       * Getting hammer (Hex package)
+       * Getting ranch (Hex package)
+       * Getting comeonin (Hex package)
+       * Getting elixir_make (Hex package)
+       * Getting hpax (Hex package)
+       * Getting plug (Hex package)
+       * Getting telemetry (Hex package)
+       * Getting thousand_island (Hex package)
+       * Getting websock (Hex package)
+       * Getting mime (Hex package)
+       * Getting plug_crypto (Hex package)
+       * Getting expo (Hex package)
+       * Getting color (Hex package)
+       * Getting sweet_xml (Hex package)
+       * Getting vix (Hex package)
+       * Getting cc_precompiler (Hex package)
+       * Getting finch (Hex package)
+       * Getting mint (Hex package)
+       * Getting nimble_options (Hex package)
+       * Getting nimble_pool (Hex package)
+       * Getting idna (Hex package)
+       * Getting phoenix_template (Hex package)
+       * Getting db_connection (Hex package)
+       * Getting decimal (Hex package)
+       * Getting ecto (Hex package)
+       * Getting phoenix_pubsub (Hex package)
+       * Getting websock_adapter (Hex package)
+       You have added/upgraded packages you could sponsor, run `mix hex.sponsor` to learn more
+-----> Copying hex from /tmp/build/.hex
+-----> Executing hook before compile: bin/fetch-vix-nif
+       fetch-vix-nif: fetched vix-nif-2.17-x86_64-linux-gnu-0.42.0.tar.gz
+-----> Compiling
+==> decimal
+       Compiling 4 files (.ex)
+       Generated decimal app
+==> mime
+       Compiling 1 file (.ex)
+       Generated mime app
+===> Analyzing applications...
+===> Compiling idna
+==> nimble_options
+       Compiling 3 files (.ex)
+       Generated nimble_options app
+===> Analyzing applications...
+===> Compiling telemetry
+==> telemetry_metrics
+       Compiling 7 files (.ex)
+       Generated telemetry_metrics app
+===> Analyzing applications...
+===> Compiling telemetry_poller
+==> thousand_island
+       Compiling 18 files (.ex)
+       Generated thousand_island app
+==> jason
+       Compiling 10 files (.ex)
+       Generated jason app
+==> esbuild
+       Compiling 4 files (.ex)
+       Generated esbuild app
+==> comeonin
+       Compiling 3 files (.ex)
+       Generated comeonin app
+==> phoenix_html
+       Compiling 6 files (.ex)
+       Generated phoenix_html app
+==> phoenix_template
+       Compiling 4 files (.ex)
+       Generated phoenix_template app
+==> db_connection
+       Compiling 18 files (.ex)
+       Generated db_connection app
+==> expo
+       Compiling 2 files (.erl)
+       Compiling 22 files (.ex)
+       Generated expo app
+==> phoenix_pubsub
+       Compiling 13 files (.ex)
+       Generated phoenix_pubsub app
+==> plug_crypto
+       Compiling 5 files (.ex)
+       Generated plug_crypto app
+==> hpax
+       Compiling 4 files (.ex)
+       Generated hpax app
+==> mint
+       Compiling 1 file (.erl)
+       Compiling 21 files (.ex)
+       Generated mint app
+==> dns_cluster
+       Compiling 1 file (.ex)
+       Generated dns_cluster app
+==> gettext
+       Compiling 18 files (.ex)
+       Generated gettext app
+===> Analyzing applications...
+===> Compiling ranch
+===> Analyzing applications...
+===> Compiling gen_smtp
+==> ecto
+       Compiling 56 files (.ex)
+       Generated ecto app
+==> plug
+       Compiling 1 file (.erl)
+       Compiling 42 files (.ex)
+       Generated plug app
+==> postgrex
+       Compiling 70 files (.ex)
+       Generated postgrex app
+==> hammer
+       Compiling 14 files (.ex)
+       Generated hammer app
+==> eqrcode
+       Compiling 10 files (.ex)
+       Generated eqrcode app
+==> ecto_sql
+       Compiling 25 files (.ex)
+       Generated ecto_sql app
+==> nimble_pool
+       Compiling 2 files (.ex)
+       Generated nimble_pool app
+==> finch
+       Compiling 23 files (.ex)
+       Generated finch app
+==> req
+       Compiling 24 files (.ex)
+       Generated req app
+==> tailwind
+       Compiling 3 files (.ex)
+       Generated tailwind app
+==> elixir_make
+       Compiling 8 files (.ex)
+       Generated elixir_make app
+==> bcrypt_elixir
+       mkdir -p "/tmp/build/_build/prod/lib/bcrypt_elixir/priv"
+       cc -g -O3 -Wall -Wno-format-truncation -I"/app/.platform_tools/erlang/erts-15.2.7/include" -Ic_src -fPIC -shared  c_src/bcrypt_nif.c c_src/blowfish.c -o "/tmp/build/_build/prod/lib/bcrypt_elixir/priv/bcrypt_nif.so"
+       Compiling 3 files (.ex)
+       Generated bcrypt_elixir app
+==> cc_precompiler
+       Compiling 3 files (.ex)
+       Generated cc_precompiler app
+==> vix
+       Compiling 28 files (.ex)
+       Generated vix app
+==> websock
+       Compiling 1 file (.ex)
+       Generated websock app
+==> bandit
+       Compiling 54 files (.ex)
+       Generated bandit app
+==> swoosh
+       Compiling 62 files (.ex)
+       Generated swoosh app
+==> color
+       Compiling 93 files (.ex)
+       Generated color app
+==> websock_adapter
+       Compiling 4 files (.ex)
+       Generated websock_adapter app
+==> phoenix
+       Compiling 75 files (.ex)
+remote:      warning: this check/guard will always yield the same result
+remote:      │
+remote:  301 │     if @requires_consolidation && config[:consolidate_protocols] do
+remote:      │     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+remote:      │
+remote:      └─ lib/phoenix/code_reloader/server.ex:301
+remote:
+remote:      warning: this check/guard will always yield the same result
+remote:      │
+remote:  414 │       @requires_consolidation && status == :ok && config[:consolidate_protocols] ->
+remote:      │       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+remote:      │
+remote:      └─ lib/phoenix/code_reloader/server.ex:414
+remote:
+       Generated phoenix app
+==> phoenix_live_view
+       Compiling 55 files (.ex)
+       Generated phoenix_live_view app
+==> phoenix_live_dashboard
+       Compiling 36 files (.ex)
+       Generated phoenix_live_dashboard app
+==> sweet_xml
+       Compiling 2 files (.ex)
+       Generated sweet_xml app
+==> image
+       Compiling 73 files (.ex)
+       Generated image app
+==> phoenix_ecto
+       Compiling 7 files (.ex)
+       Generated phoenix_ecto app
+==> millennium_quiz
+       Compiling 67 files (.ex)
+       Generated millennium_quiz app
+-----> Executing hook after compile: mix assets.setup && mix assets.deploy
+
+       22:37:34.590 [debug] Downloading tailwind from https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64
+remote: ** (Mix) Invalid arguments to esbuild.install, expected one of:
+remote:
+remote:     mix esbuild.install
+remote:     mix esbuild.install --runtime-config
+remote:     mix esbuild.install --if-missing
+remote:
+remote: Deploy aborted
+To https://git.gigalixir.com/millenium-quiz.git/
+ ! [remote rejected] HEAD -> master (pre-receive hook declined)
+error: failed to push some refs to 'https://git.gigalixir.com/millenium-quiz.git/'
+```
+
+</details>
