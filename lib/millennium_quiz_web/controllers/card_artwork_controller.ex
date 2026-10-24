@@ -2,7 +2,8 @@ defmodule MillenniumQuizWeb.CardArtworkController do
   @moduledoc "Serves card artworks from the local card pool."
   use MillenniumQuizWeb, :controller
 
-  alias MillenniumQuiz.Cards
+  alias MillenniumQuiz.{Cards, RateLimit}
+  alias MillenniumQuizWeb.ClientIP
 
   # Postgres bigint range; larger ids can't exist and would fail to encode.
   @max_id 9_223_372_036_854_775_807
@@ -34,7 +35,7 @@ defmodule MillenniumQuizWeb.CardArtworkController do
   end
 
   defp send_image(conn, id, artwork, width, base_etag) do
-    case width && Cards.resized_artwork(id, artwork, width) do
+    case width && resize(conn, id, artwork, width) do
       {:ok, jpeg} ->
         conn
         |> put_resp_content_type("image/jpeg", nil)
@@ -47,6 +48,18 @@ defmodule MillenniumQuizWeb.CardArtworkController do
         |> put_resp_content_type(artwork.content_type, nil)
         |> send_resp(200, Cards.artwork_data(id))
     end
+  end
+
+  # Only a cache miss is expensive. Over the per-client limit the original is
+  # served instead (never a 429 for an image).
+  defp resize(conn, id, artwork, width) do
+    if Cards.resized_artwork_cached?(id, artwork, width) or resize_allowed?(conn),
+      do: Cards.resized_artwork(id, artwork, width),
+      else: :limited
+  end
+
+  defp resize_allowed?(conn) do
+    RateLimit.check_rule(:artwork_resize_ip, ClientIP.from_conn(conn)) == :ok
   end
 
   # `?w=` is one of the offered widths; anything else means the original, so

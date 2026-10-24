@@ -179,6 +179,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
 
   @impl true
   def handle_event("change", %{"names" => names} = params, socket) when is_list(names) do
+    # assign_names/2 bounds the list and the names; the browser is not trusted.
     {:noreply,
      socket
      |> assign(:error, nil)
@@ -219,7 +220,9 @@ defmodule MillenniumQuizWeb.NewGameLive do
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp rate_limit(socket) do
-    case RateLimit.check_rule(:create_ip, socket.assigns.client_ip) do
+    limits = [create_ip: socket.assigns.client_ip, create_global: :all]
+
+    case RateLimit.check_all(limits) do
       :ok -> :ok
       {:error, retry_after_ms} -> {:error, {:rate_limited, retry_after_ms}}
     end
@@ -259,7 +262,18 @@ defmodule MillenniumQuizWeb.NewGameLive do
     end
   end
 
+  # Bounded however much the browser sends: at most max_players inputs, and
+  # names cut far above the 24 characters that `start` validates (so that
+  # message still shows).
+  @max_input_length 100
+
   defp assign_names(socket, names) do
+    names =
+      names
+      |> Stream.filter(&is_binary/1)
+      |> Enum.take(Game.max_players())
+      |> Enum.map(&String.slice(&1, 0, @max_input_length))
+
     socket
     |> assign(:names, names)
     |> assign(:form, to_form(%{"names" => names}))

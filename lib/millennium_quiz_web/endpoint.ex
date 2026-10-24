@@ -12,8 +12,12 @@ defmodule MillenniumQuizWeb.Endpoint do
     http_only: true
   ]
 
+  # A form event is a few KB: frames over 64 KB are refused, not decoded
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [:peer_data, :x_headers, session: @session_options]],
+    websocket: [
+      max_frame_size: 64_000,
+      connect_info: [:peer_data, :x_headers, session: @session_options]
+    ],
     longpoll: [connect_info: [:peer_data, :x_headers, session: @session_options]]
 
   # Serve at "/" the static files from "priv/static" directory.
@@ -40,12 +44,8 @@ defmodule MillenniumQuizWeb.Endpoint do
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :millennium_quiz
   end
 
-  plug Phoenix.LiveDashboard.RequestLogger,
-    param_key: "request_logger",
-    cookie_key: "request_logger"
-
   plug Plug.RequestId
-  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint], log: {__MODULE__, :log_level, []}
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
@@ -74,4 +74,10 @@ defmodule MillenniumQuizWeb.Endpoint do
   # plain http on purpose (PHX_SCHEME=http).
   def skip_https_redirect?(_conn),
     do: not Application.get_env(:millennium_quiz, :force_https, true)
+
+  @doc false
+  # A game's address is a bearer link: requests for it are logged at debug level
+  # only, so the usual (info) production logs do not hold working links.
+  def log_level(%Plug.Conn{path_info: ["games" | _]}), do: :debug
+  def log_level(_conn), do: :info
 end

@@ -48,7 +48,13 @@ defmodule MillenniumQuiz.Accounts.User do
   defp validate_password(changeset, opts) do
     changeset
     |> validate_required([:password])
-    |> validate_length(:password, min: 12, max: 72)
+    |> validate_length(:password, min: 12)
+    # bcrypt ignores everything past 72 bytes (not characters)
+    |> validate_length(:password,
+      max: 72,
+      count: :bytes,
+      message: "should be at most 72 bytes (some characters take more than one)"
+    )
     |> maybe_hash_password(opts)
   end
 

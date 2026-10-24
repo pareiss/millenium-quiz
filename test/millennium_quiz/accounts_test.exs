@@ -24,6 +24,20 @@ defmodule MillenniumQuiz.AccountsTest do
     assert %{username: ["has already been taken"]} = errors_on(cs)
   end
 
+  test "the password maximum counts bytes, as bcrypt ignores everything past 72" do
+    # 40 characters, 80 bytes
+    password = String.duplicate("é", 40)
+    assert String.length(password) < 72 and byte_size(password) > 72
+
+    assert {:error, cs} = Accounts.register_user(%{username: "KAIBA", password: password})
+    assert %{password: [message]} = errors_on(cs)
+    assert message =~ "72 bytes"
+
+    # 36 two-byte characters are exactly 72 bytes
+    assert {:ok, _} =
+             Accounts.register_user(%{username: "KAIBA", password: String.duplicate("é", 36)})
+  end
+
   test "get_user_by_username_and_password/2" do
     user = user_fixture(%{username: "yugi"})
 

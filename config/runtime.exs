@@ -162,18 +162,48 @@ if config_env() == :prod do
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
   # Mailer for "email me the resume link". Without SMTP_HOST mails are only
-  # logged, so the app also works without any mail setup.
+  # logged (at debug level: the recipient is personal data), so the app also
+  # works without any mail setup.
+  #
+  # SMTP_SECURITY: "starttls" (default, port 587), "ssl" (implicit TLS, port
+  # 465) or "none" (only for a relay on a trusted private network). With TLS the
+  # relay's certificate is verified, and the connection fails rather than
+  # falling back to plain text, so the credentials never travel unprotected.
   if smtp_host = System.get_env("SMTP_HOST") do
-    config :millennium_quiz, MillenniumQuiz.Mailer,
-      adapter: Swoosh.Adapters.SMTP,
-      relay: smtp_host,
-      port: String.to_integer(System.get_env("SMTP_PORT", "587")),
-      username: System.get_env("SMTP_USERNAME"),
-      password: System.get_env("SMTP_PASSWORD"),
-      tls: :if_available,
-      auth: :if_available
+    security = System.get_env("SMTP_SECURITY", "starttls")
+
+    unless security in ~w(starttls ssl none) do
+      raise "SMTP_SECURITY must be starttls, ssl or none, got: #{security}"
+    end
+
+    tls_options = [
+      verify: :verify_peer,
+      cacerts: :public_key.cacerts_get(),
+      server_name_indication: String.to_charlist(smtp_host),
+      customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)],
+      depth: 3
+    ]
+
+    default_port = if security == "ssl", do: "465", else: "587"
+
+    tls_config =
+      case security do
+        "starttls" -> [tls: :always, auth: :always, tls_options: tls_options]
+        "ssl" -> [ssl: true, tls: :never, auth: :always, sockopts: tls_options]
+        "none" -> [tls: :never, auth: :if_available]
+      end
+
+    config :millennium_quiz,
+           MillenniumQuiz.Mailer,
+           [
+             adapter: Swoosh.Adapters.SMTP,
+             relay: smtp_host,
+             port: String.to_integer(System.get_env("SMTP_PORT", default_port)),
+             username: System.get_env("SMTP_USERNAME"),
+             password: System.get_env("SMTP_PASSWORD")
+           ] ++ tls_config
   else
-    config :millennium_quiz, MillenniumQuiz.Mailer, adapter: Swoosh.Adapters.Logger
+    config :millennium_quiz, MillenniumQuiz.Mailer, adapter: Swoosh.Adapters.Logger, level: :debug
   end
 
   if mail_from = System.get_env("MAIL_FROM") do

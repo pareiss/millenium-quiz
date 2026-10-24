@@ -40,6 +40,9 @@ defmodule MillenniumQuiz.Cards.ArtworkCache do
     end
   end
 
+  @doc "Whether `key` is cached (a read only; nothing is made)."
+  def cached?(server \\ __MODULE__, key), do: match?({:ok, _}, lookup(table(server), key))
+
   @doc "Entries and bytes currently held."
   def stats(server \\ __MODULE__), do: GenServer.call(server, :stats)
 

@@ -38,9 +38,29 @@ defmodule MillenniumQuizWeb.ClientIPTest do
       assert ClientIP.resolve(nil, ["junk"], 1) == "unknown"
     end
 
-    test "IPv6 is normalised" do
-      assert ClientIP.resolve(nil, ["2001:DB8:0:0:0:0:0:1"], 1) == "2001:db8::1"
-      assert ClientIP.resolve({0x2001, 0xDB8, 0, 0, 0, 0, 0, 1}, [], 0) == "2001:db8::1"
+    test "IPv6 is identified by its /64" do
+      assert ClientIP.resolve(nil, ["2001:DB8:0:0:0:0:0:1"], 1) == "2001:db8::/64"
+      assert ClientIP.resolve({0x2001, 0xDB8, 1, 2, 3, 4, 5, 6}, [], 0) == "2001:db8:1:2::/64"
+      # the whole /64 is one client, in any spelling
+      same = ["2001:db8:1:2::1", "2001:0DB8:0001:0002:ffff:ffff:ffff:ffff", "2001:db8:1:2:a::"]
+
+      assert for(a <- same, uniq: true, do: ClientIP.resolve(nil, [a], 1)) == [
+               "2001:db8:1:2::/64"
+             ]
+
+      # a different /64 is another client
+      refute ClientIP.resolve(nil, ["2001:db8:1:3::1"], 1) == "2001:db8:1:2::/64"
+      assert ClientIP.resolve(nil, ["::1"], 1) == "::/64"
+    end
+
+    test "IPv6 compression does not matter and spoofed entries still never win" do
+      assert ClientIP.resolve(nil, ["2001:db8:0:0:5::9"], 1) ==
+               ClientIP.resolve(nil, ["2001:db8::7"], 1)
+
+      assert ClientIP.resolve(nil, ["2001:db8:6::6, 2001:db8:1:2::9"], 1) == "2001:db8:1:2::/64"
+    end
+
+    test "IPv4-mapped IPv6 is the plain IPv4 address" do
       assert ClientIP.resolve(nil, ["::ffff:1.2.3.4"], 1) == "1.2.3.4"
       assert ClientIP.resolve({0, 0, 0, 0, 0, 0xFFFF, 0x0102, 0x0304}, [], 0) == "1.2.3.4"
     end
