@@ -89,6 +89,9 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     refute has_element?(view, "#scoreboard")
     refute has_element?(view, "#pause-game")
     assert has_element?(view, "#final-bar.sticky #play-again")
+
+    # and a finished game lets the screen sleep
+    assert has_element?(view, "#game-connection[data-active=false]")
   end
 
   test "a running game shows its round and scoreboard", %{conn: conn, format: format} do
