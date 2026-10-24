@@ -12,6 +12,7 @@ defmodule MillenniumQuiz.Application do
       MillenniumQuiz.Repo,
       {DNSCluster, query: Application.get_env(:millennium_quiz, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MillenniumQuiz.PubSub},
+      MillenniumQuiz.Cards.ArtworkCache,
       {Registry, keys: :unique, name: MillenniumQuiz.Games.Registry},
       {DynamicSupervisor, name: MillenniumQuiz.Games.Supervisor, strategy: :one_for_one},
       # Start to serve requests, typically the last entry

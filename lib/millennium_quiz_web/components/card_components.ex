@@ -25,6 +25,17 @@ defmodule MillenniumQuizWeb.CardComponents do
     {"↘", "bottom-right"}
   ]
 
+  # A small card is about a third of a phone's width (two to a row, in a panel)
+  # or 11rem (w-44) from the `sm` breakpoint; its artwork is 94 per cent of
+  # that. The large card (in a dialog) keeps the full image.
+  @artwork_sizes "(min-width: 640px) 150px, 34vw"
+
+  defp artwork_srcset(id) do
+    original = ~p"/cards/#{id}/artwork"
+
+    "#{original}?w=200 200w, #{original}?w=400 400w, #{original} 624w"
+  end
+
   @doc """
   A card as printed (a `t:MillenniumQuiz.Game.card/0`). Cards from older game
   snapshots have no details; they get a plain frame and no artwork.
@@ -53,6 +64,7 @@ defmodule MillenniumQuizWeb.CardComponents do
       |> assign(:spell_trap?, spell_trap?(card))
       |> assign(:link?, frame(card) == "link")
       |> assign(:arrows, Enum.map(card[:link_arrows] || [], &String.trim(&1, "\uFE0F")))
+      |> assign(:artwork_sizes, @artwork_sizes)
       |> assign(:read, read_attrs(assigns.on_text, assigns.text_value, card.name))
       # 150, not the 90 of the old, wider font: the Pendulum box is 17cqw high
       # and fits about 150 characters at 3.4cqw; longer texts step down in size
@@ -92,6 +104,10 @@ defmodule MillenniumQuizWeb.CardComponents do
           <img
             :if={@card[:id]}
             src={~p"/cards/#{@card.id}/artwork"}
+            srcset={@size == "small" && artwork_srcset(@card.id)}
+            sizes={@size == "small" && @artwork_sizes}
+            width="624"
+            height="624"
             alt=""
             draggable="false"
             loading="lazy"

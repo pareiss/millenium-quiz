@@ -28,7 +28,7 @@ FROM ${BUILDER_IMAGE} AS builder
 
 # install build dependencies
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential git \
+  && apt-get install -y --no-install-recommends build-essential git curl \
   && rm -rf /var/lib/apt/lists/*
 
 # prepare build dir
@@ -44,6 +44,19 @@ ENV MIX_ENV="prod"
 # install mix dependencies
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV
+
+# The vix (image resizing) NIF is downloaded from GitHub releases at compile
+# time. Erlang's :httpc fails on GitHub's oversized redirect headers
+# ({:header_too_long, ...}), so fetch the tarball with curl into the cache
+# elixir_make reads; if this step fails the normal download is still tried.
+RUN set -eu; \
+  vsn="$(sed -n 's/.*"vix": {:hex, :vix, "\([^"]*\)".*/\1/p' mix.lock)"; \
+  nif="$(erl -noshell -eval 'io:format("~s", [erlang:system_info(nif_version)]), halt().')"; \
+  file="vix-nif-${nif}-$(uname -m)-linux-gnu-${vsn}.tar.gz"; \
+  mkdir -p /root/.cache/elixir_make; \
+  curl -fsSL -o "/root/.cache/elixir_make/${file}" \
+    "https://github.com/akash-akya/vix/releases/download/v${vsn}/${file}" \
+  || echo "vix NIF pre-fetch failed, falling back to elixir_make's download"
 RUN mkdir config
 
 # copy compile-time config files before we compile dependencies

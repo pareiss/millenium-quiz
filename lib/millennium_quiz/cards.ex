@@ -18,7 +18,16 @@ defmodule MillenniumQuiz.Cards do
   require Logger
 
   alias MillenniumQuiz.Repo
-  alias MillenniumQuiz.Cards.{Card, CardArtwork, CardText, ErrataParser}
+
+  alias MillenniumQuiz.Cards.{
+    ArtworkCache,
+    ArtworkImage,
+    Card,
+    CardArtwork,
+    CardText,
+    ErrataParser
+  }
+
   alias MillenniumQuiz.Cards.Sources.{YamlYugi, YGOPRODeck, Yugipedia}
 
   @min_query_length 3
@@ -199,6 +208,42 @@ defmodule MillenniumQuiz.Cards do
   def artwork_data(card_id) do
     Repo.one(from a in CardArtwork, where: a.card_id == ^card_id, select: a.data)
   end
+
+  @artwork_widths [200, 400]
+
+  @doc "The widths (in pixels) an artwork can be served in, besides the original."
+  def artwork_widths, do: @artwork_widths
+
+  @doc """
+  An artwork resized to `width` (one of `artwork_widths/0`) as
+  `{:ok, jpeg}`, from the in-memory cache or made now. `:error` when the
+  width isn't offered, the artwork is gone or resizing fails (logged): the
+  caller then serves the original.
+
+  `info` is `artwork_info/1` of the card.
+  """
+  def resized_artwork(card_id, info, width) when width in @artwork_widths do
+    key = {card_id, info.artwork_id, DateTime.to_unix(info.fetched_at), width}
+
+    result =
+      ArtworkCache.fetch(key, fn ->
+        with data when is_binary(data) <- artwork_data(card_id),
+             {:error, reason} = error <- ArtworkImage.resize(data, width) do
+          Logger.warning("Resizing artwork of card #{card_id} failed: #{inspect(reason)}")
+          error
+        else
+          nil -> :error
+          ok -> ok
+        end
+      end)
+
+    case result do
+      {:ok, _} = ok -> ok
+      _ -> :error
+    end
+  end
+
+  def resized_artwork(_card_id, _info, _width), do: :error
 
   defp fetch_and_store(info, card) do
     with {:ok, yaml} <- YamlYugi.fetch(info.passwords),
