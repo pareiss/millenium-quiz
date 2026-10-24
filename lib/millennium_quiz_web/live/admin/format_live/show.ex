@@ -50,8 +50,8 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
         id={"topic-#{topic.id}"}
         class="rounded-box border border-base-300 bg-base-100 shadow-sm"
       >
-        <div class="flex items-center gap-3 border-b border-base-300 px-4 py-3">
-          <h2 class="font-semibold flex-1">{topic.name}</h2>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-base-300 px-4 py-3">
+          <h2 class="min-w-0 flex-1 basis-40 font-semibold">{topic.name}</h2>
           <span class="text-sm text-base-content/60">{length(topic.questions)} questions</span>
           <.link
             navigate={~p"/admin/topics/#{topic.id}/questions/new"}
@@ -68,57 +68,70 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
           <li
             :for={{q, i} <- Enum.with_index(topic.questions)}
             id={"question-#{q.id}"}
-            class="flex items-center gap-3 px-4 py-2.5"
+            class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5"
           >
             <span class="w-6 text-sm text-base-content/50 tabular-nums">{i + 1}.</span>
-            <p class="flex-1 min-w-0 truncate">{CardLinks.plain(q.text)}</p>
-            <span
-              class={["badge badge-sm", if(q.points, do: "badge-secondary", else: "badge-ghost")]}
-              title={if q.points, do: "Custom points", else: "Default points from position"}
-            >
-              {Question.effective_points(q)} {if q.points, do: "custom", else: "pts"}
-            </span>
-            <div class="join">
-              <button
-                class="btn btn-ghost btn-xs join-item"
-                phx-click="move"
-                phx-value-id={q.id}
-                phx-value-dir="up"
-                disabled={i == 0}
-                id={"move-up-#{q.id}"}
-                aria-label="Easier"
+            <%!-- the text gets the row's width on a phone (two lines), the
+                 points and buttons wrap below it --%>
+            <p class="min-w-0 flex-1 basis-40 line-clamp-2 sm:line-clamp-none sm:truncate">
+              {CardLinks.plain(q.text)}
+            </p>
+            <div class="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:gap-3">
+              <span
+                class={["badge badge-sm", if(q.points, do: "badge-secondary", else: "badge-ghost")]}
+                title={if q.points, do: "Custom points", else: "Default points from position"}
               >
-                <.icon name="hero-chevron-up" class="size-4" />
-              </button>
-              <button
-                class="btn btn-ghost btn-xs join-item"
-                phx-click="move"
-                phx-value-id={q.id}
-                phx-value-dir="down"
-                disabled={i == length(topic.questions) - 1}
-                id={"move-down-#{q.id}"}
-                aria-label="Harder"
-              >
-                <.icon name="hero-chevron-down" class="size-4" />
-              </button>
+                {Question.effective_points(q)} {if q.points, do: "custom", else: "pts"}
+              </span>
+              <div class="flex items-center gap-1">
+                <div class="join">
+                  <button
+                    class="btn btn-ghost btn-xs join-item"
+                    phx-click="move"
+                    phx-value-id={q.id}
+                    phx-value-dir="up"
+                    disabled={i == 0}
+                    id={"move-up-#{q.id}"}
+                    aria-label="Easier"
+                    title="Easier"
+                  >
+                    <.icon name="hero-chevron-up" class="size-4" />
+                  </button>
+                  <button
+                    class="btn btn-ghost btn-xs join-item"
+                    phx-click="move"
+                    phx-value-id={q.id}
+                    phx-value-dir="down"
+                    disabled={i == length(topic.questions) - 1}
+                    id={"move-down-#{q.id}"}
+                    aria-label="Harder"
+                    title="Harder"
+                  >
+                    <.icon name="hero-chevron-down" class="size-4" />
+                  </button>
+                </div>
+                <.link
+                  navigate={~p"/admin/questions/#{q.id}/edit"}
+                  class="btn btn-ghost btn-xs"
+                  id={"edit-question-#{q.id}"}
+                  aria-label="Edit question"
+                  title="Edit question"
+                >
+                  <.icon name="hero-pencil" class="size-4" />
+                </.link>
+                <button
+                  class="btn btn-ghost btn-xs text-error"
+                  phx-click="confirm_delete"
+                  phx-value-what="question"
+                  phx-value-id={q.id}
+                  id={"delete-question-#{q.id}"}
+                  aria-label="Delete question"
+                  title="Delete question"
+                >
+                  <.icon name="hero-trash" class="size-4" />
+                </button>
+              </div>
             </div>
-            <.link
-              navigate={~p"/admin/questions/#{q.id}/edit"}
-              class="btn btn-ghost btn-xs"
-              id={"edit-question-#{q.id}"}
-            >
-              <.icon name="hero-pencil" class="size-4" />
-            </.link>
-            <button
-              class="btn btn-ghost btn-xs text-error"
-              phx-click="confirm_delete"
-              phx-value-what="question"
-              phx-value-id={q.id}
-              id={"delete-question-#{q.id}"}
-              aria-label="Delete question"
-            >
-              <.icon name="hero-trash" class="size-4" />
-            </button>
           </li>
         </ol>
       </section>

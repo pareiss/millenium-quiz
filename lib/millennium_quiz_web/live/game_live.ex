@@ -14,7 +14,7 @@ defmodule MillenniumQuizWeb.GameLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app flash={@flash} current_scope={@current_scope} width="lg">
       <div
         id="game"
         phx-hook=".RememberGame"
@@ -69,8 +69,10 @@ defmodule MillenniumQuizWeb.GameLive do
             if (document.querySelector('[role="dialog"]')) return
             const panel = this.el.querySelector("[data-turn-panel]")
             if (!panel) return
+            // only a sticky header covers the top of the page
             const header = document.querySelector("header")
-            const offset = (header ? header.getBoundingClientRect().height : 0) + 12
+            const sticky = header && getComputedStyle(header).position === "sticky"
+            const offset = (sticky ? header.getBoundingClientRect().height : 0) + 12
             const top = Math.max(0, panel.getBoundingClientRect().top + window.scrollY - offset)
             const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches
             window.scrollTo({top, behavior: calm ? "auto" : "smooth"})
@@ -93,20 +95,27 @@ defmodule MillenniumQuizWeb.GameLive do
   attr :status, :atom, required: true
 
   defp game_header(assigns) do
+    assigns = assign(assigns, :finished?, assigns.game.phase == :finished)
+
     ~H"""
-    <div class="space-y-3">
-      <div class="flex items-end justify-between gap-4">
+    <div class="space-y-2 sm:space-y-3">
+      <div class="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
         <div>
-          <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">
+          <p class="text-xs sm:text-sm font-medium uppercase tracking-[0.12em] sm:tracking-[0.2em] text-primary">
             {@game.format_name}
             <span class="text-base-content/50" id="game-mode">· {Game.mode_name(@game.mode)}</span>
           </p>
-          <h1 class="text-2xl font-bold tracking-tight" id="round-label">
-            Question {@game.round}
-            <span class="text-base-content/50">of {Game.total_rounds(@game)}</span>
+          <%!-- a finished game is no "Question 2 of 20" any more --%>
+          <h1 class="whitespace-nowrap text-xl sm:text-2xl font-bold tracking-tight" id="round-label">
+            <%= if @finished? do %>
+              Final results
+            <% else %>
+              Question {@game.round}
+              <span class="text-base-content/50">of {Game.total_rounds(@game)}</span>
+            <% end %>
           </h1>
         </div>
-        <div :if={@status == :active and @game.phase != :finished} class="flex gap-1">
+        <div :if={@status == :active and not @finished?} class="flex shrink-0 gap-2">
           <button class="btn btn-ghost btn-sm" phx-click="pause" id="pause-game">
             <.icon name="hero-pause" class="size-4" /> Pause
           </button>
@@ -119,24 +128,30 @@ defmodule MillenniumQuizWeb.GameLive do
           </button>
         </div>
       </div>
+      <%!-- the final panel has the standings --%>
       <progress
+        :if={not @finished?}
         class="progress progress-primary w-full"
         value={Enum.count(@game.questions, & &1.result)}
         max={Game.total_rounds(@game)}
       />
-      <ul class="mq-nosel grid grid-cols-2 sm:grid-cols-4 gap-2" id="scoreboard">
+      <ul
+        :if={not @finished?}
+        class="mq-nosel grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2"
+        id="scoreboard"
+      >
         <li
           :for={{player, index} <- Enum.with_index(@game.players)}
           id={"score-#{index}"}
           class={[
-            "rounded-field border px-3 py-2 transition",
+            "flex items-baseline justify-between gap-2 rounded-field border px-3 py-1.5 sm:block sm:py-2 transition",
             if(Game.current_player_index(@game) == index,
               do: "border-primary bg-primary/10 shadow-sm",
               else: "border-base-300 bg-base-100"
             )
           ]}
         >
-          <p class="text-sm truncate">{player.name}</p>
+          <p class="min-w-0 truncate text-sm">{player.name}</p>
           <p class="text-lg font-semibold tabular-nums">{player.score}</p>
         </li>
       </ul>
@@ -163,22 +178,22 @@ defmodule MillenniumQuizWeb.GameLive do
       data-turn-panel
       class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden"
     >
-      <div class="bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
-        <.icon name="hero-hand-raised" class="size-5" />
+      <div class="bg-secondary text-secondary-content px-4 py-2.5 sm:px-5 sm:py-3 flex items-center gap-3">
+        <.icon name="hero-hand-raised" class="size-5 shrink-0" />
         <p>
           <strong class="text-lg" id="current-player">{@player.name}</strong>, {@prompt}
         </p>
       </div>
-      <div class="p-3 sm:p-5 overflow-x-auto">
+      <div class="p-2 sm:p-5 overflow-x-auto">
         <div
           id="board"
-          class="mq-nosel grid gap-2"
-          style={"grid-template-columns: repeat(#{length(@board)}, minmax(4.5rem, 1fr))"}
+          class="mq-board mq-nosel grid gap-x-1.5 gap-y-3 sm:gap-2"
+          style={"--cols: #{length(@board)}"}
         >
           <div
             :for={{{topic, cells}, column} <- Enum.with_index(@board)}
             id={"column-#{column}"}
-            class="flex flex-col gap-2"
+            class="flex flex-col gap-1.5 sm:gap-2"
           >
             <% next = Game.next_in_column(@game, column) %>
             <button
@@ -187,19 +202,23 @@ defmodule MillenniumQuizWeb.GameLive do
               phx-click="choose"
               phx-value-question={next}
               disabled={@turn_locked}
-              class="min-h-14 rounded-field bg-primary px-2 py-1 text-sm font-semibold text-primary-content shadow-sm transition hover:brightness-110 active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
+              class="min-h-14 rounded-field bg-primary px-1 py-1 text-xs sm:px-2 sm:text-sm font-semibold text-primary-content shadow-sm transition hover:brightness-110 active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
             >
-              <span class="line-clamp-2">{topic}</span>
+              <span class="line-clamp-3 sm:line-clamp-2 leading-tight hyphens-auto break-words">
+                {topic}
+              </span>
             </button>
             <div
               :if={@game.mode == :free or is_nil(next)}
               id={"topic-#{column}"}
               class={[
-                "min-h-14 grid place-items-center rounded-field px-2 py-1 text-center text-sm font-semibold",
+                "min-h-14 grid place-items-center rounded-field px-1 py-1 text-center text-xs sm:px-2 sm:text-sm font-semibold",
                 if(next, do: "bg-base-200", else: "bg-base-200/50 text-base-content/40")
               ]}
             >
-              <span class="line-clamp-2">{topic}</span>
+              <span class="line-clamp-3 sm:line-clamp-2 leading-tight hyphens-auto break-words">
+                {topic}
+              </span>
             </div>
 
             <%= for {index, question} <- cells do %>
@@ -271,31 +290,37 @@ defmodule MillenniumQuizWeb.GameLive do
           {@game.answered + 1}/{length(@game.players)}
         </span>
       </div>
-      <div class="p-5 sm:p-6 space-y-5">
-        <.question_meta question={@question} />
-        <p class="text-xl sm:text-2xl font-semibold leading-snug" id="question-text">
-          <.question_text question={@question} />
-        </p>
-        <.question_link_popovers question={@question} />
-        <.question_cards cards={@question.cards} />
-        <div class="grid gap-3 sm:grid-cols-2">
-          <button
-            :for={{choice, i} <- Enum.with_index(@question.choices)}
-            id={"choice-#{i}"}
-            phx-click="answer"
-            phx-value-choice={i}
-            disabled={@turn_locked}
-            class="mq-nosel group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
-          >
-            <span class="grid place-items-center size-8 shrink-0 rounded-full bg-base-200 font-semibold group-hover:bg-primary group-hover:text-primary-content transition">
-              {<<?A + i>>}
-            </span>
-            <span>{choice}</span>
-          </button>
+      <%!-- one column; question and choices side by side on a wide screen
+           (a tablet, a phone on its side) --%>
+      <div class="p-4 sm:p-6 grid gap-5 md:landscape:grid-cols-2 lg:grid-cols-2 lg:gap-8 items-start">
+        <div class="space-y-5">
+          <.question_meta question={@question} />
+          <p class="text-xl sm:text-2xl font-semibold leading-snug" id="question-text">
+            <.question_text question={@question} />
+          </p>
+          <.question_link_popovers question={@question} />
+          <.question_cards cards={@question.cards} />
         </div>
-        <p class="text-sm text-base-content/60">
-          Answers stay hidden until everyone has picked.
-        </p>
+        <div class="space-y-5">
+          <div class="grid gap-3 sm:grid-cols-2 md:landscape:grid-cols-1 lg:grid-cols-1">
+            <button
+              :for={{choice, i} <- Enum.with_index(@question.choices)}
+              id={"choice-#{i}"}
+              phx-click="answer"
+              phx-value-choice={i}
+              disabled={@turn_locked}
+              class="mq-nosel group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <span class="grid place-items-center size-8 shrink-0 rounded-full bg-base-200 font-semibold group-hover:bg-primary group-hover:text-primary-content transition">
+                {<<?A + i>>}
+              </span>
+              <span>{choice}</span>
+            </button>
+          </div>
+          <p class="text-sm text-base-content/60">
+            Answers stay hidden until everyone has picked.
+          </p>
+        </div>
       </div>
     </div>
     """
@@ -438,6 +463,24 @@ defmodule MillenniumQuizWeb.GameLive do
     """
   end
 
+  attr :id, :string, required: true
+  slot :inner_block, required: true
+
+  # The call to action at the foot of a panel: when the panel is taller than
+  # the screen, the bar stays at the bottom edge (above the home indicator)
+  # instead of waiting below the fold. The negative margins run it to the
+  # panel's edges.
+  defp sticky_bar(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class="sticky bottom-0 z-10 -mx-4 -mb-4 rounded-b-box border-t border-base-300 bg-base-100 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:-mb-6 sm:px-6"
+    >
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
   attr :game, Game, required: true
   attr :turn_locked, :boolean, default: false
 
@@ -452,70 +495,85 @@ defmodule MillenniumQuizWeb.GameLive do
 
     ~H"""
     <div
-      class="rounded-box border border-base-300 bg-base-100 shadow-sm p-5 sm:p-6 space-y-5 reveal-pop"
+      class="rounded-box border border-base-300 bg-base-100 shadow-sm p-4 sm:p-6 space-y-5 reveal-pop"
       id="reveal"
     >
-      <.question_meta question={@question} />
-      <p class="text-xl font-semibold leading-snug" id="question-text">
-        <.question_text question={@question} />
-      </p>
-      <.question_link_popovers question={@question} />
-      <.question_cards cards={@question.cards} />
-      <p class="text-sm text-base-content/60">Chosen by {@chooser.name}</p>
+      <div class="grid gap-5 md:landscape:grid-cols-2 lg:grid-cols-2 lg:gap-8 items-start">
+        <div class="space-y-5">
+          <.question_meta question={@question} />
+          <p class="text-xl font-semibold leading-snug" id="question-text">
+            <.question_text question={@question} />
+          </p>
+          <.question_link_popovers question={@question} />
+          <.question_cards cards={@question.cards} />
+          <p class="text-sm text-base-content/60">Chosen by {@chooser.name}</p>
+        </div>
 
-      <ul class="grid gap-2 sm:grid-cols-2">
-        <li
-          :for={{choice, i} <- Enum.with_index(@question.choices)}
-          id={"reveal-choice-#{i}"}
-          class={[
-            "flex items-center gap-3 rounded-field border p-3",
-            if(i == @question.correct,
-              do: "border-success bg-success/15 font-semibold",
-              else: "border-base-300 opacity-60"
-            )
-          ]}
+        <div class="space-y-5">
+          <ul class="grid gap-2 sm:grid-cols-2 md:landscape:grid-cols-1 lg:grid-cols-1">
+            <li
+              :for={{choice, i} <- Enum.with_index(@question.choices)}
+              id={"reveal-choice-#{i}"}
+              class={[
+                "flex items-center gap-3 rounded-field border p-3",
+                if(i == @question.correct,
+                  do: "border-success bg-success/15 font-semibold",
+                  else: "border-base-300 opacity-60"
+                )
+              ]}
+            >
+              <span class="grid place-items-center size-7 shrink-0 rounded-full bg-base-200 text-sm">
+                {<<?A + i>>}
+              </span>
+              <span class="flex-1">{choice}</span>
+              <.icon
+                :if={i == @question.correct}
+                name="hero-check-circle"
+                class="size-6 text-success"
+              />
+            </li>
+          </ul>
+
+          <ul
+            class="divide-y divide-base-300 rounded-field border border-base-300"
+            id="round-results"
+          >
+            <li
+              :for={index <- Game.answer_order(@game)}
+              id={"result-#{index}"}
+              class="flex items-center gap-3 px-4 py-2.5"
+            >
+              <% correct? = Game.correct?(@game, index) %>
+              <.icon
+                name={if correct?, do: "hero-check-circle", else: "hero-x-circle"}
+                class={["size-5", if(correct?, do: "text-success", else: "text-error")]}
+              />
+              <span class="font-medium">{Enum.at(@game.players, index).name}</span>
+              <span class="text-sm text-base-content/60 truncate">
+                picked {<<?A + Enum.at(@question.result.picks, index)>>}
+              </span>
+              <span class={[
+                "ml-auto tabular-nums font-semibold",
+                if(correct?, do: "text-success", else: "text-base-content/40")
+              ]}>
+                {if correct?, do: "+#{@question.points}", else: "+0"}
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <.sticky_bar id="reveal-bar">
+        <button
+          class="btn btn-primary btn-block btn-lg"
+          phx-click="next_round"
+          id="next-round"
+          disabled={@turn_locked}
         >
-          <span class="grid place-items-center size-7 shrink-0 rounded-full bg-base-200 text-sm">
-            {<<?A + i>>}
-          </span>
-          <span class="flex-1">{choice}</span>
-          <.icon :if={i == @question.correct} name="hero-check-circle" class="size-6 text-success" />
-        </li>
-      </ul>
-
-      <ul class="divide-y divide-base-300 rounded-field border border-base-300" id="round-results">
-        <li
-          :for={index <- Game.answer_order(@game)}
-          id={"result-#{index}"}
-          class="flex items-center gap-3 px-4 py-2.5"
-        >
-          <% correct? = Game.correct?(@game, index) %>
-          <.icon
-            name={if correct?, do: "hero-check-circle", else: "hero-x-circle"}
-            class={["size-5", if(correct?, do: "text-success", else: "text-error")]}
-          />
-          <span class="font-medium">{Enum.at(@game.players, index).name}</span>
-          <span class="text-sm text-base-content/60 truncate">
-            picked {<<?A + Enum.at(@question.result.picks, index)>>}
-          </span>
-          <span class={[
-            "ml-auto tabular-nums font-semibold",
-            if(correct?, do: "text-success", else: "text-base-content/40")
-          ]}>
-            {if correct?, do: "+#{@question.points}", else: "+0"}
-          </span>
-        </li>
-      </ul>
-
-      <button
-        class="btn btn-primary btn-block btn-lg"
-        phx-click="next_round"
-        id="next-round"
-        disabled={@turn_locked}
-      >
-        {if @last_round?, do: "Show final results", else: "Back to the board"}
-        <.icon name="hero-arrow-right" class="size-5" />
-      </button>
+          {if @last_round?, do: "Show final results", else: "Back to the board"}
+          <.icon name="hero-arrow-right" class="size-5" />
+        </button>
+      </.sticky_bar>
     </div>
     """
   end
@@ -526,33 +584,39 @@ defmodule MillenniumQuizWeb.GameLive do
   # date. A tap enlarges a card; a tap on a long text shows it in a panel.
   defp question_cards(assigns) do
     ~H"""
-    <div :if={@cards != []} class="flex flex-wrap gap-3" id="question-cards">
-      <article
-        :for={{card, i} <- Enum.with_index(@cards)}
-        id={"question-card-#{i}"}
-        class="w-36 sm:w-44"
-      >
-        <div
-          class="mq-nosel relative cursor-zoom-in transition hover:-translate-y-1 hover:drop-shadow-lg"
-          phx-click="zoom_card"
-          phx-value-card={i}
+    <div :if={@cards != []} class="space-y-2">
+      <p class="text-sm text-base-content/60" id="question-cards-hint">
+        <span class="[@media(hover:hover)]:hidden">Tap a card to enlarge it.</span>
+        <span class="hidden [@media(hover:hover)]:inline">Click a card to enlarge it.</span>
+      </p>
+      <div class="flex flex-wrap gap-3" id="question-cards">
+        <article
+          :for={{card, i} <- Enum.with_index(@cards)}
+          id={"question-card-#{i}"}
+          class="w-[calc(50%-0.375rem)] sm:w-44"
         >
-          <.card card={card} on_text="read_card" text_value={i} />
-          <%!-- For keyboards; mice can click anywhere on the card --%>
-          <button
-            type="button"
+          <div
+            class="mq-nosel relative cursor-zoom-in transition hover:-translate-y-1 hover:drop-shadow-lg"
             phx-click="zoom_card"
             phx-value-card={i}
-            id={"zoom-card-#{i}"}
-            class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:inset-x-2 focus-visible:top-1/3 focus-visible:rounded-field focus-visible:bg-primary focus-visible:px-2 focus-visible:py-1.5 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-primary-content focus-visible:shadow-lg"
           >
-            Enlarge {card.name}
-          </button>
-        </div>
-        <p :if={card.set} class="mt-1.5 text-center text-xs text-base-content/60">
-          As printed in {card.set}
-        </p>
-      </article>
+            <.card card={card} on_text="read_card" text_value={i} />
+            <%!-- For keyboards; mice can click anywhere on the card --%>
+            <button
+              type="button"
+              phx-click="zoom_card"
+              phx-value-card={i}
+              id={"zoom-card-#{i}"}
+              class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:inset-x-2 focus-visible:top-1/3 focus-visible:rounded-field focus-visible:bg-primary focus-visible:px-2 focus-visible:py-1.5 focus-visible:text-sm focus-visible:font-semibold focus-visible:text-primary-content focus-visible:shadow-lg"
+            >
+              Enlarge {card.name}
+            </button>
+          </div>
+          <p :if={card.set} class="mt-1.5 text-center text-xs text-base-content/60">
+            As printed in {card.set}
+          </p>
+        </article>
+      </div>
     </div>
     <.card_credit :if={@cards != []} />
     """
@@ -587,7 +651,7 @@ defmodule MillenniumQuizWeb.GameLive do
       names={@names}
     >
       <.card_credit class="text-center text-white/70" />
-      <p class="text-xs text-white/70 text-center" id="card-zoom-hint">
+      <p class="mq-stage__hint text-xs text-white/70 text-center" id="card-zoom-hint">
         <span class="[@media(hover:hover)]:hidden">Tap outside the card to close.</span>
         <span class="hidden [@media(hover:hover)]:inline">
           Click outside the card or press Esc to close.
@@ -682,7 +746,7 @@ defmodule MillenniumQuizWeb.GameLive do
   defp paused_panel(assigns) do
     ~H"""
     <div
-      class="rounded-box border border-primary/50 bg-base-100 shadow-sm p-5 sm:p-6 space-y-6"
+      class="mx-auto max-w-2xl rounded-box border border-primary/50 bg-base-100 shadow-sm p-5 sm:p-6 space-y-6"
       id="paused"
     >
       <div class="flex items-start gap-3">
@@ -793,7 +857,7 @@ defmodule MillenniumQuizWeb.GameLive do
 
     ~H"""
     <div
-      class="rounded-box border border-primary/50 bg-base-100 shadow-sm p-6 space-y-6 text-center"
+      class="mx-auto max-w-2xl rounded-box border border-primary/50 bg-base-100 shadow-sm p-4 sm:p-6 space-y-6 text-center"
       id="final"
     >
       <div class="space-y-2">
@@ -821,18 +885,20 @@ defmodule MillenniumQuizWeb.GameLive do
         </li>
       </ol>
 
-      <div class="flex flex-wrap justify-center gap-2">
-        <.link
-          navigate={
-            ~p"/formats/#{@game.format_id}/play?#{[players: Enum.map(@game.players, & &1.name), mode: @game.mode]}"
-          }
-          class="btn btn-primary"
-          id="play-again"
-        >
-          <.icon name="hero-arrow-path" class="size-5" /> Play again
-        </.link>
-        <.link navigate={~p"/"} class="btn btn-ghost">Other formats</.link>
-      </div>
+      <.sticky_bar id="final-bar">
+        <div class="flex flex-wrap justify-center gap-2">
+          <.link
+            navigate={
+              ~p"/formats/#{@game.format_id}/play?#{[players: Enum.map(@game.players, & &1.name), mode: @game.mode]}"
+            }
+            class="btn btn-primary"
+            id="play-again"
+          >
+            <.icon name="hero-arrow-path" class="size-5" /> Play again
+          </.link>
+          <.link navigate={~p"/"} class="btn btn-ghost">Other formats</.link>
+        </div>
+      </.sticky_bar>
     </div>
     """
   end

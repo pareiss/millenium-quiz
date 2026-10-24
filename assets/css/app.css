@@ -114,7 +114,13 @@
 /* Drawn Yu-Gi-Oh! cards (MillenniumQuizWeb.CardComponents). Sizes are in
    container units (cqw = 1% of the card's width), so a card scales as one
    piece. Cards look the same in light and dark mode: they are objects. */
-.mq-card { container-type: inline-size; }
+.mq-card {
+  container-type: inline-size;
+  /* the smallest text on a card: on a thumbnail 3.4cqw would be 5 px; a card
+     enlarged is far above it. A little more on phones. */
+  --mq-min-text: 7px;
+}
+@media (pointer: coarse) { .mq-card { --mq-min-text: 8px; } }
 
 /* Card fonts: free lookalikes of the fonts on real cards, served from
    priv/static/fonts (SIL Open Font License, see the OFL files there).
@@ -295,7 +301,7 @@
   padding: 0 calc(var(--art-inset) + 1cqw);
   color: #1c1917;
   font-family: "Cinzel", ui-serif, Georgia, serif;
-  font-size: 4.4cqw;
+  font-size: max(4.4cqw, var(--mq-min-text));
   font-weight: 700;
 }
 .mq-card__property { display: inline-flex; margin-left: 0.8cqw; color: #1c1917; cursor: help; }
@@ -394,14 +400,14 @@
   max-height: 100%;
   overflow: hidden;
   font-family: "Crimson Pro", ui-serif, Georgia, serif;
-  font-size: 3.4cqw;
+  font-size: max(3.4cqw, var(--mq-min-text));
   line-height: 1.08;
   text-align: justify;
   white-space: pre-line;
 }
-.mq-card__pendulum-text.mq-text--s   { font-size: 3cqw; }
-.mq-card__pendulum-text.mq-text--xs  { font-size: 2.65cqw; }
-.mq-card__pendulum-text.mq-text--xxs { font-size: 2.3cqw; }
+.mq-card__pendulum-text.mq-text--s   { font-size: max(3cqw, var(--mq-min-text)); }
+.mq-card__pendulum-text.mq-text--xs  { font-size: max(2.65cqw, var(--mq-min-text)); }
+.mq-card__pendulum-text.mq-text--xxs { font-size: max(2.3cqw, var(--mq-min-text)); }
 .mq-card__scale { display: grid; place-items: center; align-self: stretch; font-size: 4.6cqw; font-weight: 800; line-height: 1; }
 /* the two lines between the scales and the Pendulum Effect */
 .mq-card__scale--left,
@@ -485,7 +491,7 @@
     var(--box-base, var(--box));
   /* a narrow, justified book serif as on real cards */
   font-family: "Crimson Pro", ui-serif, Georgia, serif;
-  font-size: 3.4cqw;
+  font-size: max(3.4cqw, var(--mq-min-text));
   line-height: 1.12;
   text-align: justify;
 }
@@ -529,9 +535,9 @@
     var(--sq) left top / 2cqw 2cqw no-repeat,
     var(--sq) right top / 2cqw 2cqw no-repeat;
 }
-.mq-card__text.mq-text--s   { font-size: 3cqw; }
-.mq-card__text.mq-text--xs  { font-size: 2.65cqw; }
-.mq-card__text.mq-text--xxs { font-size: 2.3cqw; }
+.mq-card__text.mq-text--s   { font-size: max(3cqw, var(--mq-min-text)); }
+.mq-card__text.mq-text--xs  { font-size: max(2.65cqw, var(--mq-min-text)); }
+.mq-card__text.mq-text--xxs { font-size: max(2.3cqw, var(--mq-min-text)); }
 .mq-card__texts.is-readable { position: relative; cursor: zoom-in; border-radius: 0.4cqw; transition: box-shadow 150ms; }
 /* the ring goes around the boxes' corner squares, inside the outer border */
 .mq-card__texts.is-readable:focus-visible { outline: none; box-shadow: 0 0 0 1.7cqw var(--color-primary); }
@@ -541,7 +547,7 @@
 .mq-card__texts.is-readable:active { box-shadow: 0 0 0 1.7cqw var(--color-primary); }
 /* the type line keeps its size when a long text is set smaller, as on real
    cards */
-.mq-card__type { font-family: "Cinzel", ui-serif, Georgia, serif; font-weight: 700; font-size: 3.5cqw; line-height: 1.15; text-align: left; }
+.mq-card__type { font-family: "Cinzel", ui-serif, Georgia, serif; font-weight: 700; font-size: max(3.5cqw, var(--mq-min-text)); line-height: 1.15; text-align: left; }
 .mq-card__body { flex: 1; min-height: 0; overflow: hidden; white-space: pre-line; }
 .mq-card--small .mq-card__body { mask-image: linear-gradient(to bottom, #000 75%, transparent); }
 .mq-card--large .mq-card__body,
@@ -555,7 +561,7 @@
   border-top: 0.35cqw solid #1c1917;
   /* a tall, condensed bold serif at a fixed size, as on real cards */
   font-family: "Crimson Pro", ui-serif, Georgia, serif;
-  font-size: 4.3cqw;
+  font-size: max(4.3cqw, calc(var(--mq-min-text) + 1px));
   font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums lining-nums;
@@ -580,9 +586,11 @@
    a bevelled name bar and a text box in a worn braid. Colours, paper and
    braid come from the shared custom properties above. The panel is not a
    container, so --u (one "cqw" of a card, scaled to the panel's 36rem
-   width) stands in for it. */
+   width) stands in for it. Its wrapper (.mq-stage--text > .mq-stage__main) is
+   a container: below 36rem --u shrinks with it, so the frame keeps its
+   proportions on a phone. */
 .mq-card-panel {
-  --u: 0.32rem;
+  --u: min(0.32rem, 0.89cqw);
   --c: var(--u);
   /* the panel's shape varies: scale the sky to cover it, never stretch */
   --sky-pos: center;
@@ -684,7 +692,9 @@
 .mq-card-panel__body {
   display: grid;
   gap: 0.6rem;
-  max-height: 70vh;
+  /* 70% of the screen, but leaving room for the name bar and the dialog's
+     padding when the screen is short (a phone on its side) */
+  max-height: max(8rem, min(70dvh, calc(100dvh - 12rem)));
   overflow-y: auto;
   padding: 1rem 1.1rem;
   color: #1c1917;
@@ -806,6 +816,8 @@
   color: var(--color-base-content);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
 }
+/* open above the textarea when a virtual keyboard leaves no room below it */
+.mq-suggestions[data-placement="top"] { top: auto; bottom: 100%; }
 .mq-suggestions[hidden] {
   display: none;
 }
@@ -855,6 +867,79 @@
 @keyframes mq-linkpop-in { from { opacity: 0; } }
 @media (hover: none) { .mq-linkpop { display: none !important; } }
 
+/* The enlarged card and its texts (CardComponents.card_dialog/1 and
+   card_text_dialog/1): close button, card, then the controls and captions.
+   The card is sized by the screen's height as well as its width, so it fits
+   a phone on its side and the close button never scrolls away. */
+.mq-stage {
+  --card-max: 26rem;
+  /* what the close button, controls and captions need around the card */
+  --room: 15rem;
+  --card-w: min(var(--card-max), 100%, calc((100dvh - var(--room)) * 59 / 86));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+  width: min(var(--card-max), 100%);
+}
+@media (min-width: 48rem) { .mq-stage--card { --card-max: 36rem; } }
+.mq-stage--text { --card-max: 36rem; }
+.mq-stage--card > .mq-stage__main { width: var(--card-w); }
+/* the panel's wrapper is its container: --u of .mq-card-panel follows it */
+.mq-stage--text > .mq-stage__main { width: 100%; container-type: inline-size; }
+.mq-stage__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+/* A phone on its side: the controls go beside the card, not below it */
+@media (orientation: landscape) and (max-height: 36rem) {
+  .mq-stage {
+    --room: 2.25rem;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    column-gap: 0.75rem;
+    row-gap: 0.5rem;
+    align-items: start;
+  }
+  .mq-stage--card {
+    --card-w: calc((100dvh - var(--room)) * 59 / 86);
+    grid-template-columns: var(--card-w) minmax(0, 15rem);
+    width: auto;
+    max-width: 100%;
+  }
+  .mq-stage--text { grid-template-columns: minmax(0, 1fr) 15rem; width: min(100%, 52rem); }
+  .mq-stage__close { grid-column: 2; grid-row: 1; justify-self: end; }
+  .mq-stage__main { grid-column: 1; grid-row: 1 / span 2; }
+  .mq-stage__side { grid-column: 2; grid-row: 2; align-self: center; }
+  .mq-stage__hint { display: none; }
+}
+
+/* An open dialog holds the page still (scroll chaining is off, but touch
+   scrolling would still move the page under it) */
+html:has(.mq-dialog) { overflow: hidden; }
+html { scrollbar-gutter: stable; }
+
+/* The cards of a question: a tap on a thumbnail's text box is 44 px high at
+   least (the box itself is 39 px on a 144 px card) */
+@media (pointer: coarse) {
+  .mq-card__texts.is-readable::after {
+    content: "";
+    position: absolute;
+    inset: min(0px, calc((100% - 2.8rem) / 2)) 0;
+  }
+}
+
+/* The board of topics and questions: as many columns as fit (a fourth topic
+   wraps on a narrow phone instead of scrolling sideways); from sm up one
+   row, one column per topic (--cols). */
+.mq-board { grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr)); }
+@media (min-width: 40rem) {
+  .mq-board { grid-template-columns: repeat(var(--cols), minmax(4.5rem, 1fr)); }
+}
+
 /* Touch safety: no flash on tap, no double-tap zoom delay, no pull-to-refresh
    in the middle of a game, no text selection or image drag on game controls. */
 html { -webkit-tap-highlight-color: transparent; }
@@ -887,9 +972,9 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
   .btn, .btn-sm, .btn-xs { min-height: 2.75rem; min-width: 2.75rem; }
   .btn-xs { padding-inline: 0.75rem; }
   .btn-circle, .btn-square { width: 2.75rem; height: 2.75rem; }
-  /* 44 px high; the width stays 32 px for now: three of them next to each
-     other already fill the 360 px header (the header redesign solves it) */
-  [data-phx-theme] { min-height: 2.75rem; align-items: center; justify-content: center; }
+  [data-phx-theme] { min-height: 2.75rem; min-width: 2.75rem; align-items: center; justify-content: center; }
   input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"]), textarea, select { font-size: 16px; }
   .mq-suggestion { min-height: 2.75rem; }
+  /* the label of a checkbox is its tap area */
+  .fieldset .label:has(input[type="checkbox"]) { min-height: 2.75rem; }
 }

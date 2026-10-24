@@ -372,34 +372,36 @@ defmodule MillenniumQuizWeb.CoreComponents do
       end
 
     ~H"""
-    <table class="table table-zebra">
-      <thead>
-        <tr>
-          <th :for={col <- @col}>{col[:label]}</th>
-          <th :if={@action != []}>
-            <span class="sr-only">{gettext("Actions")}</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
-        <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
-          <td
-            :for={col <- @col}
-            phx-click={@row_click && @row_click.(row)}
-            class={@row_click && "hover:cursor-pointer"}
-          >
-            {render_slot(col, @row_item.(row))}
-          </td>
-          <td :if={@action != []} class="w-0 font-semibold">
-            <div class="flex gap-4">
-              <%= for action <- @action do %>
-                {render_slot(action, @row_item.(row))}
-              <% end %>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="table table-zebra">
+        <thead>
+          <tr>
+            <th :for={col <- @col}>{col[:label]}</th>
+            <th :if={@action != []}>
+              <span class="sr-only">{gettext("Actions")}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
+          <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
+            <td
+              :for={col <- @col}
+              phx-click={@row_click && @row_click.(row)}
+              class={@row_click && "hover:cursor-pointer"}
+            >
+              {render_slot(col, @row_item.(row))}
+            </td>
+            <td :if={@action != []} class="w-0 font-semibold">
+              <div class="flex gap-4">
+                <%= for action <- @action do %>
+                  {render_slot(action, @row_item.(row))}
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     """
   end
 
@@ -549,7 +551,7 @@ defmodule MillenniumQuizWeb.CoreComponents do
       phx-key="escape"
       phx-mounted={JS.focus(to: "##{@cancel_id}")}
     >
-      <div class="absolute inset-0 bg-base-content/40 backdrop-blur-sm" phx-click={@on_cancel} />
+      <div class="absolute inset-0 bg-base-content/60" phx-click={@on_cancel} />
       <div class="relative w-full max-w-md rounded-box border border-error/50 bg-base-100 shadow-xl p-5 sm:p-6 space-y-6 reveal-pop">
         <div class="flex items-start gap-3">
           <span class="grid place-items-center size-10 shrink-0 rounded-full bg-error text-error-content">

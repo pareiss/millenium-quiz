@@ -19,7 +19,7 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Index do
         </:actions>
       </.header>
 
-      <div id="formats" phx-update="stream" class="grid gap-3">
+      <div id="formats" phx-update="stream" class="grid grid-cols-[minmax(0,1fr)] gap-3">
         <div class="hidden only:block rounded-box border border-dashed border-base-300 p-10 text-center text-base-content/60">
           No formats yet.
         </div>

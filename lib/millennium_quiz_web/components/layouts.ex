@@ -33,31 +33,66 @@ defmodule MillenniumQuizWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="border-b border-base-300 bg-base-100/80 backdrop-blur sticky top-0 z-40">
-      <nav class="mx-auto max-w-5xl px-4 sm:px-6 h-16 flex items-center gap-3">
-        <.link navigate={~p"/"} class="flex items-center gap-2 group" id="brand-link">
+    <%!-- Sticky only where there is room: on a phone (or on its side) the
+         header would take a fifth of the screen and cover the page behind it --%>
+    <header
+      id="site-header"
+      class="border-b border-base-300 bg-base-100 [@media(min-width:40rem)_and_(min-height:32rem)]:sticky [@media(min-width:40rem)_and_(min-height:32rem)]:top-0 z-40"
+    >
+      <nav class="mx-auto max-w-5xl px-4 sm:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-3">
+        <.link
+          navigate={~p"/"}
+          class="flex items-center gap-2 group"
+          id="brand-link"
+          aria-label="Millennium Quiz"
+        >
           <span class="grid place-items-center size-9 rounded-xl bg-primary text-primary-content shadow-sm transition-transform group-hover:rotate-6">
             <.icon name="hero-eye" class="size-5" />
           </span>
-          <span class="font-semibold tracking-tight text-lg">Millennium Quiz</span>
+          <span class="hidden sm:inline font-semibold tracking-tight text-lg">Millennium Quiz</span>
         </.link>
 
         <div class="flex-1" />
 
         <%= if @current_scope do %>
-          <.link navigate={~p"/admin/formats"} class="btn btn-ghost btn-sm">Formats</.link>
-          <.link navigate={~p"/admin/users"} class="btn btn-ghost btn-sm">
+          <%!-- from sm up the links sit in the bar; below it they fold into a menu --%>
+          <.link navigate={~p"/admin/formats"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
+            Formats
+          </.link>
+          <.link navigate={~p"/admin/users"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
             <.icon name="hero-user-circle" class="size-4" />
-            <span class="hidden sm:inline">{@current_scope.user.username}</span>
+            {@current_scope.user.username}
           </.link>
           <.link
             href={~p"/admin/logout"}
             method="delete"
-            class="btn btn-ghost btn-sm"
+            class="hidden sm:inline-flex btn btn-ghost btn-sm"
             id="logout-link"
           >
             Log out
           </.link>
+          <div class="dropdown dropdown-end sm:hidden" id="admin-menu">
+            <div
+              tabindex="0"
+              role="button"
+              class="btn btn-ghost btn-sm btn-square"
+              aria-label="Admin menu"
+              title="Admin menu"
+            >
+              <.icon name="hero-bars-3" class="size-5" />
+            </div>
+            <ul class="menu dropdown-content z-50 mt-2 w-52 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg">
+              <li><.link navigate={~p"/admin/formats"} id="menu-formats">Formats</.link></li>
+              <li>
+                <.link navigate={~p"/admin/users"} id="menu-users">
+                  <.icon name="hero-user-circle" class="size-4" /> {@current_scope.user.username}
+                </.link>
+              </li>
+              <li>
+                <.link href={~p"/admin/logout"} method="delete" id="menu-logout">Log out</.link>
+              </li>
+            </ul>
+          </div>
         <% else %>
           <.link navigate={~p"/admin/login"} class="btn btn-ghost btn-sm opacity-70">Admin</.link>
         <% end %>
@@ -65,7 +100,7 @@ defmodule MillenniumQuizWeb.Layouts do
       </nav>
     </header>
 
-    <main class="px-4 py-10 sm:px-6">
+    <main class="px-4 py-6 sm:px-6 sm:py-10">
       <div class={["mx-auto space-y-6", if(@width == "lg", do: "max-w-5xl", else: "max-w-2xl")]}>
         {render_slot(@inner_block)}
       </div>
