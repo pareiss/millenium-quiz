@@ -55,7 +55,7 @@ defmodule MillenniumQuizWeb.HomeLive do
           id={"format-#{format.id}"}
           class="group relative overflow-hidden rounded-box border border-base-300 bg-base-100 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
         >
-          <div class="absolute -right-6 -top-6 size-24 rounded-full bg-primary/10 transition group-hover:scale-125" />
+          <div class="absolute -right-6 -top-6 size-24 rounded-full bg-primary/10 transition motion-safe:group-hover:scale-125" />
           <h2 class="relative text-xl font-semibold">{format.name}</h2>
           <p :if={format.description} class="relative mt-1 text-sm text-base-content/70 line-clamp-3">
             {format.description}
@@ -64,7 +64,7 @@ defmodule MillenniumQuizWeb.HomeLive do
             <span class="badge badge-ghost badge-sm whitespace-nowrap">{display_date(format.date)}</span>
             <span class="badge badge-ghost badge-sm whitespace-nowrap">{topics} topics</span>
             <span class="badge badge-ghost badge-sm whitespace-nowrap">{questions} questions</span>
-            <span class="ml-auto whitespace-nowrap text-primary font-medium group-hover:translate-x-0.5 transition">
+            <span class="ml-auto whitespace-nowrap text-primary font-medium motion-safe:group-hover:translate-x-0.5 transition">
               Play <span aria-hidden="true">&rarr;</span>
             </span>
           </div>

@@ -28,7 +28,7 @@ FROM ${BUILDER_IMAGE} AS builder
 
 # install build dependencies
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends build-essential git \
+  && apt-get install -y --no-install-recommends build-essential git curl \
   && rm -rf /var/lib/apt/lists/*
 
 # prepare build dir
@@ -44,6 +44,12 @@ ENV MIX_ENV="prod"
 # install mix dependencies
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV
+
+# The vix (image resizing) NIF is downloaded from GitHub releases at compile
+# time, which Erlang's :httpc can't do (see bin/fetch-vix-nif). The build fails
+# here if the file can't be fetched: the fallback would fail later, less clearly.
+COPY bin/fetch-vix-nif bin/fetch-vix-nif
+RUN bin/fetch-vix-nif
 RUN mkdir config
 
 # copy compile-time config files before we compile dependencies

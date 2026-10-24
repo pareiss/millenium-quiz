@@ -56,6 +56,9 @@ jobs:
 
       - run: mix deps.get
 
+      # the vix (libvips) NIF can't be downloaded by Erlang's :httpc
+      - run: bin/fetch-vix-nif
+
       - name: Checks
         shell: bash
         run: |

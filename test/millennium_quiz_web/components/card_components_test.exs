@@ -58,6 +58,28 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
     assert text(doc, ".mq-card__stats") =~ ~r/ATK\/2500\s+DEF\/2100/
   end
 
+  test "a small card offers the artwork in 200 and 400 pixels, a large one only the original" do
+    small = render_card(%{id: 12, name: "Dark Magician"})
+    [img] = small |> LazyHTML.query(".mq-card__art img") |> Enum.to_list()
+
+    assert LazyHTML.attribute(img, "src") == ["/cards/12/artwork"]
+
+    assert LazyHTML.attribute(img, "srcset") == [
+             "/cards/12/artwork?w=200 200w, /cards/12/artwork?w=400 400w, /cards/12/artwork 624w"
+           ]
+
+    assert [sizes] = LazyHTML.attribute(img, "sizes")
+    assert sizes =~ "min-width: 640px"
+    assert LazyHTML.attribute(img, "width") == ["624"]
+    assert LazyHTML.attribute(img, "height") == ["624"]
+
+    large = render_card(%{id: 12, name: "Dark Magician"}, size: "large")
+    [img] = large |> LazyHTML.query(".mq-card__art img") |> Enum.to_list()
+    assert LazyHTML.attribute(img, "src") == ["/cards/12/artwork"]
+    assert LazyHTML.attribute(img, "srcset") == []
+    assert LazyHTML.attribute(img, "sizes") == []
+  end
+
   test "an Xyz Pendulum has Rank stars, two scales and its Pendulum Effect" do
     doc =
       render_card(%{
