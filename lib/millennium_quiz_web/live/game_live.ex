@@ -8,7 +8,8 @@ defmodule MillenniumQuizWeb.GameLive do
 
   import MillenniumQuizWeb.CardComponents
 
-  alias MillenniumQuiz.{Game, Games, GameNotifier}
+  alias MillenniumQuiz.{Game, Games, GameNotifier, RateLimit}
+  alias MillenniumQuizWeb.ClientIP
   alias MillenniumQuiz.Quiz.CardLinks
 
   @impl true
@@ -931,6 +932,8 @@ defmodule MillenniumQuizWeb.GameLive do
         {:ok,
          socket
          |> assign(:game_id, view.id)
+         # connect_info is only readable in mount.
+         |> assign(:client_ip, ClientIP.from_socket(socket))
          |> assign(:resume_url, url(~p"/games/#{view.id}"))
          |> assign(:qr_svg, nil)
          |> assign(:confirm_end, false)
@@ -1003,16 +1006,32 @@ defmodule MillenniumQuizWeb.GameLive do
 
   def handle_event("resume", _params, socket), do: run(socket, &Games.resume/1)
 
-  def handle_event("send_email", %{"resume" => %{"email" => email}}, socket) do
+  def handle_event("send_email", %{"resume" => %{"email" => email}}, socket)
+      when is_binary(email) do
     email = String.trim(email)
 
     if email =~ ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/ and String.length(email) <= 160 do
-      case GameNotifier.deliver_resume_link(email, socket.assigns.resume_url, socket.assigns.game) do
-        {:ok, _} ->
+      limits = [email_game: socket.assigns.game_id, email_ip: socket.assigns.client_ip]
+
+      with :ok <- RateLimit.check_all(limits),
+           {:ok, _} <-
+             GameNotifier.deliver_resume_link(
+               email,
+               socket.assigns.resume_url,
+               socket.assigns.game
+             ) do
+        {:noreply,
+         socket
+         |> put_flash(:info, "Resume link sent to #{email}.")
+         |> assign(:email_form, to_form(%{"email" => ""}, as: :resume))}
+      else
+        {:error, retry_after_ms} when is_integer(retry_after_ms) ->
           {:noreply,
-           socket
-           |> put_flash(:info, "Resume link sent to #{email}.")
-           |> assign(:email_form, to_form(%{"email" => ""}, as: :resume))}
+           put_flash(
+             socket,
+             :error,
+             "Too many emails sent. Please try again in #{RateLimit.describe_wait(retry_after_ms)}."
+           )}
 
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "The email could not be sent.")}

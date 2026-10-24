@@ -54,13 +54,17 @@ defmodule MillenniumQuiz.Games.Server do
   end
 
   def handle_call(:pause, _from, %{record: %{status: :active}} = state) do
-    state = save(state, state.game, :paused)
-    {:stop, :normal, {:ok, view(state)}, state}
+    case save(state, state.game, :paused) do
+      {:ok, state} -> {:stop, :normal, {:ok, view(state)}, state}
+      :gone -> gone(state)
+    end
   end
 
   def handle_call(:resume, _from, %{record: %{status: :paused}} = state) do
-    state = save(state, state.game, :active)
-    {:reply, {:ok, view(state)}, state, @idle_timeout}
+    case save(state, state.game, :active) do
+      {:ok, state} -> {:reply, {:ok, view(state)}, state, @idle_timeout}
+      :gone -> gone(state)
+    end
   end
 
   def handle_call(action, _from, state) when action in [:pause, :resume] do
@@ -74,8 +78,11 @@ defmodule MillenniumQuiz.Games.Server do
     case fun.(state.game) do
       {:ok, game} ->
         status = if game.phase == :finished, do: :finished, else: :active
-        state = save(state, game, status)
-        {:reply, {:ok, view(state)}, state, @idle_timeout}
+
+        case save(state, game, status) do
+          {:ok, state} -> {:reply, {:ok, view(state)}, state, @idle_timeout}
+          :gone -> gone(state)
+        end
 
       {:error, _} = error ->
         {:reply, error, state, @idle_timeout}
@@ -84,6 +91,8 @@ defmodule MillenniumQuiz.Games.Server do
 
   defp update(state, _fun), do: {:reply, {:error, :invalid_status}, state, @idle_timeout}
 
+  # `:gone` when the row was deleted under us (the expiry job removed a game
+  # that was opened just after it had been picked): the game is over.
   defp save(state, game, status) do
     record =
       state.record
@@ -92,8 +101,12 @@ defmodule MillenniumQuiz.Games.Server do
 
     state = %{state | record: record, game: game}
     Games.broadcast(record.id, view(state))
-    state
+    {:ok, state}
+  rescue
+    Ecto.StaleEntryError -> :gone
   end
+
+  defp gone(state), do: {:stop, :normal, {:error, :not_found}, state}
 
   defp view(%{record: record, game: game}),
     do: %{id: record.id, status: record.status, game: game}

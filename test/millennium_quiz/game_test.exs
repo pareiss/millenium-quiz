@@ -52,6 +52,11 @@ defmodule MillenniumQuiz.GameTest do
       assert {:error, :invalid_player_count} = Game.new(@format, ["Solo"], questions())
       assert {:error, :invalid_player_count} = Game.new(@format, ~w(a b c d e), questions())
       assert {:error, :blank_player_name} = Game.new(@format, ["Ann", "  "], questions())
+
+      assert {:error, :player_name_too_long} =
+               Game.new(@format, ["Ann", String.duplicate("x", 25)], questions())
+
+      assert {:ok, _} = Game.new(@format, ["Ann", String.duplicate("x", 24)], questions())
       assert {:error, :no_questions} = Game.new(@format, ["Ann", "Bob"], [])
 
       assert {:error, :invalid_mode} =

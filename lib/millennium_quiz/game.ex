@@ -35,6 +35,8 @@ defmodule MillenniumQuiz.Game do
 
   @min_players 2
   @max_players 4
+  # The new-game form limits names to the same length.
+  @max_name_length 24
   @modes [:free, :ascending]
 
   # What is printed on a card besides its name and text, copied as stored.
@@ -123,6 +125,7 @@ defmodule MillenniumQuiz.Game do
 
   def min_players, do: @min_players
   def max_players, do: @max_players
+  def max_name_length, do: @max_name_length
   def modes, do: @modes
 
   def mode_name(:free), do: "Heart of the Cards"
@@ -165,6 +168,9 @@ defmodule MillenniumQuiz.Game do
 
       Enum.any?(names, &(&1 == "")) ->
         {:error, :blank_player_name}
+
+      Enum.any?(names, &(String.length(&1) > @max_name_length)) ->
+        {:error, :player_name_too_long}
 
       questions == [] ->
         {:error, :no_questions}

@@ -78,7 +78,8 @@ defmodule MillenniumQuiz.MixProject do
       {:bandit, "~> 1.5"},
       {:bcrypt_elixir, "~> 3.3"},
       {:eqrcode, "~> 0.2.1"},
-      {:gen_smtp, "~> 1.3"}
+      {:gen_smtp, "~> 1.3"},
+      {:hammer, "~> 7.5"}
     ]
   end
 

@@ -8,12 +8,13 @@ defmodule MillenniumQuizWeb.Endpoint do
     store: :cookie,
     key: "_millennium_quiz_key",
     signing_salt: "8D8tQMlf",
-    same_site: "Lax"
+    same_site: "Lax",
+    http_only: true
   ]
 
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    websocket: [connect_info: [:peer_data, :x_headers, session: @session_options]],
+    longpoll: [connect_info: [:peer_data, :x_headers, session: @session_options]]
 
   # Serve at "/" the static files from "priv/static" directory.
   #
@@ -53,6 +54,24 @@ defmodule MillenniumQuizWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
-  plug Plug.Session, @session_options
+  plug :session
   plug MillenniumQuizWeb.Router
+
+  # `secure` is decided at runtime (https deployments only): a plain-http
+  # setup, such as the local k3s one, could not keep a secure cookie.
+  defp session(conn, _opts) do
+    opts =
+      Plug.Session.init(
+        [secure: Application.get_env(:millennium_quiz, :secure_cookies, false)] ++
+          @session_options
+      )
+
+    Plug.Session.call(conn, opts)
+  end
+
+  @doc false
+  # Plug.SSL's `exclude: [conn: ...]`: no redirect when the app is served over
+  # plain http on purpose (PHX_SCHEME=http).
+  def skip_https_redirect?(_conn),
+    do: not Application.get_env(:millennium_quiz, :force_https, true)
 end

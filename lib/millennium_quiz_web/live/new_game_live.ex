@@ -1,7 +1,8 @@
 defmodule MillenniumQuizWeb.NewGameLive do
   use MillenniumQuizWeb, :live_view
 
-  alias MillenniumQuiz.{Game, Games, Quiz}
+  alias MillenniumQuiz.{Game, Games, Quiz, RateLimit}
+  alias MillenniumQuizWeb.ClientIP
 
   @impl true
   def render(assigns) do
@@ -43,7 +44,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
                 id={"player-name-#{i}"}
                 value={name}
                 placeholder={"Player #{i + 1}"}
-                maxlength="24"
+                maxlength={Game.max_name_length()}
                 autocomplete="off"
                 autocapitalize="words"
                 autocorrect="off"
@@ -156,6 +157,8 @@ defmodule MillenniumQuizWeb.NewGameLive do
      |> assign(:modes, Game.modes())
      |> assign(:mode, "free")
      |> assign(:error, nil)
+     # connect_info is only readable in mount.
+     |> assign(:client_ip, ClientIP.from_socket(socket))
      |> assign_names(["", ""])}
   end
 
@@ -166,7 +169,8 @@ defmodule MillenniumQuizWeb.NewGameLive do
 
     case params do
       %{"players" => names} when is_list(names) ->
-        {:noreply, assign_names(socket, Enum.take(names, Game.max_players()))}
+        names = names |> Enum.filter(&is_binary/1) |> Enum.take(Game.max_players())
+        {:noreply, assign_names(socket, names)}
 
       _ ->
         {:noreply, socket}
@@ -174,7 +178,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
   end
 
   @impl true
-  def handle_event("change", %{"names" => names} = params, socket) do
+  def handle_event("change", %{"names" => names} = params, socket) when is_list(names) do
     {:noreply,
      socket
      |> assign(:error, nil)
@@ -189,14 +193,20 @@ defmodule MillenniumQuizWeb.NewGameLive do
   end
 
   def handle_event("remove", %{"index" => index}, socket) do
-    names = List.delete_at(socket.assigns.names, String.to_integer(index))
-    {:noreply, assign_names(socket, names)}
+    case Integer.parse(to_string(index)) do
+      {index, ""} -> {:noreply, assign_names(socket, List.delete_at(socket.assigns.names, index))}
+      _ -> {:noreply, socket}
+    end
   end
 
-  def handle_event("start", %{"names" => names} = params, socket) do
+  def handle_event("start", %{"names" => names} = params, socket)
+      when is_list(names) and length(names) <= 20 do
+    names = Enum.filter(names, &is_binary/1)
     socket = socket |> assign_mode(params["mode"]) |> assign_names(names)
 
     with :ok <- validate_unique(names),
+         :ok <- validate_name_lengths(names),
+         :ok <- rate_limit(socket),
          {:ok, game_id} <-
            Games.create_game(socket.assigns.format.id, names, mode: socket.assigns.mode) do
       {:noreply, push_navigate(socket, to: ~p"/games/#{game_id}")}
@@ -205,12 +215,35 @@ defmodule MillenniumQuizWeb.NewGameLive do
     end
   end
 
+  # Malformed input from the browser is ignored.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp rate_limit(socket) do
+    case RateLimit.check_rule(:create_ip, socket.assigns.client_ip) do
+      :ok -> :ok
+      {:error, retry_after_ms} -> {:error, {:rate_limited, retry_after_ms}}
+    end
+  end
+
+  defp validate_name_lengths(names) do
+    if Enum.all?(names, &(String.length(String.trim(&1)) <= Game.max_name_length())),
+      do: :ok,
+      else: {:error, :player_name_too_long}
+  end
+
   defp validate_unique(names) do
     trimmed = names |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
     normalized = Enum.map(trimmed, &String.downcase/1)
 
     if Enum.uniq(normalized) == normalized, do: :ok, else: {:error, :duplicate_names}
   end
+
+  defp error_message({:rate_limited, retry_after_ms}),
+    do:
+      "You have started a lot of games. Please try again in #{RateLimit.describe_wait(retry_after_ms)}."
+
+  defp error_message(:player_name_too_long),
+    do: "Player names can have at most #{Game.max_name_length()} characters."
 
   defp error_message(:blank_player_name), do: "Every player needs a name."
   defp error_message(:duplicate_names), do: "Player names must be different."

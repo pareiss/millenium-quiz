@@ -265,14 +265,34 @@ bin/millennium_quiz eval 'MillenniumQuiz.Release.seed()'   # sample format
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | no | creates the first admin if there is none yet |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `MAIL_FROM` | no | sending resume emails |
 | `POOL_SIZE`, `DNS_CLUSTER_QUERY` | no | DB pool size, clustering |
+| `DATABASE_SSL` | no | `true` for TLS to a database reached over a network (verified against the system CA certificates) |
+| `TRUSTED_PROXY_HOPS` | no | how many proxies of the platform append to `X-Forwarded-For`, default 0 (use the connection's address). The rate limits depend on it: too low and everyone shares the proxy's address, too high and clients can pick their own |
+| `GAME_EXPIRY_DAYS` / `GAME_EXPIRY_FINISHED_DAYS` | no | games nobody touched for this long are deleted, default 30 / 7 |
 
-TLS terminates at the Ingress. The app itself does not redirect to https.
+TLS terminates at the proxy or Ingress, which has to send `X-Forwarded-Proto`:
+in production the app redirects plain-http requests to https, sends HSTS and
+marks the session cookie `secure` (probes under `/healthz` and `localhost` are
+not redirected).
 
 ## Security notes
 
 - Passwords are hashed with bcrypt (`Bcrypt.hash_pwd_salt`, which uses a random salt per hash). Login uses `Bcrypt.no_user_verify` so unknown usernames take as long as wrong passwords, and both get the same error message.
 - Session tokens: 32 random bytes in the signed cookie, with only their SHA-256 hash stored in `users_tokens`. They are valid for 14 days, and a password change deletes all of them.
-- There is no rate limiting on login yet. Add it (e.g. with `hammer`) before exposing the app publicly.
+- Rate limits (`MillenniumQuiz.RateLimit`, in memory per node): admin login per IP and per username at that IP (a username limit shared by all addresses would let anyone lock the admin out; guessing from many addresses is slowed by bcrypt and the per-IP limit, so use a long admin password), password change, the resume email per game and per IP, and game creation per IP. The client address comes from `X-Forwarded-For` only as far as `TRUSTED_PROXY_HOPS` says.
+- Games are reachable by their unguessable id only; anyone with the link can play. Old games are deleted after `GAME_EXPIRY_DAYS` (finished ones after `GAME_EXPIRY_FINISHED_DAYS`).
+- Resume emails are only logged, not sent, unless `SMTP_HOST` is set. The address is used once and not stored.
+
+### Before a public deployment
+
+- [ ] `SECRET_KEY_BASE` freshly generated (`mix phx.gen.secret`), never the dev one.
+- [ ] `PHX_HOST`, `PHX_SCHEME`, `PHX_URL_PORT` match the public URL (they also drive the websocket origin check).
+- [ ] `TRUSTED_PROXY_HOPS` set to the platform's proxy count; check with a request that the rate limit sees your own address.
+- [ ] `DATABASE_SSL=true` if the database is not on the same private network; `POOL_SIZE` within the free tier's connection limit.
+- [ ] `ADMIN_USERNAME` / `ADMIN_PASSWORD` (a long password) for the first `bin/migrate`, then remove them from the environment.
+- [ ] The production database is a fresh one (no dev data, no temporary admins).
+- [ ] `mix hex.audit` shows no advisories; run it again before every deployment.
+- [ ] Memory: the resized-artwork cache holds up to 32 MB, plus libvips; check it against the plan's RAM.
+- [ ] Without `SMTP_HOST` resume emails are only logged; with it, watch the mail quota.
 
 ## Next: Yu-Gi-Oh! features
 
