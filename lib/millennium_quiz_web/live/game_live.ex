@@ -613,7 +613,7 @@ defmodule MillenniumQuizWeb.GameLive do
           class="w-[calc(50%-0.375rem)] sm:w-44"
         >
           <div
-            class="mq-nosel relative cursor-zoom-in transition hover:-translate-y-1 hover:drop-shadow-lg"
+            class="mq-nosel relative cursor-zoom-in transition motion-safe:hover:-translate-y-1 hover:drop-shadow-lg"
             phx-click="zoom_card"
             phx-value-card={i}
           >

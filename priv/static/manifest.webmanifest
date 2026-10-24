@@ -1,0 +1,17 @@
+{
+  "name": "Millennium Quiz",
+  "short_name": "MQ Quiz",
+  "description": "A Yu-Gi-Oh! trivia game for the whole table.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#19182a",
+  "theme_color": "#19182a",
+  "icons": [
+    { "src": "/images/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/images/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/images/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

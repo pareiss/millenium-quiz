@@ -4,11 +4,25 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#fdfaf4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#19182a" media="(prefers-color-scheme: dark)" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title default="Millennium Quiz" suffix=" · Millennium Quiz" phx-no-format>{assigns[:page_title]}</.live_title>
     <link rel="icon" type="image/svg+xml" href={~p"/images/millennium-puzzle.svg"} />
+    <link rel="apple-touch-icon" href={~p"/images/apple-touch-icon.png"} />
+    <link rel="manifest" href={~p"/manifest.webmanifest"} />
+    <%!-- the card faces: fetched with the CSS instead of after it (fonts need crossorigin) --%>
+    <link rel="preload" as="font" type="font/woff2" href={~p"/fonts/Cinzel.woff2"} crossorigin />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href={~p"/fonts/CrimsonPro.woff2"}
+      crossorigin
+    />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>

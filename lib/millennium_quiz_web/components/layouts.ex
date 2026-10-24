@@ -37,7 +37,7 @@ defmodule MillenniumQuizWeb.Layouts do
          header would take a fifth of the screen and cover the page behind it --%>
     <header
       id="site-header"
-      class="border-b border-base-300 bg-base-100 [@media(min-width:40rem)_and_(min-height:32rem)]:sticky [@media(min-width:40rem)_and_(min-height:32rem)]:top-0 z-40"
+      class="border-b border-base-300 bg-base-100 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] [@media(min-width:40rem)_and_(min-height:32rem)]:sticky [@media(min-width:40rem)_and_(min-height:32rem)]:top-0 z-40"
     >
       <nav class="mx-auto max-w-5xl px-4 sm:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-3">
         <.link
@@ -46,7 +46,7 @@ defmodule MillenniumQuizWeb.Layouts do
           id="brand-link"
           aria-label="Millennium Quiz"
         >
-          <span class="grid place-items-center size-9 rounded-xl bg-primary text-primary-content shadow-sm transition-transform group-hover:rotate-6">
+          <span class="grid place-items-center size-9 rounded-xl bg-primary text-primary-content shadow-sm transition-transform motion-safe:group-hover:rotate-6">
             <.icon name="hero-eye" class="size-5" />
           </span>
           <span class="hidden sm:inline font-semibold tracking-tight text-lg">Millennium Quiz</span>
@@ -100,7 +100,7 @@ defmodule MillenniumQuizWeb.Layouts do
       </nav>
     </header>
 
-    <main class="px-4 py-6 sm:px-6 sm:py-10">
+    <main class="px-4 py-6 sm:px-6 sm:py-10 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))]">
       <div class={["mx-auto space-y-6", if(@width == "lg", do: "max-w-5xl", else: "max-w-2xl")]}>
         {render_slot(@inner_block)}
       </div>

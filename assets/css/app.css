@@ -118,7 +118,20 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   100% { transform: scale(1); }
 }
 .reveal-pop { animation: reveal-pop 320ms ease-out; }
-@media (prefers-reduced-motion: reduce) { .reveal-pop { animation: none; } }
+
+/* Reduced motion: the pop, the banner fade, dialog and
+   dropdown transitions and the daisyUI spinner run (almost) instantly; hover
+   lifts and the brand tilt use motion-safe: in the markup;
+   the "Reconnecting" arrows already spin only under motion-safe */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-pop { animation: none; }
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* Drawn Yu-Gi-Oh! cards (MillenniumQuizWeb.CardComponents). Sizes are in
    container units (cqw = 1% of the card's width), so a card scales as one
@@ -136,19 +149,19 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
    Cinzel draws lowercase as small capitals, like card names. */
 @font-face {
   font-family: "Cinzel";
-  src: url("/fonts/Cinzel.ttf") format("truetype");
+  src: url("/fonts/Cinzel.woff2") format("woff2");
   font-weight: 400 900;
   font-display: swap;
 }
 @font-face {
   font-family: "Crimson Pro";
-  src: url("/fonts/CrimsonPro.ttf") format("truetype");
+  src: url("/fonts/CrimsonPro.woff2") format("woff2");
   font-weight: 200 900;
   font-display: swap;
 }
 @font-face {
   font-family: "Crimson Pro";
-  src: url("/fonts/CrimsonPro-Italic.ttf") format("truetype");
+  src: url("/fonts/CrimsonPro-Italic.woff2") format("woff2");
   font-weight: 200 900;
   font-style: italic;
   font-display: swap;
