@@ -57,8 +57,10 @@ defmodule MillenniumQuizWeb.Router do
       live "/topics/:topic_id/questions/new", QuestionLive.Form, :new
       live "/questions/:id/edit", QuestionLive.Form, :edit
       live "/users", UserLive.Index, :index
+      live "/backup", BackupLive, :index
     end
 
+    get "/backup.json", BackupController, :show
     put "/password", SessionController, :update_password
     delete "/logout", SessionController, :delete
   end

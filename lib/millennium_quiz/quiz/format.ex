@@ -10,6 +10,7 @@ defmodule MillenniumQuiz.Quiz.Format do
 
   @min_topics 2
   @max_topics 6
+  @max_name_length 80
 
   schema "formats" do
     field :name, :string
@@ -23,6 +24,7 @@ defmodule MillenniumQuiz.Quiz.Format do
 
   def min_topics, do: @min_topics
   def max_topics, do: @max_topics
+  def max_name_length, do: @max_name_length
 
   @doc """
   Topics are edited inline with the format. `topics_sort` / `topics_drop`
@@ -38,7 +40,7 @@ defmodule MillenniumQuiz.Quiz.Format do
     format
     |> cast(attrs, fields)
     |> validate_required([:name, :date])
-    |> validate_length(:name, max: 80)
+    |> validate_length(:name, max: @max_name_length)
     |> cast_assoc(:topics,
       with: &Topic.changeset/3,
       sort_param: :topics_sort,

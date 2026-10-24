@@ -14,6 +14,7 @@ defmodule MillenniumQuiz.Application do
       {Phoenix.PubSub, name: MillenniumQuiz.PubSub},
       MillenniumQuiz.Cards.ArtworkCache,
       MillenniumQuiz.RateLimit,
+      {Task.Supervisor, name: MillenniumQuiz.TaskSupervisor},
       {Registry, keys: :unique, name: MillenniumQuiz.Games.Registry},
       {DynamicSupervisor, name: MillenniumQuiz.Games.Supervisor, strategy: :one_for_one},
       # Start to serve requests, typically the last entry

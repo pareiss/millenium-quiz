@@ -59,6 +59,9 @@ defmodule MillenniumQuizWeb.Layouts do
           <.link navigate={~p"/admin/formats"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
             Formats
           </.link>
+          <.link navigate={~p"/admin/backup"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
+            Backup
+          </.link>
           <.link navigate={~p"/admin/users"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
             <.icon name="hero-user-circle" class="size-4" />
             {@current_scope.user.username}
@@ -83,6 +86,7 @@ defmodule MillenniumQuizWeb.Layouts do
             </div>
             <ul class="menu dropdown-content z-50 mt-2 w-52 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg">
               <li><.link navigate={~p"/admin/formats"} id="menu-formats">Formats</.link></li>
+              <li><.link navigate={~p"/admin/backup"} id="menu-backup">Backup</.link></li>
               <li>
                 <.link navigate={~p"/admin/users"} id="menu-users">
                   <.icon name="hero-user-circle" class="size-4" /> {@current_scope.user.username}

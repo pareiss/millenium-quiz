@@ -6,6 +6,8 @@ defmodule MillenniumQuiz.Release do
       bin/millennium_quiz eval 'MillenniumQuiz.Release.create_admin("name", "a long password")'
       bin/millennium_quiz eval "MillenniumQuiz.Release.seed()"
       bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_cards()"
+      bin/millennium_quiz eval 'MillenniumQuiz.Release.export_quiz("quiz-backup.json")'
+      bin/millennium_quiz eval 'MillenniumQuiz.Release.import_quiz("quiz-backup.json")'
   """
   @app :millennium_quiz
 
@@ -42,6 +44,50 @@ defmodule MillenniumQuiz.Release do
       if failed != [], do: IO.puts("Failed: #{Enum.join(failed, ", ")}")
     end)
   end
+
+  @doc """
+  Writes a backup of the quiz content (formats, topics, questions, choices,
+  card links) to `path`. See `MillenniumQuiz.Quiz.Export`.
+  """
+  def export_quiz(path) do
+    with_repo(fn ->
+      File.write!(path, MillenniumQuiz.Quiz.Export.to_json())
+      IO.puts("Wrote the quiz backup to #{path}")
+    end)
+  end
+
+  @doc """
+  Restores a backup file. Formats whose name exists are skipped; missing cards
+  are fetched from the remote sources, one at a time.
+  See `MillenniumQuiz.Quiz.Import`.
+  """
+  def import_quiz(path) do
+    {:ok, _} = Application.ensure_all_started(:req)
+
+    with_repo(fn ->
+      case File.read(path) do
+        {:ok, json} -> json |> MillenniumQuiz.Quiz.Import.run() |> print_import()
+        {:error, reason} -> IO.puts("Could not read #{path}: #{:file.format_error(reason)}")
+      end
+    end)
+  end
+
+  @doc "The lines that describe the result of `Quiz.Import.run/2`."
+  def import_report({:error, message}), do: ["Import failed: #{message}"]
+
+  def import_report({:ok, s}) do
+    [
+      "Formats created: #{s.formats_created}, skipped (name exists): #{length(s.formats_skipped)}, " <>
+        "failed: #{length(s.formats_failed)}",
+      "Topics: #{s.topics}, questions: #{s.questions}",
+      "Card links: #{s.cards_linked} linked, #{s.cards_missing} missing"
+    ] ++
+      Enum.map(s.formats_skipped, &"Skipped: #{&1}") ++
+      Enum.map(s.formats_failed, fn {name, msg} -> "Failed: #{name}: #{msg}" end) ++
+      Enum.map(s.warnings, &"Warning: #{&1}")
+  end
+
+  defp print_import(result), do: result |> import_report() |> Enum.each(&IO.puts/1)
 
   # Creates the first admin from ADMIN_USERNAME / ADMIN_PASSWORD when the
   # users table is still empty. Runs as part of `migrate`.
