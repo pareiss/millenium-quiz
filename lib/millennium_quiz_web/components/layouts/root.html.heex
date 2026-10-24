@@ -7,8 +7,7 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#fdfaf4" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#19182a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fdfaf4" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title default="Millennium Quiz" suffix=" · Millennium Quiz" phx-no-format>{assigns[:page_title]}</.live_title>
     <link rel="icon" type="image/svg+xml" href={~p"/images/millennium-puzzle.svg"} />
@@ -30,6 +29,13 @@
       (() => {
         const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 
+        // the browser bar follows the site's theme, not only the system's
+        const barColors = {light: "#fdfaf4", dark: "#19182a"};
+        const paintBar = () => {
+          const color = barColors[document.documentElement.getAttribute("data-theme")];
+          if (color) document.querySelector("meta[name=theme-color]")?.setAttribute("content", color);
+        };
+
         const setTheme = (theme) => {
           if (theme === "system") {
             localStorage.removeItem("phx:theme");
@@ -40,6 +46,7 @@
             document.documentElement.setAttribute("data-theme", theme);
             document.documentElement.setAttribute("data-theme-source", "user");
           }
+          paintBar();
         };
         if (!document.documentElement.hasAttribute("data-theme")) {
           setTheme(localStorage.getItem("phx:theme") || "system");
@@ -50,6 +57,7 @@
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
           if (document.documentElement.getAttribute("data-theme-source") === "system") {
             document.documentElement.setAttribute("data-theme", systemTheme());
+            paintBar();
           }
         });
       })();

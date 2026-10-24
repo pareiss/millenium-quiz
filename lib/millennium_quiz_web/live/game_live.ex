@@ -1073,13 +1073,16 @@ defmodule MillenniumQuizWeb.GameLive do
 
   # Any change to the game closes an enlarged card: it belongs to a moment
   # (the next player shouldn't find it open).
+  defp page_title(%{phase: :finished} = game), do: "#{game.format_name} · Final results"
+  defp page_title(game), do: "#{game.format_name} · Q#{game.round}"
+
   defp assign_view(socket, view) do
     socket
     |> assign(:zoom, nil)
     |> assign(:status, view.status)
     |> assign(:game, view.game)
     |> lock_new_turn(view.game)
-    |> assign(:page_title, "#{view.game.format_name} · Q#{view.game.round}")
+    |> assign(:page_title, page_title(view.game))
     |> maybe_assign_qr()
   end
 
