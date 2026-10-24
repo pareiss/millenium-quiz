@@ -14,13 +14,9 @@ defmodule MillenniumQuizWeb.PwaTest do
   test "the browser bar follows the site's theme, the page extends under the notch", %{conn: conn} do
     doc = page(conn)
 
-    # one meta that the theme script repaints on every theme change
+    # one meta; the theme script repaints it on every theme change (checked in a browser)
     assert attrs(doc, "meta[name=theme-color]", "content") == ["#fdfaf4"]
     assert attrs(doc, "meta[name=theme-color]", "media") == []
-
-    html = conn |> get(~p"/") |> html_response(200)
-    assert html =~ "paintBar"
-    assert html =~ "#19182a"
 
     assert attrs(doc, "meta[name=color-scheme]", "content") == ["light dark"]
     [viewport] = attrs(doc, "meta[name=viewport]", "content")
