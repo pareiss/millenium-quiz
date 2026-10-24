@@ -228,9 +228,10 @@ defmodule MillenniumQuiz.Cards do
     result =
       ArtworkCache.fetch(key, fn ->
         with data when is_binary(data) <- artwork_data(card_id),
-             {:error, reason} = error <- ArtworkImage.resize(data, width) do
+             {:error, reason} <- ArtworkImage.resize(data, width) do
           Logger.warning("Resizing artwork of card #{card_id} failed: #{inspect(reason)}")
-          error
+          # remembered, so a broken artwork isn't decoded and logged on every request
+          {:ok, :original}
         else
           nil -> :error
           ok -> ok
@@ -238,7 +239,7 @@ defmodule MillenniumQuiz.Cards do
       end)
 
     case result do
-      {:ok, _} = ok -> ok
+      {:ok, jpeg} = ok when is_binary(jpeg) -> ok
       _ -> :error
     end
   end

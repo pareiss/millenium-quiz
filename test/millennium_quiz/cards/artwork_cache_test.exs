@@ -39,6 +39,13 @@ defmodule MillenniumQuiz.Cards.ArtworkCacheTest do
     assert ArtworkCache.fetch(cache, :a, fn -> {:ok, "fine"} end) == {:ok, "fine"}
   end
 
+  test "a remembered \"use the original\" is cached and takes no bytes" do
+    cache = start_cache([])
+    assert ArtworkCache.fetch(cache, :a, fn -> {:ok, :original} end) == {:ok, :original}
+    assert %{entries: 1, bytes: 0} = sync(cache)
+    assert ArtworkCache.fetch(cache, :a, fn -> flunk("should be cached") end) == {:ok, :original}
+  end
+
   test "the entry bound holds and the oldest entries go first" do
     cache = start_cache(max_entries: 3)
 

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Puts the precompiled vix (libvips) NIF where elixir_make looks for it.
+#
+# elixir_make downloads it with Erlang's :httpc, which fails on GitHub's
+# redirect ({:header_too_long, {:max, 10240}}) and then tries to build libvips
+# from source. Run this after `mix deps.get`, before compiling: locally once on
+# a fresh machine, and in CI and the Dockerfile. It does nothing when the file
+# is already there, and fails when it can't be fetched.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+vsn="$(sed -n 's/.*"vix": {:hex, :vix, "\([^"]*\)".*/\1/p' mix.lock)"
+[ -n "$vsn" ] || { echo "fetch-vix-nif: vix not found in mix.lock" >&2; exit 1; }
+
+nif="$(erl -noshell -eval 'io:format("~s", [erlang:system_info(nif_version)]), halt().')"
+file="vix-nif-${nif}-$(uname -m)-linux-gnu-${vsn}.tar.gz"
+dir="${ELIXIR_MAKE_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/elixir_make}"
+
+if [ -s "$dir/$file" ]; then
+  echo "fetch-vix-nif: $file already cached"
+  exit 0
+fi
+
+mkdir -p "$dir"
+curl -fsSL --retry 3 -o "$dir/$file.part" \
+  "https://github.com/akash-akya/vix/releases/download/v${vsn}/${file}"
+mv "$dir/$file.part" "$dir/$file"
+echo "fetch-vix-nif: fetched $file"

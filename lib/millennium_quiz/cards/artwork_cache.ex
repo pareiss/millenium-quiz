@@ -20,8 +20,10 @@ defmodule MillenniumQuiz.Cards.ArtworkCache do
   end
 
   @doc """
-  The cached value for `key`, or the result of `fun` (`{:ok, binary}` or
-  anything else for "don't cache") stored under it. `fun` runs in the caller.
+  The cached value for `key`, or the result of `fun` stored under it: `{:ok,
+  binary}` or `{:ok, :original}` (a remembered "serve the original" for an
+  artwork that can't be resized); anything else isn't cached. `fun` runs in
+  the caller.
   """
   def fetch(server \\ __MODULE__, key, fun) do
     table = table(server)
@@ -31,7 +33,7 @@ defmodule MillenniumQuiz.Cards.ArtworkCache do
         hit
 
       :error ->
-        with {:ok, data} when is_binary(data) <- fun.() do
+        with {:ok, data} when is_binary(data) or data == :original <- fun.() do
           GenServer.cast(server, {:put, key, data})
           {:ok, data}
         end
@@ -83,7 +85,9 @@ defmodule MillenniumQuiz.Cards.ArtworkCache do
 
   @impl true
   def handle_cast({:put, key, data}, state) do
-    if :ets.member(state.table, key) or byte_size(data) > state.max_bytes do
+    size = size(data)
+
+    if :ets.member(state.table, key) or size > state.max_bytes do
       {:noreply, state}
     else
       seq = state.seq + 1
@@ -92,13 +96,16 @@ defmodule MillenniumQuiz.Cards.ArtworkCache do
       state = %{
         state
         | seq: seq,
-          bytes: state.bytes + byte_size(data),
-          order: :queue.in({key, byte_size(data)}, state.order)
+          bytes: state.bytes + size,
+          order: :queue.in({key, size}, state.order)
       }
 
       {:noreply, evict(state)}
     end
   end
+
+  defp size(data) when is_binary(data), do: byte_size(data)
+  defp size(:original), do: 0
 
   defp evict(state) do
     if :ets.info(state.table, :size) > state.max_entries or state.bytes > state.max_bytes do

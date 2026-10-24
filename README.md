@@ -131,11 +131,20 @@ Requires Elixir 1.17+ and a Postgres at `localhost:5432` (user/password
 `postgres`). For example, run one in k3s or use any local install.
 
 ```sh
+mix deps.get
+bin/fetch-vix-nif         # once per machine and vix version, see below
 mix setup                 # deps, DB, migrations, seeds, assets
 mix run -e 'MillenniumQuiz.Release.create_admin("admin", "a long password")'
 mix phx.server            # http://localhost:4000, admin at /admin/login
 mix test
 ```
+
+`bin/fetch-vix-nif` downloads the precompiled libvips NIF of the `vix`
+dependency (used to resize card artwork) into `~/.cache/elixir_make/`. Erlang's
+HTTP client cannot download it from GitHub on its own (`header_too_long`) and
+would try to build libvips from source, so without this step `mix compile`
+fails. CI and the `Dockerfile` run it too. Run it again after `vix` is updated
+in `mix.lock`.
 
 Sent emails can be viewed in development at http://localhost:4000/dev/mailbox.
 

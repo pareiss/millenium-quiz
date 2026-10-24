@@ -110,6 +110,26 @@ defmodule MillenniumQuizWeb.CardArtworkControllerTest do
       assert log =~ "Resizing artwork of card #{card.id} failed"
     end
 
+    test "a failed resize is remembered: no new decoding or warning on the next request" do
+      garbage = <<0xFF, 0xD8, 0xFF, 0xE0, "still not an image", 0xFF, 0xD9>>
+      card = card_with_artwork(garbage)
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert build_conn() |> get(~p"/cards/#{card.id}/artwork?w=400") |> response(200)
+      end)
+
+      # the cache takes inserts asynchronously
+      MillenniumQuiz.Cards.ArtworkCache.stats()
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          conn = get(build_conn(), ~p"/cards/#{card.id}/artwork?w=400")
+          assert response(conn, 200) == garbage
+        end)
+
+      refute log =~ "Resizing artwork"
+    end
+
     test "unknown cards are 404 with a width too" do
       assert build_conn() |> get("/cards/0/artwork?w=200") |> response(404)
       assert build_conn() |> get("/cards/987654321/artwork?w=200") |> response(404)

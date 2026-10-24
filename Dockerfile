@@ -46,17 +46,10 @@ COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV
 
 # The vix (image resizing) NIF is downloaded from GitHub releases at compile
-# time. Erlang's :httpc fails on GitHub's oversized redirect headers
-# ({:header_too_long, ...}), so fetch the tarball with curl into the cache
-# elixir_make reads; if this step fails the normal download is still tried.
-RUN set -eu; \
-  vsn="$(sed -n 's/.*"vix": {:hex, :vix, "\([^"]*\)".*/\1/p' mix.lock)"; \
-  nif="$(erl -noshell -eval 'io:format("~s", [erlang:system_info(nif_version)]), halt().')"; \
-  file="vix-nif-${nif}-$(uname -m)-linux-gnu-${vsn}.tar.gz"; \
-  mkdir -p /root/.cache/elixir_make; \
-  curl -fsSL -o "/root/.cache/elixir_make/${file}" \
-    "https://github.com/akash-akya/vix/releases/download/v${vsn}/${file}" \
-  || echo "vix NIF pre-fetch failed, falling back to elixir_make's download"
+# time, which Erlang's :httpc can't do (see bin/fetch-vix-nif). The build fails
+# here if the file can't be fetched: the fallback would fail later, less clearly.
+COPY bin/fetch-vix-nif bin/fetch-vix-nif
+RUN bin/fetch-vix-nif
 RUN mkdir config
 
 # copy compile-time config files before we compile dependencies
