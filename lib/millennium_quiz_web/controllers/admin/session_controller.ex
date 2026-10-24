@@ -7,12 +7,13 @@ defmodule MillenniumQuizWeb.Admin.SessionController do
 
   def create(conn, %{"user" => %{"username" => username, "password" => password}})
       when is_binary(username) and is_binary(password) do
-    # Counted per address and per (lowercased) username whether or not the user
-    # exists, so the limit says nothing about which usernames are real.
-    limits = [
-      login_ip: ClientIP.from_conn(conn),
-      login_user: username |> String.trim() |> String.downcase() |> String.slice(0, 100)
-    ]
+    # Counted per address, and per (lowercased) username *at that address*,
+    # whether or not the user exists, so the limit says nothing about which
+    # usernames are real. A username limit shared by all addresses would let
+    # anyone lock the admin out by guessing wrong passwords.
+    ip = ClientIP.from_conn(conn)
+    name = username |> String.trim() |> String.downcase() |> String.slice(0, 100)
+    limits = [login_ip: ip, login_user: {name, ip}]
 
     with :ok <- RateLimit.check_all(limits),
          user when not is_nil(user) <-

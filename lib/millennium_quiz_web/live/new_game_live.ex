@@ -44,7 +44,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
                 id={"player-name-#{i}"}
                 value={name}
                 placeholder={"Player #{i + 1}"}
-                maxlength="24"
+                maxlength={Game.max_name_length()}
                 autocomplete="off"
                 autocapitalize="words"
                 autocorrect="off"
@@ -226,7 +226,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
   end
 
   defp validate_name_lengths(names) do
-    if Enum.all?(names, &(String.length(String.trim(&1)) <= 24)),
+    if Enum.all?(names, &(String.length(String.trim(&1)) <= Game.max_name_length())),
       do: :ok,
       else: {:error, :player_name_too_long}
   end
@@ -242,7 +242,9 @@ defmodule MillenniumQuizWeb.NewGameLive do
     do:
       "You have started a lot of games. Please try again in #{RateLimit.describe_wait(retry_after_ms)}."
 
-  defp error_message(:player_name_too_long), do: "Player names can have at most 24 characters."
+  defp error_message(:player_name_too_long),
+    do: "Player names can have at most #{Game.max_name_length()} characters."
+
   defp error_message(:blank_player_name), do: "Every player needs a name."
   defp error_message(:duplicate_names), do: "Player names must be different."
   defp error_message(:invalid_player_count), do: "A game needs 2 to 4 players."

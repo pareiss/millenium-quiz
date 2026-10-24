@@ -125,6 +125,7 @@ defmodule MillenniumQuiz.Game do
 
   def min_players, do: @min_players
   def max_players, do: @max_players
+  def max_name_length, do: @max_name_length
   def modes, do: @modes
 
   def mode_name(:free), do: "Heart of the Cards"

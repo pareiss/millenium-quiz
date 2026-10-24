@@ -50,19 +50,30 @@ defmodule MillenniumQuizWeb.RateLimitsTest do
       assert redirected_to(conn) == ~p"/admin/formats"
     end
 
-    test "per username, ignoring case, whether or not the user exists" do
+    test "per username at an address, ignoring case, whether or not the user exists" do
       limits(login_user: {2, 60_000})
       user = user_fixture()
 
       for name <- [user.username, "nobody"] do
         for i <- 1..2 do
-          conn = login(build_conn(), String.upcase(name), "wrong #{i}", {10, 0, 0, i})
+          conn = login(build_conn(), String.upcase(name), "wrong #{i}", {10, 0, 0, 1})
           assert redirected_to(conn) == ~p"/admin/login"
         end
 
-        conn = login(build_conn(), name, "wrong again", {10, 0, 1, 1})
+        conn = login(build_conn(), name, "wrong again", {10, 0, 0, 1})
         assert text_response(conn, 429) =~ "Too many login attempts"
       end
+    end
+
+    test "guessing wrong passwords from one address does not lock the admin out elsewhere" do
+      limits(login_user: {2, 60_000})
+      user = user_fixture()
+
+      for i <- 1..3, do: login(build_conn(), user.username, "wrong #{i}", {10, 0, 0, 1})
+      assert text_response(login(build_conn(), user.username, "x", {10, 0, 0, 1}), 429)
+
+      conn = login(build_conn(), user.username, valid_user_password(), {10, 0, 0, 2})
+      assert redirected_to(conn) == ~p"/admin/formats"
     end
 
     test "the normal error message does not depend on the username" do

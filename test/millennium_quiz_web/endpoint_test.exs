@@ -38,4 +38,56 @@ defmodule MillenniumQuizWeb.EndpointTest do
     put_env_for_test(:force_https, true)
     refute MillenniumQuizWeb.Endpoint.skip_https_redirect?(nil)
   end
+
+  describe "the force_ssl options of config/prod.exs" do
+    # the real options, run through Plug.SSL like the endpoint does
+    setup do
+      force_ssl =
+        "config/prod.exs"
+        |> Config.Reader.read!(env: :prod)
+        |> get_in([:millennium_quiz, MillenniumQuizWeb.Endpoint, :force_ssl])
+
+      opts =
+        MillenniumQuizWeb.Endpoint |> Phoenix.Endpoint.__force_ssl__(force_ssl) |> Plug.SSL.init()
+
+      %{opts: opts}
+    end
+
+    defp through_ssl(opts, path, proto, host \\ "quiz.example.com") do
+      :get
+      |> Plug.Test.conn(path)
+      |> Map.put(:host, host)
+      |> Plug.Conn.put_req_header("x-forwarded-proto", proto)
+      |> Plug.SSL.call(opts)
+    end
+
+    test "plain http is redirected to https, https gets HSTS", %{opts: opts} do
+      put_env_for_test(:force_https, true)
+
+      conn = through_ssl(opts, "/games/x", "http")
+      assert conn.halted
+      assert conn.status == 301
+      assert [<<"https://", _::binary>>] = Plug.Conn.get_resp_header(conn, "location")
+
+      conn = through_ssl(opts, "/games/x", "https")
+      refute conn.halted
+      assert [hsts] = Plug.Conn.get_resp_header(conn, "strict-transport-security")
+      assert hsts =~ "max-age="
+    end
+
+    test "probes and localhost are not redirected", %{opts: opts} do
+      put_env_for_test(:force_https, true)
+
+      for path <- ["/healthz/live", "/healthz/ready"] do
+        refute through_ssl(opts, path, "http").halted
+      end
+
+      refute through_ssl(opts, "/", "http", "localhost").halted
+    end
+
+    test "a deployment served over plain http on purpose is not redirected", %{opts: opts} do
+      put_env_for_test(:force_https, false)
+      refute through_ssl(opts, "/games/x", "http").halted
+    end
+  end
 end

@@ -278,7 +278,7 @@ not redirected).
 
 - Passwords are hashed with bcrypt (`Bcrypt.hash_pwd_salt`, which uses a random salt per hash). Login uses `Bcrypt.no_user_verify` so unknown usernames take as long as wrong passwords, and both get the same error message.
 - Session tokens: 32 random bytes in the signed cookie, with only their SHA-256 hash stored in `users_tokens`. They are valid for 14 days, and a password change deletes all of them.
-- Rate limits (`MillenniumQuiz.RateLimit`, in memory per node): admin login per IP and per username, password change, the resume email per game and per IP, and game creation per IP. The client address comes from `X-Forwarded-For` only as far as `TRUSTED_PROXY_HOPS` says.
+- Rate limits (`MillenniumQuiz.RateLimit`, in memory per node): admin login per IP and per username at that IP (a username limit shared by all addresses would let anyone lock the admin out; guessing from many addresses is slowed by bcrypt and the per-IP limit, so use a long admin password), password change, the resume email per game and per IP, and game creation per IP. The client address comes from `X-Forwarded-For` only as far as `TRUSTED_PROXY_HOPS` says.
 - Games are reachable by their unguessable id only; anyone with the link can play. Old games are deleted after `GAME_EXPIRY_DAYS` (finished ones after `GAME_EXPIRY_FINISHED_DAYS`).
 - Resume emails are only logged, not sent, unless `SMTP_HOST` is set. The address is used once and not stored.
 

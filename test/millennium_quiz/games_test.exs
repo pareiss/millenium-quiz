@@ -1,6 +1,7 @@
 defmodule MillenniumQuiz.GamesTest do
   use MillenniumQuiz.DataCase
 
+  import Ecto.Query
   import MillenniumQuiz.QuizFixtures
 
   alias MillenniumQuiz.{Game, Games}
@@ -76,6 +77,19 @@ defmodule MillenniumQuiz.GamesTest do
     send(pid, :timeout)
     assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
     assert Server.via(id) |> GenServer.whereis() |> is_nil()
+  end
+
+  test "a game whose row was deleted under a running server ends cleanly", %{id: id} do
+    {:ok, _} = Games.fetch_game(id)
+    [{pid, _}] = Registry.lookup(MillenniumQuiz.Games.Registry, id)
+    ref = Process.monitor(pid)
+
+    # what the expiry job does to a game that was opened just after it was picked
+    Repo.delete_all(from g in GameRecord, where: g.id == ^id)
+
+    assert Games.choose(id, 0) == {:error, :not_found}
+    assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+    assert Games.fetch_game(id) == {:error, :not_found}
   end
 
   describe "delete_expired/1" do
