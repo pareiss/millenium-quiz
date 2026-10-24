@@ -15,13 +15,30 @@ defmodule MillenniumQuizWeb.GameLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} width="lg">
+      <%!-- keeps the screen awake while the game runs; the banner shows while
+           the connection is down (see the phx-offline variant in app.css) --%>
+      <div
+        id="game-connection"
+        phx-hook="WakeLock"
+        data-active={to_string(@status == :active and @game.phase != :finished)}
+        class="my-0!"
+      >
+        <p
+          id="game-reconnecting"
+          role="status"
+          aria-live="polite"
+          class="mq-offline pointer-events-none fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 mx-auto hidden w-fit max-w-[90vw] items-center gap-2 rounded-full border border-base-300 bg-base-100 px-4 py-2 text-sm font-medium shadow-lg phx-offline:flex"
+        >
+          <.icon name="hero-arrow-path" class="size-4 motion-safe:animate-spin" /> Reconnecting…
+        </p>
+      </div>
       <div
         id="game"
         phx-hook=".RememberGame"
         data-game-id={@game_id}
         data-finished={to_string(@status == :finished)}
         data-turn-key={turn_key_attr(@turn_key)}
-        class="space-y-5"
+        class="space-y-5 transition-opacity phx-offline:pointer-events-none phx-offline:opacity-50 phx-offline:delay-700"
       >
         <.game_header game={@game} status={@status} />
 

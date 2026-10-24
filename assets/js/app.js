@@ -25,13 +25,17 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/millennium_quiz"
 import {SwipeCycle} from "./swipe_cycle"
 import {CardLinkInput} from "./card_link_input"
+import {WakeLock} from "./wake_lock"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
+  // quick retries: a phone that wakes up should be back within a second or two
+  // (Phoenix's Socket already reconnects at once on visibilitychange/pageshow)
+  reconnectAfterMs: tries => [200, 500, 1000, 2000][tries - 1] || 3000,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, SwipeCycle, CardLinkInput},
+  hooks: {...colocatedHooks, SwipeCycle, CardLinkInput, WakeLock},
 })
 
 // Show progress bar on live navigation and form submits
