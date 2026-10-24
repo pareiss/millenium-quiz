@@ -18,9 +18,7 @@ defmodule MillenniumQuizWeb.CoreComponentsTest do
     doc = LazyHTML.from_fragment(html)
 
     assert doc
-           |> LazyHTML.query("div.overflow-x-auto > table#people, div.overflow-x-auto > table")
+           |> LazyHTML.query("div.overflow-x-auto > table > tbody#people")
            |> Enum.count() == 1
-
-    assert doc |> LazyHTML.query("tbody#people") |> Enum.count() == 1
   end
 end

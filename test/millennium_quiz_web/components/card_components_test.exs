@@ -478,9 +478,13 @@ defmodule MillenniumQuizWeb.CardComponentsTest do
       card = Map.merge(@blank, %{name: "Monster Reborn", text: "Revive."})
 
       for fun <- [&card_dialog/1, &card_text_dialog/1] do
-        html = render_component(fun, id: "d", card: card, on_close: "close", inner_block: [])
-        assert html =~ "bg-black/85"
-        refute html =~ "backdrop-blur"
+        doc =
+          fun
+          |> render_component(id: "d", card: card, on_close: "close", inner_block: [])
+          |> LazyHTML.from_fragment()
+
+        assert count(doc, "#d > div.inset-0.bg-black\\/85[phx-click=close]") == 1
+        assert count(doc, "[class*=backdrop-blur]") == 0
       end
     end
 

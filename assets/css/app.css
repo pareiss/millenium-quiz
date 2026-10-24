@@ -923,9 +923,10 @@ html:has(.mq-dialog) { overflow: hidden; }
 html { scrollbar-gutter: stable; }
 
 /* The cards of a question: a tap on a thumbnail's text box is 44 px high at
-   least (the box itself is 39 px on a 144 px card) */
+   least (the box itself is 39 px on a 144 px card). Not on the enlarged card:
+   there the overlay would cover the text box that scrolls. */
 @media (pointer: coarse) {
-  .mq-card__texts.is-readable::after {
+  .mq-card--small .mq-card__texts.is-readable::after {
     content: "";
     position: absolute;
     inset: min(0px, calc((100% - 2.8rem) / 2)) 0;
