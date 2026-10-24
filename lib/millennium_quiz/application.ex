@@ -10,6 +10,8 @@ defmodule MillenniumQuiz.Application do
     children = [
       MillenniumQuizWeb.Telemetry,
       MillenniumQuiz.Repo,
+      # Runs migrations before anything else touches the tables (opt-in).
+      MillenniumQuiz.MigrateOnBoot,
       {DNSCluster, query: Application.get_env(:millennium_quiz, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MillenniumQuiz.PubSub},
       MillenniumQuiz.Cards.ArtworkCache,

@@ -17,6 +17,8 @@ defmodule MillenniumQuiz.Games do
 
   import Ecto.Query, warn: false
 
+  require Logger
+
   alias MillenniumQuiz.{Game, Quiz, Repo}
   alias MillenniumQuiz.Games.{GameRecord, Server}
 
@@ -31,13 +33,44 @@ defmodule MillenniumQuiz.Games do
     format = Quiz.get_format!(format_id)
     questions = Quiz.questions_for_format(format.id)
 
-    with {:ok, game} <- Game.new(format, player_names, questions, opts) do
-      %GameRecord{format_id: format.id, status: :active, state: Game.to_map(game)}
-      |> Repo.insert()
-      |> case do
-        {:ok, record} -> {:ok, record.id}
-        error -> error
-      end
+    with {:ok, game} <- Game.new(format, player_names, questions, opts),
+         :ok <- ensure_room() do
+      insert_record(format, game)
+    end
+  rescue
+    # A full or unreachable database must not crash the caller (an unknown
+    # format still raises: that is a bad link, not a database problem).
+    error in [DBConnection.ConnectionError, Postgrex.Error] ->
+      Logger.error("Could not save a new game: #{Exception.message(error)}")
+      {:error, :insert_failed}
+  end
+
+  defp insert_record(format, game) do
+    %GameRecord{format_id: format.id, status: :active, state: Game.to_map(game)}
+    |> Repo.insert()
+    |> case do
+      {:ok, record} -> {:ok, record.id}
+      {:error, _changeset} -> {:error, :insert_failed}
+    end
+  end
+
+  # `:game_limit` (nil = unlimited) caps the number of rows in `games`, for
+  # hosts with a row quota. Expired games are cleaned up first (this never
+  # touches young rows), then the rows are counted.
+  defp ensure_room do
+    case Application.get_env(:millennium_quiz, :game_limit) do
+      limit when is_integer(limit) and limit > 0 ->
+        cond do
+          Repo.aggregate(GameRecord, :count) < limit ->
+            :ok
+
+          true ->
+            delete_expired()
+            if Repo.aggregate(GameRecord, :count) < limit, do: :ok, else: {:error, :full}
+        end
+
+      _ ->
+        :ok
     end
   end
 

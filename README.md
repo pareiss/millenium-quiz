@@ -337,11 +337,82 @@ bin/millennium_quiz eval 'MillenniumQuiz.Release.seed()'   # sample format
 | `DATABASE_SSL` | no | `true` for TLS to a database reached over a network (verified against the system CA certificates) |
 | `TRUSTED_PROXY_HOPS` | no | how many proxies of the platform append to `X-Forwarded-For`, default 0 (use the connection's address). The rate limits depend on it: too low and everyone shares the proxy's address, too high and clients can pick their own |
 | `GAME_EXPIRY_DAYS` / `GAME_EXPIRY_FINISHED_DAYS` | no | games nobody touched for this long are deleted, default 30 / 7 |
+| `MIGRATE_ON_BOOT` | no | `true` runs the migrations (and creates the first admin from `ADMIN_*`) when the app starts; for hosts without a shell |
+| `GAME_LIMIT` | no | maximum number of stored games; new games are refused beyond it (for databases with a row limit). Empty or `0` means no cap |
+| `PHX_ALLOWED_ORIGINS` | no | more websocket hosts besides `PHX_HOST`, comma separated (the platform's own address) |
 
 TLS terminates at the proxy or Ingress, which has to send `X-Forwarded-Proto`:
 in production the app redirects plain-http requests to https, sends HSTS and
 marks the session cookie `secure` (probes under `/healthz` and `localhost` are
 not redirected).
+
+## Deploying to Gigalixir (free tier)
+
+[Gigalixir](https://www.gigalixir.com) builds Elixir apps with buildpacks (no
+Docker; the `Dockerfile` is for k3s and other hosts). The free tier
+([limits](https://docs.gigalixir.com/tiers-pricing)) is meant for trying
+things out: one 0.5 GB instance, a database with **10,000 rows, 2 connections
+and no backups**, and an app that is scaled down if it has not been deployed
+for 30 days (its database is then destroyed). A credit card is needed at
+signup but is not charged on the free tier. Take a backup (see "Backup and
+restore") before anything else.
+
+What is prepared in this repo: `elixir_buildpack.config` (versions, fetching
+the `vix` NIF, building the assets), optional migration on start
+(`MIGRATE_ON_BOOT`, the free tier has no SSH), a cap on stored games
+(`GAME_LIMIT`) and extra websocket origins (`PHX_ALLOWED_ORIGINS`).
+
+```sh
+# 1. once: the CLI and an account
+curl https://get.gigalixir.com/cli | bash
+gigalixir signup && gigalixir login
+
+# 2. the app (creates the git remote "gigalixir") and its free database
+gigalixir create -n myquiz                # the name becomes myquiz.gigalixirapp.com
+gigalixir pg:create --free                # sets DATABASE_URL and POOL_SIZE=2
+
+# 3. settings (see the table "Runtime environment")
+gigalixir config:set PHX_SERVER=true PHX_HOST=myquiz.gigalixirapp.com
+gigalixir config:set SECRET_KEY_BASE="$(mix phx.gen.secret)"
+gigalixir config:set MIGRATE_ON_BOOT=true ADMIN_USERNAME=you ADMIN_PASSWORD='a long password'
+gigalixir config:set GAME_LIMIT=1500 GAME_EXPIRY_DAYS=14 GAME_EXPIRY_FINISHED_DAYS=2
+gigalixir config:set TRUSTED_PROXY_HOPS=1      # check it, see below
+
+# 4. deploy (the first build takes a few minutes), then watch it come up
+git push gigalixir HEAD:main               # "master" if the remote wants that
+gigalixir ps
+gigalixir logs
+```
+
+Open the site, log in at `/admin/login`, restore your backup under
+**Backup**, play a game. Then remove the first password from the settings:
+`gigalixir config:unset ADMIN_PASSWORD`.
+
+**Own domain:** `gigalixir domains:add quiz.example.com` prints a CNAME target
+(`...gigalixirdns.com`) for your DNS; the certificate comes automatically.
+Then set `PHX_HOST=quiz.example.com` and
+`PHX_ALLOWED_ORIGINS=myquiz.gigalixirapp.com` (so the app also works under its
+own address).
+
+**Staying alive:** deploy at least every 30 days (an empty commit is enough:
+`git commit --allow-empty -m redeploy && git push gigalixir HEAD:main`),
+otherwise the app is scaled down and the database destroyed.
+
+**The 10,000 rows:** every game is one row (`GAME_LIMIT` stops new games when
+the cap is reached; old ones expire after `GAME_EXPIRY_DAYS`, finished ones after
+`GAME_EXPIRY_FINISHED_DAYS`), and the card pool costs roughly 10 rows per card
+(texts per language). A few hundred cards plus 1,500 games stay below the cap;
+if you add many cards, lower `GAME_LIMIT`.
+
+**To check on the first deploy** (not known in advance):
+- the Erlang/Elixir versions in `elixir_buildpack.config` exist on the platform (the build log says if not and lists the available ones);
+- the build runs the asset step (`mix assets.setup && mix assets.deploy`) and finds the `vix` NIF;
+- with `DATABASE_SSL=true` the database certificate verifies (if the app cannot connect, leave `DATABASE_SSL` unset and weigh it: the database holds the quiz, game state and bcrypt password hashes only);
+- `TRUSTED_PROXY_HOPS`: log in wrongly a few times from two devices and read the logs or the rate-limit behaviour; if everybody shares one address, the number is too low;
+- two connections are enough: `gigalixir logs` shows no "connection not available" / queue timeouts while two people play.
+
+Moving to another host later (for example a small VPS) needs only the backup
+file and the same environment variables, with the `Dockerfile` or a release.
 
 ## Security notes
 

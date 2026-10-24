@@ -19,6 +19,20 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert has_element?(view, "#format-#{format.id}")
   end
 
+  test "a full site shows a friendly message and creates no game", %{conn: conn, format: format} do
+    alias MillenniumQuiz.Games.GameRecord
+    {:ok, _} = Games.create_game(format.id, ["Cy", "Di"])
+    count = MillenniumQuiz.Repo.aggregate(GameRecord, :count)
+    Application.put_env(:millennium_quiz, :game_limit, count)
+    on_exit(fn -> Application.delete_env(:millennium_quiz, :game_limit) end)
+
+    {:ok, view, _html} = live(conn, ~p"/formats/#{format.id}/play")
+    view |> form("#players-form", %{"names" => ["Ann", "Bob"]}) |> render_submit()
+
+    assert has_element?(view, "#players-error", "The site is full right now")
+    assert MillenniumQuiz.Repo.aggregate(GameRecord, :count) == count
+  end
+
   test "starting a game validates the players", %{conn: conn, format: format} do
     {:ok, view, _html} = live(conn, ~p"/formats/#{format.id}/play")
 

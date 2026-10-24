@@ -184,4 +184,39 @@ defmodule MillenniumQuiz.GamesTest do
       refute exists?(id)
     end
   end
+
+  describe "game limit" do
+    setup do
+      on_exit(fn -> Application.delete_env(:millennium_quiz, :game_limit) end)
+      %{format: playable_format_fixture(1)}
+    end
+
+    test "refuses a new game at the cap and inserts nothing", %{format: format} do
+      Application.put_env(:millennium_quiz, :game_limit, Repo.aggregate(GameRecord, :count))
+
+      assert Games.create_game(format.id, ["Ann", "Bob"]) == {:error, :full}
+
+      assert Repo.aggregate(GameRecord, :count) ==
+               Application.get_env(:millennium_quiz, :game_limit)
+    end
+
+    test "allows a game below the cap", %{format: format} do
+      Application.put_env(:millennium_quiz, :game_limit, Repo.aggregate(GameRecord, :count) + 1)
+
+      assert {:ok, _id} = Games.create_game(format.id, ["Ann", "Bob"])
+      assert {:error, :full} = Games.create_game(format.id, ["Ann", "Bob"])
+    end
+
+    test "frees room by deleting expired games first, never young ones", %{format: format, id: id} do
+      Application.put_env(:millennium_quiz, :game_limit, Repo.aggregate(GameRecord, :count))
+      assert {:error, :full} = Games.create_game(format.id, ["Ann", "Bob"])
+      assert Repo.get(GameRecord, id)
+
+      old = DateTime.add(DateTime.utc_now(), -365 * 86_400, :second)
+      Repo.update_all(from(g in GameRecord, where: g.id == ^id), set: [updated_at: old])
+
+      assert {:ok, _} = Games.create_game(format.id, ["Ann", "Bob"])
+      refute Repo.get(GameRecord, id)
+    end
+  end
 end

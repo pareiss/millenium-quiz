@@ -89,18 +89,33 @@ defmodule MillenniumQuiz.Release do
 
   defp print_import(result), do: result |> import_report() |> Enum.each(&IO.puts/1)
 
-  # Creates the first admin from ADMIN_USERNAME / ADMIN_PASSWORD when the
-  # users table is still empty. Runs as part of `migrate`.
-  defp maybe_bootstrap_admin do
+  @doc """
+  Runs all pending migrations on a repo that is already started (used by
+  `MillenniumQuiz.MigrateOnBoot`); does not start or stop the repo.
+  """
+  def migrate_running(repo) do
+    Ecto.Migrator.run(repo, :up, all: true)
+  end
+
+  @doc """
+  Creates the first admin from ADMIN_USERNAME / ADMIN_PASSWORD when the users
+  table is still empty. Needs a started repo. Runs as part of `migrate`.
+  """
+  def bootstrap_admin_if_empty do
     username = System.get_env("ADMIN_USERNAME")
     password = System.get_env("ADMIN_PASSWORD")
 
-    if username && password do
-      with_repo(fn ->
-        if MillenniumQuiz.Repo.aggregate(MillenniumQuiz.Accounts.User, :count) == 0 do
-          do_create_admin(username, password)
-        end
-      end)
+    if username && password &&
+         MillenniumQuiz.Repo.aggregate(MillenniumQuiz.Accounts.User, :count) == 0 do
+      do_create_admin(username, password)
+    end
+
+    :ok
+  end
+
+  defp maybe_bootstrap_admin do
+    if System.get_env("ADMIN_USERNAME") && System.get_env("ADMIN_PASSWORD") do
+      with_repo(&bootstrap_admin_if_empty/0)
     end
   end
 
