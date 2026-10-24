@@ -93,6 +93,7 @@ defmodule MillenniumQuizWeb.CardComponents do
             :if={@card[:id]}
             src={~p"/cards/#{@card.id}/artwork"}
             alt=""
+            draggable="false"
             loading="lazy"
             decoding="async"
           />
@@ -163,7 +164,7 @@ defmodule MillenniumQuizWeb.CardComponents do
     ~H"""
     <div
       id={@id}
-      class="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
+      class="mq-dialog fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
       role="dialog"
       aria-modal="true"
       aria-label={@card.name}
@@ -235,7 +236,7 @@ defmodule MillenniumQuizWeb.CardComponents do
     ~H"""
     <div
       id={@id}
-      class="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
+      class="mq-dialog fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={"#{@id}-title"}

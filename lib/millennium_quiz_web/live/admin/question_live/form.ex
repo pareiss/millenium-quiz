@@ -148,8 +148,10 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
         </p>
         <p class="-mt-2 text-xs text-base-content/60" id="card-link-hint">
           Type <kbd class="kbd kbd-xs">[</kbd>
-          and a card name to link a card; <kbd class="kbd kbd-xs">Tab</kbd>
-          accepts the suggestion.
+          and a card name to link a card<span class="hidden [@media(hover:hover)]:inline">;
+            <kbd class="kbd kbd-xs">Tab</kbd>
+            accepts the suggestion</span>.
+          <span class="[@media(hover:hover)]:hidden">Tap a suggestion to insert it.</span>
         </p>
 
         <.input

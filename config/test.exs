@@ -48,3 +48,6 @@ config :phoenix,
 config :millennium_quiz, MillenniumQuiz.Cards,
   req_options: [plug: {Req.Test, MillenniumQuiz.Cards}],
   refresh_pause_ms: 0
+
+# The touch-safety lock after a new turn is off in tests; see GameLiveTest.
+config :millennium_quiz, :turn_lock_ms, 0

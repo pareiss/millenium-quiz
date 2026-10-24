@@ -153,6 +153,13 @@ export const CardLinkInput = {
       const name = document.createElement("span")
       name.textContent = s.name
       li.append(name)
+      if (i === 0 && window.matchMedia("(pointer: coarse)").matches) {
+        // no Tab key on most virtual keyboards: say what works
+        const hint = document.createElement("span")
+        hint.className = "mq-suggestion-tag"
+        hint.textContent = "tap to insert"
+        li.append(hint)
+      }
       if (s.source === "remote") {
         const tag = document.createElement("span")
         tag.className = "mq-suggestion-tag"
