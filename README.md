@@ -67,6 +67,39 @@ shows today's monster text in every format. Games paused before cards were drawn
 with a plain frame and no artwork. How a card looks always follows the
 current app; its data (texts, stats) is fixed when a game starts.
 
+## Backup and restore
+
+The only data that cannot be fetched again is the quiz you wrote. A backup is
+one JSON file with the formats (name, description, date), their topics, the
+questions (text, points override, order), the choices with their correct flag
+and the cards linked to each question (by YGOPRODeck id and name). It does
+not contain games, accounts or the card pool: admins come from `ADMIN_*`, and
+cards are fetched again by their id when a backup is restored.
+
+- **Admin page:** `/admin/backup` ("Backup" in the admin menu) downloads the
+  file (`millennium-quiz-backup-YYYY-MM-DD.json`) and restores one (a `.json`
+  file up to 5 MB). On the Gigalixir free tier there is no SSH, so use this
+  page.
+- **Command line:**
+
+  ```sh
+  bin/millennium_quiz eval 'MillenniumQuiz.Release.export_quiz("quiz-backup.json")'
+  bin/millennium_quiz eval 'MillenniumQuiz.Release.import_quiz("quiz-backup.json")'
+  mix quiz.export [path]      # in development
+  mix quiz.import path
+  ```
+
+- **Restoring** never overwrites: a format whose name already exists is
+  skipped, so importing the same file twice is harmless. Each format is created
+  on its own; one that breaks a rule (for example fewer than 2 topics) is
+  reported and the others still come through. Missing cards are fetched one at
+  a time; a card that cannot be fetched is reported, the question is created
+  without that link and its `[Card Name]` marker becomes plain text.
+- **Advice:** download a backup after editing and keep the file in git or
+  anywhere safe. After a database loss (the Gigalixir free database has no
+  backups, a 10,000 row cap and is destroyed after 30 days without a deploy),
+  redeploy, let the admin be created from `ADMIN_*`, and restore the file.
+
 ## Architecture
 
 ```
