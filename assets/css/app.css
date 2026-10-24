@@ -874,8 +874,8 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
 }
 /* Dialogs: no scroll chaining to the page; horizontal swipes belong to the
    dialog (SwipeCycle reads them from touch events), not to the browser's
-   back gesture. */
-.mq-dialog { overscroll-behavior: contain; touch-action: pan-y; }
+   back gesture. pinch-zoom stays on so small card texts can be enlarged. */
+.mq-dialog { overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
 .mq-card-panel__body { overscroll-behavior: contain; }
 .mq-suggestions { overscroll-behavior: contain; }
 .btn:active, .mq-cycle__btn:active { filter: brightness(0.92); }

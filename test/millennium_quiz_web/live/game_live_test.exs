@@ -589,14 +589,18 @@ defmodule MillenniumQuizWeb.GameLiveTest do
       assert {:ok, %{game: %{answered: 1}}} = Games.fetch_game(id)
     end
 
-    test "pause, zoom and ending still work while locked", %{conn: conn, format: format} do
-      {_id, view} = answering_game(conn, format)
+    test "pause, zoom and ending still work while locked", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      view = start_with_cards(conn, [reborn.id])
+      assert has_element?(view, "#choice-0[disabled]")
 
       view |> element("#end-game") |> render_click()
       assert has_element?(view, "#end-game-modal")
       view |> element("#cancel-end") |> render_click()
 
       render_click(view, "zoom_card", %{"card" => "0"})
+      assert has_element?(view, "#card-zoom")
       view |> element("#pause-game") |> render_click()
       assert has_element?(view, "#paused")
       view |> element("#resume-game") |> render_click()
