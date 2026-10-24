@@ -252,6 +252,13 @@ defmodule MillenniumQuizWeb.NewGameLive do
   defp error_message(:duplicate_names), do: "Player names must be different."
   defp error_message(:invalid_player_count), do: "A game needs 2 to 4 players."
   defp error_message(:invalid_mode), do: "Choose a game mode."
+
+  defp error_message(:full),
+    do: "The site is full right now. Please try again in a while."
+
+  defp error_message(:insert_failed),
+    do: "The game could not be saved right now. Please try again in a while."
+
   defp error_message(:no_questions), do: "This format has no questions yet."
   defp error_message(_), do: "The game could not be started."
 

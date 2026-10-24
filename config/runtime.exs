@@ -97,6 +97,20 @@ if config_env() == :prod do
          :trusted_proxy_hops,
          String.to_integer(System.get_env("TRUSTED_PROXY_HOPS", "0"))
 
+  # Platforms without a shell (Gigalixir's free tier): run the migrations, and
+  # create the first admin from ADMIN_*, when the app starts.
+  config :millennium_quiz, :migrate_on_boot, System.get_env("MIGRATE_ON_BOOT") in ~w(true 1)
+
+  # A cap on stored games (a small database has a row limit); empty = no cap.
+  game_limit =
+    case System.get_env("GAME_LIMIT") do
+      nil -> nil
+      "" -> nil
+      n -> String.to_integer(n)
+    end
+
+  config :millennium_quiz, :game_limit, game_limit
+
   # Games nobody touched for this many days are deleted (finished ones after
   # GAME_EXPIRY_FINISHED_DAYS).
   config :millennium_quiz,
@@ -118,7 +132,19 @@ if config_env() == :prod do
   # one (PHX_SCHEME=http, e.g. the local k3s) can do neither
   config :millennium_quiz, force_https: scheme == "https", secure_cookies: scheme == "https"
 
+  # Websocket origins: the public host, and further ones when the platform also
+  # serves the app under its own address (PHX_ALLOWED_ORIGINS, comma separated
+  # hosts such as myapp.gigalixirapp.com).
+  extra_origins =
+    "PHX_ALLOWED_ORIGINS"
+    |> System.get_env("")
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+
+  check_origin = Enum.map([host | extra_origins], &"//#{&1}")
+
   config :millennium_quiz, MillenniumQuizWeb.Endpoint,
+    check_origin: check_origin,
     url: [host: host, port: url_port, scheme: scheme],
     http: [
       # Enable IPv6 and bind on all interfaces.
