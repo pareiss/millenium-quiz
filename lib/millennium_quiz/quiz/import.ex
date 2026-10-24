@@ -15,7 +15,9 @@ defmodule MillenniumQuiz.Quiz.Import do
       transaction starts. When that fails the question is still created
       without that link and a warning says so. The `[Card Name]` marker of the
       text is then unlinked (brackets removed, as `CardLinks.unlink/2`), so no
-      marker is left that points at nothing.
+      marker is left that points at nothing. When the card has another name now
+      than in the file (renamed since the export), the marker is rewritten to
+      the current name so it still links, and a warning says so.
 
   `run/2` returns `{:ok, summary}` or `{:error, message}`. Options:
   `:pause_ms` (pause between remote card fetches, default as
@@ -25,7 +27,7 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   alias MillenniumQuiz.{Cards, Quiz, Repo}
   alias MillenniumQuiz.Cards.Card
-  alias MillenniumQuiz.Quiz.{CardLinks, Export}
+  alias MillenniumQuiz.Quiz.{CardLinks, Choice, Export, Format, Question}
 
   @max_bytes 5_000_000
   @max_formats 50
@@ -231,25 +233,85 @@ defmodule MillenniumQuiz.Quiz.Import do
     if Repo.exists?(from f in Quiz.Format, where: f.name == ^format.name) do
       {%{summary | formats_skipped: [format.name | summary.formats_skipped]}, cards}
     else
-      passwords =
-        format.topics
-        |> Enum.flat_map(& &1.questions)
-        |> Enum.flat_map(& &1.cards)
-        |> Enum.map(& &1.password)
-        |> Enum.uniq()
-
-      cards = resolve(passwords, cards, pause)
-
-      case create(format, cards.pool) do
-        {:ok, counts} ->
-          {merge(summary, format, counts), cards}
-
-        {:skip} ->
-          {%{summary | formats_skipped: [format.name | summary.formats_skipped]}, cards}
-
+      with :ok <- check_domain(format) do
+        import_checked(format, summary, cards, pause)
+      else
         {:error, msg} ->
           {%{summary | formats_failed: [{format.name, msg} | summary.formats_failed]}, cards}
       end
+    end
+  end
+
+  # The domain rules that can be known without the database. The changesets
+  # stay the authority; this only keeps a doomed format from fetching cards.
+  defp check_domain(format) do
+    cond do
+      String.length(format.name) > Format.max_name_length() ->
+        {:error, "format: name is too long (at most #{Format.max_name_length()} characters)"}
+
+      length(format.topics) not in Format.min_topics()..Format.max_topics() ->
+        {:error,
+         "topics: a format needs between #{Format.min_topics()} and #{Format.max_topics()} topics"}
+
+      true ->
+        Enum.find_value(format.topics, :ok, &check_topic/1)
+    end
+  end
+
+  defp check_topic(topic) do
+    if String.length(topic.name) > Format.max_name_length() do
+      {:error, "topic \"#{String.slice(topic.name, 0, 40)}\": name is too long"}
+    else
+      topic.questions
+      |> Enum.with_index(1)
+      |> Enum.find_value(fn {q, i} ->
+        case check_question(q) do
+          :ok -> nil
+          {:error, msg} -> {:error, "topic \"#{topic.name}\", question #{i}: #{msg}"}
+        end
+      end)
+    end
+  end
+
+  defp check_question(q) do
+    cond do
+      String.length(q.text) > Question.max_text_length() ->
+        {:error, "text is too long (at most #{Question.max_text_length()} characters)"}
+
+      length(q.choices) not in Question.min_choices()..Question.max_choices() ->
+        {:error,
+         "choices: between #{Question.min_choices()} and #{Question.max_choices()} are needed"}
+
+      Enum.count(q.choices, & &1["correct"]) != 1 ->
+        {:error, "choices: exactly one answer must be marked as correct"}
+
+      Enum.any?(q.choices, &(String.length(&1["text"]) > Choice.max_text_length())) ->
+        {:error, "a choice is too long (at most #{Choice.max_text_length()} characters)"}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp import_checked(format, summary, cards, pause) do
+    passwords =
+      format.topics
+      |> Enum.flat_map(& &1.questions)
+      |> Enum.flat_map(& &1.cards)
+      |> Enum.map(& &1.password)
+      |> Enum.uniq()
+
+    cards = resolve(passwords, cards, pause)
+
+    case create(format, cards.pool) do
+      {:ok, counts} ->
+        {merge(summary, format, counts), cards}
+
+      {:skip} ->
+        {%{summary | formats_skipped: [format.name | summary.formats_skipped]}, cards}
+
+      {:error, msg} ->
+        {%{summary | formats_failed: [{format.name, msg} | summary.formats_failed]}, cards}
     end
   end
 
@@ -260,7 +322,7 @@ defmodule MillenniumQuiz.Quiz.Import do
         topics: summary.topics + length(format.topics),
         questions: summary.questions + counts.questions,
         cards_linked: summary.cards_linked + counts.linked,
-        cards_missing: summary.cards_missing + length(counts.warnings),
+        cards_missing: summary.cards_missing + counts.missing,
         warnings: Enum.reverse(counts.warnings, summary.warnings)
     }
   end
@@ -274,7 +336,7 @@ defmodule MillenniumQuiz.Quiz.Import do
           st
 
         card = Repo.get_by(Card, password: password) ->
-          %{st | pool: Map.put(pool, password, {:ok, card.id})}
+          %{st | pool: Map.put(pool, password, {:ok, card.id, card.name})}
 
         true ->
           if fetches > 0, do: Process.sleep(pause)
@@ -285,7 +347,7 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   defp fetch(password) do
     case Cards.import(password) do
-      {:ok, card} -> {:ok, card.id}
+      {:ok, card} -> {:ok, card.id, card.name}
       {:error, reason} -> {:error, reason}
     end
   rescue
@@ -310,7 +372,8 @@ defmodule MillenniumQuiz.Quiz.Import do
 
         created.topics
         |> Enum.zip(format.topics)
-        |> Enum.reduce(%{questions: 0, linked: 0, warnings: []}, fn {topic, data}, acc ->
+        |> Enum.reduce(%{questions: 0, linked: 0, missing: 0, warnings: []}, fn {topic, data},
+                                                                                acc ->
           create_questions(topic, data, format.name, pool, acc)
         end)
       end)
@@ -335,7 +398,7 @@ defmodule MillenniumQuiz.Quiz.Import do
     data.questions
     |> Enum.with_index(1)
     |> Enum.reduce(acc, fn {q, i}, acc ->
-      {ids, text, warnings} = link_cards(q, pool, format_name, data.name, i)
+      {ids, text, warnings, missing} = link_cards(q, pool, format_name, data.name, i)
 
       attrs = %{"text" => text, "points" => q.points, "choices" => q.choices}
 
@@ -345,6 +408,7 @@ defmodule MillenniumQuiz.Quiz.Import do
             acc
             | questions: acc.questions + 1,
               linked: acc.linked + length(Enum.uniq(ids)),
+              missing: acc.missing + missing,
               warnings: Enum.reverse(warnings, acc.warnings)
           }
 
@@ -355,23 +419,36 @@ defmodule MillenniumQuiz.Quiz.Import do
   end
 
   defp link_cards(q, pool, format_name, topic_name, i) do
-    Enum.reduce(q.cards, {[], q.text, []}, fn card, {ids, text, warnings} ->
+    where = "#{format_name} / #{topic_name} / question #{i}"
+
+    Enum.reduce(q.cards, {[], q.text, [], 0}, fn card, {ids, text, warnings, missing} ->
       case Map.get(pool, card.password) do
-        {:ok, id} ->
-          {ids ++ [id], text, warnings}
+        {:ok, id, current} ->
+          if card.name && not same_name?(card.name, current) do
+            # renamed since the export: keep the inline link working
+            warning =
+              "#{where}: card #{card.name} (#{card.password}) is called #{current} now; " <>
+                "the link in the text was changed to match."
+
+            {ids ++ [id], CardLinks.rename(text, card.name, current), warnings ++ [warning],
+             missing}
+          else
+            {ids ++ [id], text, warnings, missing}
+          end
 
         _missing ->
           name = card.name || "card #{card.password}"
 
           warning =
-            "#{format_name} / #{topic_name} / question #{i}: card #{name} " <>
-              "(#{card.password}) could not be fetched and is not linked."
+            "#{where}: card #{name} (#{card.password}) could not be fetched and is not linked."
 
           text = if card.name, do: CardLinks.unlink(text, card.name), else: text
-          {ids, text, warnings ++ [warning]}
+          {ids, text, warnings ++ [warning], missing + 1}
       end
     end)
   end
+
+  defp same_name?(a, b), do: String.downcase(String.trim(a)) == String.downcase(String.trim(b))
 
   defp errors(changeset) do
     changeset

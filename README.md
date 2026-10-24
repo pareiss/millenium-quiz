@@ -79,7 +79,9 @@ cards are fetched again by their id when a backup is restored.
 - **Admin page:** `/admin/backup` ("Backup" in the admin menu) downloads the
   file (`millennium-quiz-backup-YYYY-MM-DD.json`) and restores one (a `.json`
   file up to 5 MB). On the Gigalixir free tier there is no SSH, so use this
-  page.
+  page. A restore with an empty card pool is slow (every card is fetched
+  again); it keeps running if you leave the page and its result is written to
+  the server log, but stay on the page to see it.
 - **Command line:**
 
   ```sh

@@ -132,6 +132,67 @@ defmodule MillenniumQuiz.Quiz.ExportImportTest do
     assert Repo.get_by(Card, password: 83_764_718)
   end
 
+  test "a format that cannot be created fetches no cards" do
+    reborn = build_quiz()
+    good = Export.build()
+    clear_quiz()
+    Repo.delete!(reborn)
+
+    test_pid = self()
+
+    Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+      send(test_pid, :fetched)
+      Plug.Conn.send_resp(conn, 404, "gone")
+    end)
+
+    # "Edison" (with the card) gets too many topics for the app, though the file passes
+    topic = hd(hd(good["formats"])["topics"])
+    edison = Enum.find_index(good["formats"], &(&1["name"] == "Edison"))
+    too_many = List.duplicate(topic, 7)
+    doomed = put_in(good, ["formats", Access.at(edison), "topics"], too_many)
+
+    assert {:ok, summary} = Import.run(doomed, pause_ms: 0)
+    assert [{"Edison", msg}] = summary.formats_failed
+    assert msg =~ "between 2 and 6 topics"
+    assert summary.formats_created == 1
+    refute_received :fetched
+    refute Repo.get_by(Card, password: 83_764_718)
+  end
+
+  test "a card that is called differently now keeps its link in the text" do
+    reborn = build_quiz()
+    json = Export.to_json()
+    clear_quiz()
+    # the card is gone from the pool and comes back under its current name
+    Repo.delete!(reborn)
+
+    renamed =
+      json
+      |> Jason.decode!()
+      |> update_in(
+        ["formats", Access.all(), "topics", Access.all(), "questions", Access.all()],
+        fn q ->
+          update_in(q, ["cards", Access.all(), "name"], fn
+            "Monster Reborn" -> "Monster Revival"
+            other -> other
+          end)
+          |> update_in(["text"], &String.replace(&1, "[Monster Reborn]", "[Monster Revival]"))
+        end
+      )
+
+    assert {:ok, summary} = Import.run(renamed, pause_ms: 0)
+    assert summary.cards_linked == 1
+    assert summary.cards_missing == 0
+    assert [warning] = summary.warnings
+    assert warning =~ "Monster Revival"
+    assert warning =~ "Monster Reborn"
+
+    format = Repo.get_by!(Format, name: "Edison") |> Repo.preload(topics: :questions)
+    question = format.topics |> hd() |> Map.fetch!(:questions) |> Enum.min_by(& &1.position)
+    # the marker names the card as it is called now, so it still links
+    assert question.text == "What does [Monster Reborn] do?"
+  end
+
   describe "rejected files create nothing" do
     setup do
       build_quiz()

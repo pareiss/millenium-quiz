@@ -17,7 +17,7 @@ defmodule MillenniumQuiz.Quiz.Topic do
     topic
     |> cast(attrs, [:name])
     |> validate_required([:name])
-    |> validate_length(:name, max: 80)
+    |> validate_length(:name, max: MillenniumQuiz.Quiz.Format.max_name_length())
     |> put_change(:position, position)
   end
 end

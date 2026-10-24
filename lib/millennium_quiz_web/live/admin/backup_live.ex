@@ -2,6 +2,8 @@ defmodule MillenniumQuizWeb.Admin.BackupLive do
   @moduledoc "Download a backup of the quiz content and restore one from a file."
   use MillenniumQuizWeb, :live_view
 
+  require Logger
+
   alias MillenniumQuiz.Quiz.Import
 
   @impl true
@@ -70,7 +72,9 @@ defmodule MillenniumQuizWeb.Admin.BackupLive do
         class="rounded-box border border-base-300 bg-base-100 p-5"
       >
         <span class="loading loading-spinner loading-sm"></span>
-        Restoring. Missing cards are fetched one at a time, this can take a while.
+        Restoring. Missing cards are fetched one at a time, this can take a while. The restore
+        keeps going if you leave this page, and its result is written to the server log; stay
+        here to see it.
       </section>
 
       <section
@@ -146,24 +150,41 @@ defmodule MillenniumQuizWeb.Admin.BackupLive do
     {:noreply,
      socket
      |> assign(confirm: false, importing: true, result: nil)
-     |> start_async(:import, fn -> Import.run(json) end)}
+     |> start_restore(json)}
   end
 
   def handle_event("restore", _params, socket), do: {:noreply, assign(socket, :confirm, false)}
 
-  @impl true
-  def handle_async(:import, {:ok, result}, socket) do
-    {:noreply,
-     assign(socket,
-       importing: false,
-       result: result,
-       report: MillenniumQuiz.Release.import_report(result)
-     )}
+  # Not linked to this page: a restore with an empty card pool is a long run
+  # and must finish when the admin leaves. The result goes to the log, and to
+  # the page if it is still there.
+  defp start_restore(socket, json) do
+    liveview = self()
+
+    {:ok, _pid} =
+      Task.Supervisor.start_child(MillenniumQuiz.TaskSupervisor, fn ->
+        result =
+          try do
+            Import.run(json)
+          rescue
+            e ->
+              Logger.error("Quiz restore crashed: " <> Exception.message(e))
+              {:error, "The restore stopped unexpectedly. Check the formats and try again."}
+          end
+
+        Logger.info(
+          "Quiz restore finished:\n" <>
+            Enum.join(MillenniumQuiz.Release.import_report(result), "\n")
+        )
+
+        send(liveview, {:restore_finished, result})
+      end)
+
+    socket
   end
 
-  def handle_async(:import, {:exit, _reason}, socket) do
-    result = {:error, "The restore stopped unexpectedly. Check the formats and try again."}
-
+  @impl true
+  def handle_info({:restore_finished, result}, socket) do
     {:noreply,
      assign(socket,
        importing: false,

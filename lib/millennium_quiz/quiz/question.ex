@@ -6,6 +6,7 @@ defmodule MillenniumQuiz.Quiz.Question do
 
   @min_choices 2
   @max_choices 6
+  @max_text_length 1000
 
   schema "questions" do
     field :text, :string
@@ -26,6 +27,10 @@ defmodule MillenniumQuiz.Quiz.Question do
     timestamps(type: :utc_datetime)
   end
 
+  def min_choices, do: @min_choices
+  def max_choices, do: @max_choices
+  def max_text_length, do: @max_text_length
+
   @doc "Points for a position in the list: 10 for the easiest, then +10 per step."
   def default_points(position), do: (position + 1) * 10
 
@@ -37,7 +42,7 @@ defmodule MillenniumQuiz.Quiz.Question do
     question
     |> cast(attrs, [:text, :points])
     |> validate_required([:text])
-    |> validate_length(:text, max: 1000)
+    |> validate_length(:text, max: @max_text_length)
     |> validate_number(:points, greater_than: 0, less_than_or_equal_to: 10_000)
     |> cast_embed(:choices,
       required: true,

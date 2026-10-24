@@ -100,6 +100,21 @@ defmodule MillenniumQuiz.Quiz.CardLinks do
     end)
   end
 
+  @doc """
+  Writes `[new_name]` for every `[old_name]` (case-insensitive, spaces inside the
+  brackets ignored), so a link survives a card that is called differently now.
+  """
+  @spec rename(String.t() | nil, String.t(), String.t()) :: String.t()
+  def rename(nil, _old, _new), do: ""
+
+  def rename(text, old, new) when is_binary(text) do
+    wanted = key(old)
+
+    Regex.replace(@link, text, fn whole, inner ->
+      if key(inner) == wanted, do: "[" <> String.trim(new) <> "]", else: whole
+    end)
+  end
+
   defp key(name), do: name |> String.trim() |> String.downcase()
 
   defp merge_text(segments) do
