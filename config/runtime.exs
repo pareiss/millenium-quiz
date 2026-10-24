@@ -114,6 +114,10 @@ if config_env() == :prod do
   scheme = System.get_env("PHX_SCHEME", "https")
   url_port = String.to_integer(System.get_env("PHX_URL_PORT", "443"))
 
+  # https deployments: redirect to https and use secure cookies; a plain-http
+  # one (PHX_SCHEME=http, e.g. the local k3s) can do neither
+  config :millennium_quiz, force_https: scheme == "https", secure_cookies: scheme == "https"
+
   config :millennium_quiz, MillenniumQuizWeb.Endpoint,
     url: [host: host, port: url_port, scheme: scheme],
     http: [
