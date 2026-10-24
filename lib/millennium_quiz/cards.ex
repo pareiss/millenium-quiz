@@ -223,7 +223,7 @@ defmodule MillenniumQuiz.Cards do
   `info` is `artwork_info/1` of the card.
   """
   def resized_artwork(card_id, info, width) when width in @artwork_widths do
-    key = {card_id, info.artwork_id, DateTime.to_unix(info.fetched_at), width}
+    key = artwork_key(card_id, info, width)
 
     result =
       ArtworkCache.fetch(key, fn ->
@@ -245,6 +245,17 @@ defmodule MillenniumQuiz.Cards do
   end
 
   def resized_artwork(_card_id, _info, _width), do: :error
+
+  @doc """
+  Whether `resized_artwork/3` would be answered from the cache, without
+  resizing (a cache miss is the expensive case).
+  """
+  def resized_artwork_cached?(card_id, info, width) do
+    ArtworkCache.cached?(artwork_key(card_id, info, width))
+  end
+
+  defp artwork_key(card_id, info, width),
+    do: {card_id, info.artwork_id, DateTime.to_unix(info.fetched_at), width}
 
   defp fetch_and_store(info, card) do
     with {:ok, yaml} <- YamlYugi.fetch(info.passwords),

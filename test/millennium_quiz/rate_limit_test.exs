@@ -47,6 +47,21 @@ defmodule MillenniumQuiz.RateLimitTest do
     assert {:error, _} = RateLimit.check_rule(:create_ip, id)
   end
 
+  test "peek reads the count without adding to it" do
+    Application.put_env(:millennium_quiz, RateLimit,
+      enabled: true,
+      limits: %{password_user: {2, 60_000}}
+    )
+
+    id = "peek-#{System.unique_integer([:positive])}"
+    for _ <- 1..5, do: assert(:ok = RateLimit.peek(:password_user, id))
+
+    assert :ok = RateLimit.check_rule(:password_user, id)
+    assert :ok = RateLimit.peek(:password_user, id)
+    assert :ok = RateLimit.check_rule(:password_user, id)
+    assert {:error, 60_000} = RateLimit.peek(:password_user, id)
+  end
+
   test "check_all stops at the first denial" do
     Application.put_env(:millennium_quiz, RateLimit,
       enabled: true,

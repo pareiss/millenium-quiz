@@ -18,7 +18,11 @@ defmodule MillenniumQuizWeb.Router do
   scope "/", MillenniumQuizWeb do
     pipe_through :browser
 
-    live_session :public, on_mount: [{MillenniumQuizWeb.UserAuth, :mount_current_scope}] do
+    live_session :public,
+      on_mount: [
+        {MillenniumQuizWeb.UserAuth, :mount_current_scope},
+        MillenniumQuizWeb.EventLimit
+      ] do
       live "/", HomeLive
       live "/formats/:id/play", NewGameLive
       live "/games/:id", GameLive

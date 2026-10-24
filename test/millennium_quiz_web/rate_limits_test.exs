@@ -121,6 +121,174 @@ defmodule MillenniumQuizWeb.RateLimitsTest do
     end
   end
 
+  describe "password change in the admin page" do
+    setup :register_and_log_in_user
+
+    defp change_password(view, current) do
+      view
+      |> form("#password-form",
+        current_password: current,
+        user: %{password: "another password", password_confirmation: "another password"}
+      )
+      |> render_submit()
+    end
+
+    test "is limited per user, sharing the rule with the controller", %{conn: conn, user: user} do
+      limits(password_user: {2, 60_000})
+      {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+      for _ <- 1..2 do
+        assert change_password(view, "not the password") =~ "is not valid"
+      end
+
+      # over the limit even the right password is not checked
+      change_password(view, valid_user_password())
+      assert has_element?(view, "#flash-error", "Too many password changes")
+      refute has_element?(view, "#password-form[phx-trigger-action]")
+
+      assert RateLimit.check_rule(:password_user, user.id) != :ok
+    end
+
+    test "a successful change uses one hit: the last allowed attempt goes through",
+         %{conn: conn, user: user} do
+      limits(password_user: {2, 60_000})
+      {:ok, view, _html} = live(conn, ~p"/admin/users")
+
+      assert change_password(view, "not the password") =~ "is not valid"
+
+      # the page accepts the right password and hands the form to the controller...
+      change_password(view, valid_user_password())
+      assert has_element?(view, "#password-form[phx-trigger-action]")
+
+      # ...which must not find the limit used up
+      conn =
+        put(conn, ~p"/admin/password", %{
+          "current_password" => valid_user_password(),
+          "user" => %{
+            "password" => "another password",
+            "password_confirmation" => "another password"
+          }
+        })
+
+      assert redirected_to(conn) == ~p"/admin/users"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Password updated"
+
+      assert MillenniumQuiz.Accounts.get_user_by_username_and_password(
+               user.username,
+               "another password"
+             )
+    end
+  end
+
+  describe "global caps" do
+    setup do
+      %{format: playable_format_fixture(1)}
+    end
+
+    test "email_global counts across games and addresses", %{conn: conn, format: format} do
+      limits(email_global: {1, 60_000})
+      {:ok, one} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, two} = Games.create_game(format.id, ["Cy", "Di"])
+
+      view = pause_and_open(conn, one)
+      send_to(view, "a@example.com")
+      assert_email_sent(to: [{"", "a@example.com"}])
+
+      other = pause_and_open(build_conn(), two)
+      assert send_to(other, "b@example.com") =~ "Too many emails"
+      refute_email_sent(to: [{"", "b@example.com"}])
+    end
+
+    test "create_global counts across addresses", %{format: format} do
+      limits(create_global: {1, 60_000})
+      before = game_count()
+
+      for ip <- [{10, 0, 0, 1}, {10, 0, 0, 2}] do
+        conn = %{build_conn() | remote_ip: ip}
+        {:ok, view, _html} = live(conn, ~p"/formats/#{format.id}/play")
+        view |> form("#players-form", %{"names" => ["Ann", "Bob"]}) |> render_submit()
+        if ip == {10, 0, 0, 2}, do: assert(has_element?(view, "#players-error", "try again in"))
+      end
+
+      assert game_count() == before + 1
+    end
+
+    test "there is no global login cap" do
+      assert_raise FunctionClauseError, fn -> RateLimit.limit(:login_global) end
+    end
+  end
+
+  # Number of player inputs on the new game form.
+  defp inputs(view),
+    do: Enum.count(0..9, &has_element?(view, "#player-name-#{&1}"))
+
+  describe "socket events" do
+    test "events over the limit are ignored", %{conn: conn} do
+      format = playable_format_fixture(1)
+      limits(socket_events: {2, 60_000})
+      {:ok, view, _html} = live(conn, ~p"/formats/#{format.id}/play")
+
+      view |> element("#add-player") |> render_click()
+      view |> element("#add-player") |> render_click()
+      assert inputs(view) == 4
+
+      # beyond the limit nothing happens
+      render_hook(view, "remove", %{"index" => "0"})
+      assert inputs(view) == 4
+    end
+
+    test "another socket has its own budget", %{conn: conn} do
+      format = playable_format_fixture(1)
+      limits(socket_events: {1, 60_000})
+
+      for _ <- 1..2 do
+        {:ok, view, _html} = live(conn, ~p"/formats/#{format.id}/play")
+        view |> element("#add-player") |> render_click()
+
+        assert inputs(view) == 3
+      end
+    end
+  end
+
+  describe "artwork resizing" do
+    import MillenniumQuiz.ArtworkFixtures
+
+    test "over the limit the original is served, cache hits don't count" do
+      limits(artwork_resize_ip: {1, 60_000})
+      data = jpeg()
+      card = card_with_artwork(data)
+      ip = {10, 9, 9, 9}
+
+      get_art = fn query ->
+        get(%{build_conn() | remote_ip: ip}, "/cards/#{card.id}/artwork#{query}")
+      end
+
+      # first miss is resized
+      resized = get_art.("?w=200")
+      assert [etag] = get_resp_header(resized, "etag")
+      assert etag =~ "-200"
+      MillenniumQuiz.Cards.ArtworkCache.stats()
+
+      # hit: still resized, not counted
+      assert [^etag] = get_resp_header(get_art.("?w=200"), "etag")
+      # originals aren't counted either
+      assert response(get_art.(""), 200) == data
+
+      # a second miss (other width) is over the limit: the original, with its own ETag
+      limited = get_art.("?w=400")
+      assert response(limited, 200) == data
+      assert [limited_etag] = get_resp_header(limited, "etag")
+      refute limited_etag =~ "-400"
+      # kept only briefly under the resized URL
+      assert get_resp_header(limited, "cache-control") == ["private, max-age=60"]
+
+      # another client still gets its rendition
+      other = get(%{build_conn() | remote_ip: {10, 9, 9, 10}}, "/cards/#{card.id}/artwork?w=400")
+      assert [other_etag] = get_resp_header(other, "etag")
+      assert other_etag =~ "-400"
+    end
+  end
+
   describe "resume email" do
     setup do
       format = playable_format_fixture(1)
@@ -173,6 +341,36 @@ defmodule MillenniumQuizWeb.RateLimitsTest do
       send_to(view, "also nope")
       send_to(view, "a@example.com")
       assert_email_sent(to: [{"", "a@example.com"}])
+    end
+  end
+
+  describe "new game form input" do
+    setup do
+      %{format: playable_format_fixture(1)}
+    end
+
+    test "a huge or malformed names list is bounded", %{conn: conn, format: format} do
+      {:ok, view, _html} = live(conn, ~p"/formats/#{format.id}/play")
+
+      names = Enum.map(1..100_000, &"p#{&1}") ++ [nil, 5, %{"a" => 1}]
+      render_hook(view, "change", %{"names" => [%{"x" => 1}, 7 | names]})
+      assert inputs(view) == MillenniumQuiz.Game.max_players()
+
+      long = String.duplicate("x", 5000)
+      render_hook(view, "change", %{"names" => [long, "Bob"]})
+      assert inputs(view) == 2
+      assert has_element?(view, "#player-name-0[value='#{String.duplicate("x", 100)}']")
+    end
+
+    test "a name over 24 characters still shows the message on start",
+         %{conn: conn, format: format} do
+      {:ok, view, _html} = live(conn, ~p"/formats/#{format.id}/play")
+
+      view
+      |> form("#players-form", %{"names" => ["Ann", String.duplicate("y", 60)]})
+      |> render_submit()
+
+      assert has_element?(view, "#players-error", "24")
     end
   end
 

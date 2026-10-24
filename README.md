@@ -263,7 +263,8 @@ bin/millennium_quiz eval 'MillenniumQuiz.Release.seed()'   # sample format
 | `PHX_SCHEME` / `PHX_URL_PORT` | no | default `https` / `443`; use `http` / `80` without TLS |
 | `PORT` | no | listen port, default 4000 |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | no | creates the first admin if there is none yet |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `MAIL_FROM` | no | sending resume emails |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `MAIL_FROM` | no | sending resume emails. Without `SMTP_HOST` they are only logged (debug level). `SMTP_USERNAME` and `SMTP_PASSWORD` go together; with neither, no authentication is attempted |
+| `SMTP_SECURITY` | no | `starttls` (default, port 587), `ssl` (implicit TLS, port 465) or `none` (trusted private network only). With TLS the relay's certificate is verified and the connection fails instead of falling back to plain text |
 | `POOL_SIZE`, `DNS_CLUSTER_QUERY` | no | DB pool size, clustering |
 | `DATABASE_SSL` | no | `true` for TLS to a database reached over a network (verified against the system CA certificates) |
 | `TRUSTED_PROXY_HOPS` | no | how many proxies of the platform append to `X-Forwarded-For`, default 0 (use the connection's address). The rate limits depend on it: too low and everyone shares the proxy's address, too high and clients can pick their own |
@@ -280,7 +281,10 @@ not redirected).
 - Session tokens: 32 random bytes in the signed cookie, with only their SHA-256 hash stored in `users_tokens`. They are valid for 14 days, and a password change deletes all of them.
 - Rate limits (`MillenniumQuiz.RateLimit`, in memory per node): admin login per IP and per username at that IP (a username limit shared by all addresses would let anyone lock the admin out; guessing from many addresses is slowed by bcrypt and the per-IP limit, so use a long admin password), password change, the resume email per game and per IP, and game creation per IP. The client address comes from `X-Forwarded-For` only as far as `TRUSTED_PROXY_HOPS` says.
 - Games are reachable by their unguessable id only; anyone with the link can play. Old games are deleted after `GAME_EXPIRY_DAYS` (finished ones after `GAME_EXPIRY_FINISHED_DAYS`).
-- Resume emails are only logged, not sent, unless `SMTP_HOST` is set. The address is used once and not stored.
+- Resume emails are only logged (at debug level), not sent, unless `SMTP_HOST` is set; the SMTP connection is TLS with a verified certificate. The address is used once and not stored.
+- Game addresses (`/games/<id>`) are links that give access to a game: their requests are logged at debug level only. Mind the log retention and access of the platform anyway.
+- `X-Forwarded-Proto` and `X-Forwarded-For` are trusted as far as the proxy configuration says: the app port must only be reachable through the proxy (no public NodePort), and `/healthz/ready` (public, pings the database) can be restricted at the ingress.
+- Websocket frames over 64 KB are refused, every socket has an event rate limit, and IPv6 clients are limited per /64.
 
 ### Before a public deployment
 
@@ -292,7 +296,8 @@ not redirected).
 - [ ] The production database is a fresh one (no dev data, no temporary admins).
 - [ ] `mix hex.audit` shows no advisories; run it again before every deployment.
 - [ ] Memory: the resized-artwork cache holds up to 32 MB, plus libvips; check it against the plan's RAM.
-- [ ] Without `SMTP_HOST` resume emails are only logged; with it, watch the mail quota.
+- [ ] Without `SMTP_HOST` resume emails are only logged; with it, set `SMTP_SECURITY` to what the provider offers, test one real email, and watch the mail quota.
+- [ ] The app's port is reachable only through the proxy.
 
 ## Next: Yu-Gi-Oh! features
 

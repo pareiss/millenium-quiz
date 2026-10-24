@@ -1011,7 +1011,11 @@ defmodule MillenniumQuizWeb.GameLive do
     email = String.trim(email)
 
     if email =~ ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/ and String.length(email) <= 160 do
-      limits = [email_game: socket.assigns.game_id, email_ip: socket.assigns.client_ip]
+      limits = [
+        email_game: socket.assigns.game_id,
+        email_ip: socket.assigns.client_ip,
+        email_global: :all
+      ]
 
       with :ok <- RateLimit.check_all(limits),
            {:ok, _} <-

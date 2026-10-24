@@ -10,6 +10,10 @@ defmodule MillenniumQuizWeb.ClientIP do
   and never used). With `0` the header is ignored.
 
   A missing or unparsable entry falls back to the connection's address.
+
+  The identity is an IPv4 address (also when IPv4-mapped in IPv6), or for IPv6
+  the /64 network like `2001:db8:1:2::/64`: one customer usually owns a whole
+  /64, so counting full addresses would let them rotate through billions.
   """
 
   @doc "Client address of a `Plug.Conn`."
@@ -59,12 +63,22 @@ defmodule MillenniumQuizWeb.ClientIP do
 
   def resolve(remote, _forwarded_for, _hops), do: format(remote)
 
-  @doc "Normalised string form of an address tuple; `\"unknown\"` for anything else."
+  @doc """
+  Normalised rate-limit identity of an address tuple: IPv4 as is, IPv6 as its
+  /64 network; `"unknown"` for anything else.
+  """
   def format({0, 0, 0, 0, 0, 0xFFFF, a, b}),
     do: format({div(a, 256), rem(a, 256), div(b, 256), rem(b, 256)})
 
-  def format(address) when tuple_size(address) in [4, 8] do
-    address |> :inet.ntoa() |> to_string() |> String.downcase()
+  def format({a, b, c, d, _, _, _, _} = address) when tuple_size(address) == 8 do
+    network = {a, b, c, d, 0, 0, 0, 0}
+    "#{network |> :inet.ntoa() |> to_string() |> String.downcase()}/64"
+  rescue
+    _ -> "unknown"
+  end
+
+  def format(address) when tuple_size(address) == 4 do
+    address |> :inet.ntoa() |> to_string()
   rescue
     _ -> "unknown"
   end

@@ -3,6 +3,7 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
 
   alias MillenniumQuiz.Accounts
   alias MillenniumQuiz.Accounts.User
+  alias MillenniumQuiz.RateLimit
 
   @impl true
   def render(assigns) do
@@ -201,8 +202,25 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
     user = socket.assigns.current_scope.user
     changeset = Accounts.change_user_password(user, params, hash_password: false)
 
+    # Shared with the controller. A wrong password counts here; a right one is
+    # counted by the controller when it makes the change, so one successful
+    # change uses one hit.
+    limit = RateLimit.peek(:password_user, user.id)
+
     cond do
+      match?({:error, _}, limit) ->
+        {:error, ms} = limit
+
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Too many password changes. Please try again in #{RateLimit.describe_wait(ms)}."
+         )}
+
       not User.valid_password?(user, current) ->
+        RateLimit.check_rule(:password_user, user.id)
+
         {:noreply,
          socket
          |> assign(:current_password, current)

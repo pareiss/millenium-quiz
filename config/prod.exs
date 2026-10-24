@@ -34,5 +34,9 @@ config :swoosh, local: false
 # Do not print debug messages in production
 config :logger, level: :info
 
+# Whatever debug logging is switched on, these stay out of it: game ids are
+# links, the others are personal data
+config :phoenix, :filter_parameters, ["password", "id", "names", "players", "email"]
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.

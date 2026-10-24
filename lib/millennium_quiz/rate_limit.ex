@@ -20,7 +20,16 @@ defmodule MillenniumQuiz.RateLimit do
     password_user: {5, :timer.minutes(15)},
     email_game: {3, :timer.hours(1)},
     email_ip: {10, :timer.hours(1)},
-    create_ip: {20, :timer.hours(1)}
+    create_ip: {20, :timer.hours(1)},
+    # Caps that do not depend on the client address (addresses can be rotated).
+    # Deliberately none for logins: it would let an attacker lock the admin out.
+    email_global: {60, :timer.hours(1)},
+    create_global: {300, :timer.hours(1)},
+    # All events of one LiveView socket (`MillenniumQuizWeb.EventLimit`).
+    socket_events: {120, :timer.seconds(10)},
+    # Cache misses for resized card artwork per client; over it, the original
+    # image is served (`MillenniumQuizWeb.CardArtworkController`).
+    artwork_resize_ip: {120, :timer.minutes(1)}
   }
 
   defmodule Backend do
@@ -52,6 +61,20 @@ defmodule MillenniumQuiz.RateLimit do
   def check_rule(rule, id) when is_map_key(@defaults, rule) do
     {limit, window_ms} = limit(rule)
     check({rule, id}, limit, window_ms)
+  end
+
+  @doc """
+  Like `check_rule/2` but counts nothing: `:ok` while the current window still
+  has room, `{:error, window_ms}` (the whole window, as the rest isn't known)
+  otherwise. For checks whose hits are counted somewhere else or only on
+  failure.
+  """
+  def peek(rule, id) when is_map_key(@defaults, rule) do
+    {limit, window_ms} = limit(rule)
+
+    if enabled?() and Backend.get({rule, id}, window_ms) >= limit,
+      do: {:error, window_ms},
+      else: :ok
   end
 
   @doc "The `{max_hits, window_ms}` of a rule, with configuration applied."
