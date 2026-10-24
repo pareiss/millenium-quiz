@@ -93,6 +93,8 @@
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+/* The LiveView connection is down (set by LiveView, not on the first load) */
+@custom-variant phx-offline (.phx-client-error &, .phx-server-error &);
 
 /* Use the data attribute for dark mode  */
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
@@ -101,6 +103,10 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* "Reconnecting..." banner: appears only if the connection stays down a moment */
+@keyframes mq-offline-in { from { opacity: 0; } }
+.mq-offline { animation: mq-offline-in 0.2s ease 0.8s backwards; }
 
 /* Pick reveal: a short pop when the correct answer is shown */
 @keyframes reveal-pop {

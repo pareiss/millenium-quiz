@@ -102,6 +102,19 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert has_element?(view, "#board.mq-board[style*='--cols: 2']")
   end
 
+  test "a running game keeps the screen awake and has a reconnecting banner",
+       %{conn: conn, format: format} do
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :free)
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+
+    assert has_element?(view, "#game-connection[phx-hook=WakeLock][data-active=true]")
+    assert has_element?(view, "#game-reconnecting[role=status][aria-live=polite]", "Reconnecting")
+
+    # a paused game lets the screen sleep again
+    view |> element("#pause-game") |> render_click()
+    assert has_element?(view, "#game-connection[data-active=false]")
+  end
+
   test "Level Up! lets players choose a topic", %{conn: conn} do
     format = playable_format_fixture(2)
     {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :ascending)

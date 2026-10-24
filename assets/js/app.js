@@ -25,19 +25,31 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/millennium_quiz"
 import {SwipeCycle} from "./swipe_cycle"
 import {CardLinkInput} from "./card_link_input"
+import {WakeLock} from "./wake_lock"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
+  // quick retries: a phone that wakes up should be back within a second or two
+  reconnectAfterMs: tries => [200, 500, 1000, 2000][tries - 1] || 3000,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, SwipeCycle, CardLinkInput},
+  hooks: {...colocatedHooks, SwipeCycle, CardLinkInput, WakeLock},
 })
 
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
+
+// A phone coming back from sleep or the back/forward cache may still wait for
+// its next retry: reconnect now (no-op while connected or already connecting)
+const nudge = () => {
+  if (liveSocket.isConnected()) return
+  try { liveSocket.getSocket().connect() } catch (_e) {}
+}
+window.addEventListener("pageshow", e => { if (e.persisted) nudge() })
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") nudge() })
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()
