@@ -50,13 +50,31 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
+  # DATABASE_SSL=true: TLS to a database that is reached over a network,
+  # verified against the system's CA certificates
+  db_ssl =
+    if System.get_env("DATABASE_SSL") in ~w(true 1) do
+      host = URI.parse(database_url).host || "localhost"
+
+      [
+        ssl: [
+          verify: :verify_peer,
+          cacerts: :public_key.cacerts_get(),
+          server_name_indication: String.to_charlist(host)
+        ]
+      ]
+    else
+      []
+    end
+
   config :millennium_quiz, MillenniumQuiz.Repo,
-    # ssl: true,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     # For machines with several cores, consider starting multiple pools of `pool_size`
     # pool_count: 4,
     socket_options: maybe_ipv6
+
+  config :millennium_quiz, MillenniumQuiz.Repo, db_ssl
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -71,6 +89,23 @@ if config_env() == :prod do
       """
 
   host = System.get_env("PHX_HOST") || "example.com"
+
+  # Behind a proxy the client's address is in X-Forwarded-For: how many proxies
+  # of the platform append to it (0 = none, use the connection's address).
+  # Used by the rate limits; a wrong value lets clients pick their own address.
+  config :millennium_quiz,
+         :trusted_proxy_hops,
+         String.to_integer(System.get_env("TRUSTED_PROXY_HOPS", "0"))
+
+  # Games nobody touched for this many days are deleted (finished ones after
+  # GAME_EXPIRY_FINISHED_DAYS).
+  config :millennium_quiz,
+         :game_expiry_days,
+         String.to_integer(System.get_env("GAME_EXPIRY_DAYS", "30"))
+
+  config :millennium_quiz,
+         :game_expiry_finished_days,
+         String.to_integer(System.get_env("GAME_EXPIRY_FINISHED_DAYS", "7"))
 
   config :millennium_quiz, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 

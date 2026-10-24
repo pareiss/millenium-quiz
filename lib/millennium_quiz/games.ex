@@ -41,6 +41,52 @@ defmodule MillenniumQuiz.Games do
     end
   end
 
+  @default_expiry_days 30
+  @default_expiry_finished_days 7
+
+  @doc """
+  Deletes games nobody touched for too long and returns how many.
+
+  Active and paused games expire after `:game_expiry_days` (default 30), finished
+  ones after `:game_expiry_finished_days` (default 7), measured on `updated_at`.
+  A game that still has a running `Games.Server` is skipped (a server stops after
+  30 idle minutes, so it is simply caught by the next run); stopping it would
+  race with a player who just opened the link. The delete re-checks the age, so a
+  game saved in the meantime survives.
+  """
+  def delete_expired(now \\ DateTime.utc_now()) do
+    active_days = expiry_days(:game_expiry_days, @default_expiry_days)
+    finished_days = expiry_days(:game_expiry_finished_days, @default_expiry_finished_days)
+    active_cutoff = DateTime.add(now, -active_days * 86_400, :second)
+    finished_cutoff = DateTime.add(now, -finished_days * 86_400, :second)
+
+    expired =
+      dynamic(
+        [g],
+        (g.status == :finished and g.updated_at < ^finished_cutoff) or
+          (g.status != :finished and g.updated_at < ^active_cutoff)
+      )
+
+    ids =
+      from(g in GameRecord, where: ^expired, select: g.id)
+      |> Repo.all()
+      |> Enum.reject(&running?/1)
+
+    {count, _} =
+      Repo.delete_all(from g in GameRecord, where: ^dynamic([g], g.id in ^ids and ^expired))
+
+    count
+  end
+
+  defp running?(id), do: Registry.lookup(MillenniumQuiz.Games.Registry, id) != []
+
+  defp expiry_days(key, default) do
+    case Application.get_env(:millennium_quiz, key, default) do
+      days when is_integer(days) and days > 0 -> days
+      _ -> default
+    end
+  end
+
   @doc "Returns `{:ok, %{id, status, game}}` or `{:error, :not_found}`."
   def fetch_game(id) do
     case Ecto.UUID.cast(id) do

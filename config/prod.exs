@@ -8,8 +8,18 @@ import Config
 config :millennium_quiz, MillenniumQuizWeb.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json"
 
-# TLS is terminated (and http->https redirected) by the Kubernetes Ingress,
-# so `force_ssl` is not enabled here. A local k3s setup runs on plain http.
+# TLS is terminated by the platform's proxy or ingress, which says so in
+# X-Forwarded-Proto: plain-http requests are redirected to https and browsers
+# are told to stay on https (HSTS). Probes and localhost are not redirected.
+config :millennium_quiz, MillenniumQuizWeb.Endpoint,
+  force_ssl: [
+    rewrite_on: [:x_forwarded_proto],
+    hsts: true,
+    exclude: [hosts: ["localhost", "127.0.0.1"], paths: ["/healthz/live", "/healthz/ready"]]
+  ]
+
+# The session cookie only travels over https.
+config :millennium_quiz, :secure_cookies, true
 
 # Configure Swoosh API Client
 config :swoosh, api_client: Swoosh.ApiClient.Req

@@ -8,12 +8,14 @@ defmodule MillenniumQuizWeb.Endpoint do
     store: :cookie,
     key: "_millennium_quiz_key",
     signing_salt: "8D8tQMlf",
-    same_site: "Lax"
+    same_site: "Lax",
+    secure: Application.compile_env(:millennium_quiz, :secure_cookies, false),
+    http_only: true
   ]
 
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    websocket: [connect_info: [:peer_data, :x_headers, session: @session_options]],
+    longpoll: [connect_info: [:peer_data, :x_headers, session: @session_options]]
 
   # Serve at "/" the static files from "priv/static" directory.
   #
