@@ -338,7 +338,7 @@ bin/millennium_quiz eval 'MillenniumQuiz.Release.seed()'   # sample format
 | `TRUSTED_PROXY_HOPS` | no | how many proxies of the platform append to `X-Forwarded-For`, default 0 (use the connection's address). The rate limits depend on it: too low and everyone shares the proxy's address, too high and clients can pick their own |
 | `GAME_EXPIRY_DAYS` / `GAME_EXPIRY_FINISHED_DAYS` | no | games nobody touched for this long are deleted, default 30 / 7 |
 | `MIGRATE_ON_BOOT` | no | `true` runs the migrations (and creates the first admin from `ADMIN_*`) when the app starts; for hosts without a shell |
-| `GAME_LIMIT` | no | maximum number of stored games; new games are refused beyond it (for databases with a row limit) |
+| `GAME_LIMIT` | no | maximum number of stored games; new games are refused beyond it (for databases with a row limit). Empty or `0` means no cap |
 | `PHX_ALLOWED_ORIGINS` | no | more websocket hosts besides `PHX_HOST`, comma separated (the platform's own address) |
 
 TLS terminates at the proxy or Ingress, which has to send `X-Forwarded-Proto`:

@@ -8,8 +8,11 @@ defmodule MillenniumQuiz.MigrateOnBoot do
   with `config :millennium_quiz, :migrate_on_boot, true` (env `MIGRATE_ON_BOOT`
   in `config/runtime.exs`). `start_link/1` works synchronously and returns
   `:ignore`; a failing migration raises, which stops the application with the
-  error. It uses the already running repo and never stops it. Only one pool
-  connection is held at a time (the migrator's lock), so a pool of 2 is enough.
+  error. It uses the already running repo and never stops it. Migrating needs
+  two pool connections (one holds the migrator's lock, the migration itself
+  runs on another), so a pool of 2 is just enough; that works because this
+  child starts before anything else uses the repo. With `POOL_SIZE=1` it would
+  wait for itself.
   """
 
   alias MillenniumQuiz.Release

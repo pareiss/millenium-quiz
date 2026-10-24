@@ -37,6 +37,12 @@ defmodule MillenniumQuiz.Games do
          :ok <- ensure_room() do
       insert_record(format, game)
     end
+  rescue
+    # A full or unreachable database must not crash the caller (an unknown
+    # format still raises: that is a bad link, not a database problem).
+    error in [DBConnection.ConnectionError, Postgrex.Error] ->
+      Logger.error("Could not save a new game: #{Exception.message(error)}")
+      {:error, :insert_failed}
   end
 
   defp insert_record(format, game) do
@@ -46,11 +52,6 @@ defmodule MillenniumQuiz.Games do
       {:ok, record} -> {:ok, record.id}
       {:error, _changeset} -> {:error, :insert_failed}
     end
-  rescue
-    # A full or unreachable database must not crash the caller.
-    error in [DBConnection.ConnectionError, Postgrex.Error] ->
-      Logger.error("Could not save a new game: #{Exception.message(error)}")
-      {:error, :insert_failed}
   end
 
   # `:game_limit` (nil = unlimited) caps the number of rows in `games`, for
