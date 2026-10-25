@@ -169,7 +169,10 @@ defmodule MillenniumQuizWeb.GameLive do
             )
           ]}
         >
-          <p class="min-w-0 truncate text-sm">{player.name}</p>
+          <p class="min-w-0 truncate text-sm flex items-center gap-2">
+            <.avatar slug={player.avatar} class="size-10" />
+            <span class="truncate">{player.name}</span>
+          </p>
           <p class="text-lg font-semibold tabular-nums">{player.score}</p>
         </li>
       </ul>
@@ -300,7 +303,7 @@ defmodule MillenniumQuizWeb.GameLive do
       class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden reveal-pop"
     >
       <div class="bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
-        <.icon name="hero-hand-raised" class="size-5" />
+        <.avatar slug={@player.avatar} class="size-14" />
         <p>
           Pass the device to <strong class="text-lg" id="current-player">{@player.name}</strong>
         </p>
@@ -524,7 +527,10 @@ defmodule MillenniumQuizWeb.GameLive do
           </p>
           <.question_link_popovers question={@question} />
           <.question_cards cards={@question.cards} />
-          <p class="text-sm text-base-content/60">Chosen by {@chooser.name}</p>
+          <p class="flex items-center gap-2 text-sm text-base-content/60">
+            Chosen by <.avatar slug={@chooser.avatar} class="size-9" />
+            <span>{@chooser.name}</span>
+          </p>
         </div>
 
         <div class="space-y-5">
@@ -559,15 +565,16 @@ defmodule MillenniumQuizWeb.GameLive do
             <li
               :for={index <- Game.answer_order(@game)}
               id={"result-#{index}"}
-              class="flex items-center gap-3 px-4 py-2.5"
+              class="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4"
             >
               <% correct? = Game.correct?(@game, index) %>
               <.icon
                 name={if correct?, do: "hero-check-circle", else: "hero-x-circle"}
-                class={["size-5", if(correct?, do: "text-success", else: "text-error")]}
+                class={["size-5 shrink-0", if(correct?, do: "text-success", else: "text-error")]}
               />
-              <span class="font-medium">{Enum.at(@game.players, index).name}</span>
-              <span class="text-sm text-base-content/60 truncate">
+              <.avatar slug={Enum.at(@game.players, index).avatar} class="size-12" />
+              <span class="min-w-0 font-medium break-words">{Enum.at(@game.players, index).name}</span>
+              <span class="shrink-0 text-sm text-base-content/60">
                 picked {<<?A + Enum.at(@question.result.picks, index)>>}
               </span>
               <span class={[
@@ -898,6 +905,7 @@ defmodule MillenniumQuizWeb.GameLive do
           ]}
         >
           <span class="w-6 text-base-content/60 tabular-nums">{rank}.</span>
+          <.avatar slug={player.avatar} class="size-16" />
           <span class="flex-1 font-medium">{player.name}</span>
           <span class="font-semibold tabular-nums">{player.score}</span>
         </li>

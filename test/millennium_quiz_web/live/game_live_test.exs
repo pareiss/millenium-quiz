@@ -117,6 +117,8 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert has_element?(view, "#round-label", "Question 1")
     assert has_element?(view, "#scoreboard #score-0", "Ann")
     assert has_element?(view, "#scoreboard #score-1", "Bob")
+    assert has_element?(view, "#scoreboard #score-0 img[src^=\"/images/avatars/\"]")
+    assert has_element?(view, "#scoreboard #score-1 img[src^=\"/images/avatars/\"]")
     # the board lays out its topics by itself on a phone; --cols is for wider screens
     assert has_element?(view, "#board.mq-board[style*='--cols: 2']")
   end

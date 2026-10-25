@@ -70,7 +70,11 @@ defmodule MillenniumQuiz.Game do
             phase: :choosing
 
   @type mode :: :free | :ascending
-  @type player :: %{name: String.t(), score: non_neg_integer()}
+  @type player :: %{
+          name: String.t(),
+          score: non_neg_integer(),
+          avatar: String.t() | nil
+        }
   @type result :: %{chooser: non_neg_integer(), picks: [non_neg_integer()]}
   @type question :: %{
           id: integer(),
@@ -185,7 +189,10 @@ defmodule MillenniumQuiz.Game do
            format_name: format.name,
            format_date: format.date,
            mode: mode,
-           players: Enum.map(names, &%{name: &1, score: 0}),
+           players:
+             names
+             |> Enum.zip(MillenniumQuiz.Avatars.assign(length(names), shuffle))
+             |> Enum.map(fn {name, avatar} -> %{name: name, score: 0, avatar: avatar} end),
            topics: topics,
            questions: questions,
            picks: List.duplicate(nil, length(names)),
@@ -486,7 +493,9 @@ defmodule MillenniumQuiz.Game do
   defp date_from_map(nil), do: nil
   defp date_from_map(date), do: Date.from_iso8601!(date)
 
-  defp players_from_map(players), do: Enum.map(players, &%{name: &1["name"], score: &1["score"]})
+  # Games saved before the avatars have none.
+  defp players_from_map(players),
+    do: Enum.map(players, &%{name: &1["name"], score: &1["score"], avatar: &1["avatar"]})
 
   defp phase_from_string("choosing"), do: :choosing
   defp phase_from_string("answering"), do: :answering
