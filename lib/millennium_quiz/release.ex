@@ -9,6 +9,8 @@ defmodule MillenniumQuiz.Release do
       bin/millennium_quiz eval 'MillenniumQuiz.Release.export_quiz("quiz-backup.json")'
       bin/millennium_quiz eval 'MillenniumQuiz.Release.import_quiz("quiz-backup.json")'
   """
+  require Logger
+
   @app :millennium_quiz
 
   def migrate do
@@ -116,6 +118,7 @@ defmodule MillenniumQuiz.Release do
         do_create_admin(username, password)
 
       System.get_env("ADMIN_PASSWORD_RESET") == "true" ->
+        Logger.warning("ADMIN_PASSWORD_RESET is set: unset it once you can log in")
         do_reset_password(username, password)
 
       true ->
@@ -130,6 +133,7 @@ defmodule MillenniumQuiz.Release do
     alias MillenniumQuiz.Accounts.{User, UserToken}
 
     with %User{} = user <- Accounts.get_user_by_username(username),
+         false <- User.valid_password?(user, password),
          {:ok, _} <-
            Ecto.Multi.new()
            |> Ecto.Multi.update(:user, User.password_changeset(user, %{password: password}))
@@ -140,6 +144,9 @@ defmodule MillenniumQuiz.Release do
            |> MillenniumQuiz.Repo.transaction() do
       IO.puts("Reset the password of #{user.username}")
     else
+      true ->
+        IO.puts("The password of #{inspect(username)} is already the one in ADMIN_PASSWORD")
+
       nil ->
         IO.puts("Could not reset the password: no user #{inspect(username)}")
 
