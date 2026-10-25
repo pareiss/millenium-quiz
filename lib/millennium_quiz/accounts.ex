@@ -24,13 +24,14 @@ defmodule MillenniumQuiz.Accounts do
     end
   end
 
+  @doc "The user with this username, written however the person typed it (trimmed, any case)."
   def get_user_by_username(username) when is_binary(username) do
-    Repo.get_by(User, username: username)
+    Repo.get_by(User, username: String.downcase(String.trim(username)))
   end
 
   def get_user_by_username_and_password(username, password)
       when is_binary(username) and is_binary(password) do
-    user = Repo.get_by(User, username: String.downcase(String.trim(username)))
+    user = get_user_by_username(username)
     if User.valid_password?(user, password), do: user
   end
 

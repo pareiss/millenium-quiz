@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Installs Tailwind and esbuild and builds the digested assets. Used as the
+# post-compile hook in elixir_buildpack.config: the buildpack runs a hook
+# unquoted, so `mix a && mix b` there would hand "&&" and "mix b" to Mix as
+# arguments of the last task.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+mix assets.setup
+mix assets.deploy

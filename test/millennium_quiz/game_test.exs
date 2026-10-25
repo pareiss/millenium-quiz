@@ -265,6 +265,24 @@ defmodule MillenniumQuiz.GameTest do
     assert Game.from_map(map).format_date == ~D[2005-04-01]
   end
 
+  test "every player gets a different avatar that survives saving" do
+    game = new_game([], ~w(Ann Bob Cy Di))
+    avatars = Enum.map(game.players, & &1.avatar)
+
+    assert Enum.all?(avatars, &MillenniumQuiz.Avatars.name/1)
+    assert length(Enum.uniq(avatars)) == 4
+
+    saved = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!() |> Game.from_map()
+    assert Enum.map(saved.players, & &1.avatar) == avatars
+  end
+
+  test "games saved before the avatars have none" do
+    map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+    old = update_in(map["players"], fn ps -> Enum.map(ps, &Map.delete(&1, "avatar")) end)
+
+    assert [%{avatar: nil}, %{avatar: nil}] = Game.from_map(old).players
+  end
+
   test "snapshots from before the board modes open as finished" do
     legacy = %{
       "format_id" => 1,

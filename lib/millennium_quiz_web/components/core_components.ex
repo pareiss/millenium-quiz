@@ -459,6 +459,34 @@ defmodule MillenniumQuizWeb.CoreComponents do
     """
   end
 
+  @doc """
+  A player's picture, a round crop of a monster's artwork. Nothing is drawn
+  for a player without one (a game saved before the avatars) or an unknown
+  slug.
+
+  ## Examples
+
+      <.avatar slug={player.avatar} class="size-8" />
+  """
+  attr :slug, :string, default: nil
+  attr :class, :any, default: "size-8"
+
+  def avatar(assigns) do
+    assigns = assign(assigns, :monster, MillenniumQuiz.Avatars.name(assigns.slug))
+
+    ~H"""
+    <img
+      :if={@monster}
+      src={MillenniumQuiz.Avatars.path(@slug)}
+      alt=""
+      title={@monster}
+      width="64"
+      height="64"
+      class={["shrink-0 rounded-full object-cover ring-2 ring-base-300", @class]}
+    />
+    """
+  end
+
   ## JS Commands
 
   def show(js \\ %JS{}, selector) do
