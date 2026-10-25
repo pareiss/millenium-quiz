@@ -331,6 +331,7 @@ bin/millennium_quiz eval 'MillenniumQuiz.Release.seed()'   # sample format
 | `PHX_SCHEME` / `PHX_URL_PORT` | no | default `https` / `443`; use `http` / `80` without TLS |
 | `PORT` | no | listen port, default 4000 |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | no | creates the first admin if there is none yet |
+| `ADMIN_PASSWORD_RESET` | no | `true` (with `MIGRATE_ON_BOOT`) sets `ADMIN_PASSWORD` on the existing user `ADMIN_USERNAME` at the next start and logs them out everywhere. For a lost password: set all three, wait for the restart, then `gigalixir config:unset ADMIN_PASSWORD ADMIN_PASSWORD_RESET` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `MAIL_FROM` | no | sending resume emails. Without `SMTP_HOST` they are only logged (debug level). `SMTP_USERNAME` and `SMTP_PASSWORD` go together; with neither, no authentication is attempted |
 | `SMTP_SECURITY` | no | `starttls` (default, port 587), `ssl` (implicit TLS, port 465) or `none` (trusted private network only). With TLS the relay's certificate is verified and the connection fails instead of falling back to plain text |
 | `POOL_SIZE`, `DNS_CLUSTER_QUERY` | no | DB pool size, clustering |

@@ -72,6 +72,40 @@ defmodule MillenniumQuiz.MigrateOnBootTest do
       assert Repo.all(User) == []
     end
 
+    test "an existing password is only reset with ADMIN_PASSWORD_RESET=true" do
+      {:ok, user} =
+        MillenniumQuiz.Accounts.register_user(%{
+          username: "bootadmin",
+          password: "the old long password"
+        })
+
+      token = MillenniumQuiz.Accounts.generate_user_session_token(user)
+
+      assert MigrateOnBoot.run(Repo, true) == :ok
+
+      refute MillenniumQuiz.Accounts.get_user_by_username_and_password(
+               "bootadmin",
+               "a long boot password 1"
+             )
+
+      System.put_env("ADMIN_PASSWORD_RESET", "true")
+      on_exit(fn -> System.delete_env("ADMIN_PASSWORD_RESET") end)
+
+      assert MigrateOnBoot.run(Repo, true) == :ok
+
+      assert MillenniumQuiz.Accounts.get_user_by_username_and_password(
+               "bootadmin",
+               "a long boot password 1"
+             )
+
+      refute MillenniumQuiz.Accounts.get_user_by_username_and_password(
+               "bootadmin",
+               "the old long password"
+             )
+
+      refute MillenniumQuiz.Accounts.get_user_by_session_token(token)
+    end
+
     test "running twice creates it once" do
       assert MigrateOnBoot.run(Repo, true) == :ok
       assert MigrateOnBoot.run(Repo, true) == :ok

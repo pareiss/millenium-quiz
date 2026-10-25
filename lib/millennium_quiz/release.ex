@@ -99,18 +99,53 @@ defmodule MillenniumQuiz.Release do
 
   @doc """
   Creates the first admin from ADMIN_USERNAME / ADMIN_PASSWORD when the users
-  table is still empty. Needs a started repo. Runs as part of `migrate`.
+  table is still empty. With ADMIN_PASSWORD_RESET=true it instead sets that
+  password on the existing user ADMIN_USERNAME (and logs them out everywhere),
+  for hosts without a shell when the password is lost. Needs a started repo.
+  Runs as part of `migrate`.
   """
   def bootstrap_admin_if_empty do
     username = System.get_env("ADMIN_USERNAME")
     password = System.get_env("ADMIN_PASSWORD")
 
-    if username && password &&
-         MillenniumQuiz.Repo.aggregate(MillenniumQuiz.Accounts.User, :count) == 0 do
-      do_create_admin(username, password)
+    cond do
+      !(username && password) ->
+        :ok
+
+      MillenniumQuiz.Repo.aggregate(MillenniumQuiz.Accounts.User, :count) == 0 ->
+        do_create_admin(username, password)
+
+      System.get_env("ADMIN_PASSWORD_RESET") == "true" ->
+        do_reset_password(username, password)
+
+      true ->
+        :ok
     end
 
     :ok
+  end
+
+  defp do_reset_password(username, password) do
+    alias MillenniumQuiz.Accounts
+    alias MillenniumQuiz.Accounts.{User, UserToken}
+
+    with %User{} = user <- Accounts.get_user_by_username(username),
+         {:ok, _} <-
+           Ecto.Multi.new()
+           |> Ecto.Multi.update(:user, User.password_changeset(user, %{password: password}))
+           |> Ecto.Multi.delete_all(
+             :tokens,
+             UserToken.by_user_and_contexts_query(user, ["session"])
+           )
+           |> MillenniumQuiz.Repo.transaction() do
+      IO.puts("Reset the password of #{user.username}")
+    else
+      nil ->
+        IO.puts("Could not reset the password: no user #{inspect(username)}")
+
+      {:error, _, changeset, _} ->
+        IO.puts("Could not reset the password: #{inspect(changeset.errors)}")
+    end
   end
 
   defp maybe_bootstrap_admin do
