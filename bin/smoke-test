@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# Smoke test of a running site: do the pages that matter answer, is the
+# database migrated, are the admin pages locked, does the LiveView websocket
+# connect. Read-only: it creates nothing on the site (no game, no suggestion).
+#
+#   bin/smoke-test [URL]            # default: $SMOKE_URL or the Gigalixir app
+#
+# With SMOKE_ADMIN_USER and SMOKE_ADMIN_PASSWORD set it also logs in, reads the
+# admin pages and the backup, and logs out again (so no session is left behind).
+# The login rate limit is 5 per 5 minutes per username and address, so run it
+# with credentials at most that often. The password is never printed and never
+# put on a command line (curl reads it from stdin).
+# Exit code: 0 all passed, 1 at least one check failed.
+set -uo pipefail
+
+base="${1:-${SMOKE_URL:-https://millenium-quiz.gigalixirapp.com}}"
+base="${base%/}"
+case "$base" in
+  http://localhost*|http://127.0.0.1*) local_site=true ;;
+  *) local_site=false ;;
+esac
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+jar="$work/cookies"
+
+passed=0
+failed=0
+
+ok() { printf '  ok    %s\n' "$1"; passed=$((passed + 1)); }
+bad() { printf '  FAIL  %s\n' "$1"; failed=$((failed + 1)); }
+skip() { printf '  skip  %s\n' "$1"; }
+
+# check "name" <condition-exit-status> [details shown on failure]
+check() {
+  if [ "$2" -eq 0 ]; then ok "$1"; else bad "$1${3:+ ($3)}"; fi
+}
+
+# get PATH [curl args]: body in $work/body, headers in $work/head; sets $status
+# and $redirect (the Location header, if any).
+get() {
+  local path="$1"
+  shift
+  status="$(curl -sS -m 15 -o "$work/body" -D "$work/head" -w '%{http_code}' "$@" "$base$path" 2>"$work/err")" || status="000"
+  redirect="$(grep -i '^location:' "$work/head" 2>/dev/null | tail -1 | sed 's/^[^:]*: *//' | tr -d '\r')"
+}
+
+body_has() { grep -q -- "$1" "$work/body"; }
+
+echo "Smoke test of $base"
+
+echo "Public pages"
+start=$(date +%s%N)
+get /
+ms=$(( ($(date +%s%N) - start) / 1000000 ))
+check "home answers 200" $([ "$status" = 200 ]; echo $?) "got $status $(cat "$work/err" 2>/dev/null)"
+body_has 'Choose your format'; check "home shows the format picker" $?
+body_has 'suggest-link'; check "home links to /suggest" $?
+check "home answers within 3 s" $([ "$ms" -lt 3000 ]; echo $?) "${ms} ms"
+home_html="$(cat "$work/body")"
+
+get /suggest
+check "/suggest answers 200" $([ "$status" = 200 ]; echo $?) "got $status"
+body_has 'id="suggest-form"' || body_has 'no-formats'; check "/suggest shows the form (or says there is no format)" $?
+# with no format in the database there is no form, and so no explanation
+if body_has 'id="suggest-form"'; then
+  body_has 'card-markup-help'; check "/suggest explains the [Card Name] markup" $?
+else
+  skip "/suggest explains the [Card Name] markup (no format yet, so no form)"
+fi
+
+# A made-up private link: the page looks the token up in question_submissions,
+# so a redirect (not a 500) shows the table exists, i.e. the migration ran.
+get "/suggest/smoke-test-no-such-token-$$"
+check "unknown suggestion link redirects to /suggest (migration applied)" \
+  $([ "$status" = 302 ] && [[ "$redirect" == */suggest ]]; echo $?) "got $status $redirect"
+
+get /games/00000000-0000-0000-0000-000000000000
+check "unknown game does not crash" $([ "$status" = 302 ] || [ "$status" = 404 ]; echo $?) "got $status"
+
+get /nope-smoke-test
+check "unknown path is a 404, not a 500" $([ "$status" = 404 ]; echo $?) "got $status"
+
+get /cards/0/artwork
+check "missing card artwork is a 404" $([ "$status" = 404 ]; echo $?) "got $status"
+
+echo "Assets"
+for asset in $(printf '%s' "$home_html" | grep -o '/assets/[^"]*\.\(css\|js\)[^"]*' | sort -u | head -4); do
+  size="$(curl -sS -m 15 -o /dev/null -w '%{http_code} %{size_download}' "$base$asset" 2>/dev/null)"
+  code="${size%% *}"; bytes="${size##* }"
+  check "$asset" $([ "$code" = 200 ] && [ "$bytes" -gt 5000 ]; echo $?) "got $size"
+done
+[ -n "$(printf '%s' "$home_html" | grep -o '/assets/[^"]*\.js')" ]; check "home references a javascript bundle" $?
+
+echo "Admin is locked"
+get /admin/login
+check "/admin/login answers 200" $([ "$status" = 200 ]; echo $?) "got $status"
+for path in /admin/formats /admin/submissions /admin/users /admin/backup /admin/backup.json; do
+  get "$path"
+  check "$path redirects to the login" \
+    $([ "$status" = 302 ] && [[ "$redirect" == */admin/login ]]; echo $?) "got $status $redirect"
+done
+
+echo "Security"
+get /
+for header in content-security-policy x-content-type-options; do
+  grep -qi "^$header:" "$work/head"; check "response has $header" $?
+done
+if [[ "$base" == https://* ]]; then
+  plain="http://${base#https://}"
+  code="$(curl -sS -m 15 -o /dev/null -w '%{http_code} %{redirect_url}' "$plain/" 2>/dev/null)"
+  check "http redirects to https" $([[ "$code" == 30[1278]\ https://* ]]; echo $?) "got $code"
+fi
+
+echo "LiveView websocket"
+# HTTP/1.1 is forced: a websocket upgrade does not exist in HTTP/2, which curl
+# would otherwise negotiate with the proxy.
+ws() { # ws ORIGIN -> status line of the handshake
+  curl -sS -m 4 --http1.1 -i -N -o "$work/ws" \
+    -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+    -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: c21va2UtdGVzdC1rZXkxMg==' \
+    -H "Origin: $1" "$base/live/websocket?vsn=2.0.0" >/dev/null 2>&1
+  [ -s "$work/ws" ] && head -1 "$work/ws" | tr -d '\r'
+}
+line="$(ws "$base")"
+check "websocket upgrades for the site's own origin (101)" $([[ "$line" == *" 101 "* ]]; echo $?) "got: ${line:-nothing}"
+if $local_site; then
+  skip "foreign origin is refused (not checked on localhost)"
+else
+  line="$(ws https://evil.example)"
+  check "websocket refuses a foreign origin (403)" $([[ "$line" == *" 403 "* ]]; echo $?) "got: ${line:-nothing}"
+fi
+
+if [ -n "${SMOKE_ADMIN_USER:-}" ] && [ -n "${SMOKE_ADMIN_PASSWORD:-}" ]; then
+  echo "Admin (logged in as $SMOKE_ADMIN_USER)"
+  get /admin/login -c "$jar"
+  csrf="$(grep -o 'name="_csrf_token"[^>]*value="[^"]*"' "$work/body" | sed 's/.*value="//;s/"$//' | head -1)"
+  # a wrong password also answers 302, but back to the login page
+  # the password goes in through stdin: a command line can be read by other users
+  status="$(printf '%s' "$SMOKE_ADMIN_PASSWORD" | curl -sS -m 15 -o /dev/null -D "$work/head" -b "$jar" -c "$jar" -w '%{http_code}' \
+    --data-urlencode "_csrf_token=$csrf" \
+    --data-urlencode "user[username]=$SMOKE_ADMIN_USER" \
+    --data-urlencode "user[password]@-" "$base/admin/login")"
+  redirect="$(grep -i '^location:' "$work/head" | tail -1 | sed 's/^[^:]*: *//' | tr -d '\r')"
+  check "login succeeds (goes to /admin/formats)" \
+    $([ "$status" = 302 ] && [[ "$redirect" == */admin/formats ]]; echo $?) "got $status $redirect"
+  get /admin/formats -b "$jar"
+  check "/admin/formats answers 200" $([ "$status" = 200 ]; echo $?) "got $status"
+  get /admin/submissions -b "$jar"
+  check "/admin/submissions answers 200" $([ "$status" = 200 ]; echo $?) "got $status"
+  body_has 'Suggested questions'; check "the suggestion queue renders" $?
+  get /admin/backup.json -b "$jar"
+  check "the backup downloads as JSON" \
+    $([ "$status" = 200 ] && grep -q '"formats"' "$work/body"; echo $?) "got $status"
+
+  # Log out, so the run leaves no session (a valid token for 14 days) behind.
+  # (-c: the page may set the cookie that holds the CSRF secret the token belongs to)
+  get /admin/formats -b "$jar" -c "$jar"
+  csrf="$(grep -o 'name="csrf-token"[^>]*content="[^"]*"' "$work/body" | sed 's/.*content="//;s/"$//' | head -1)"
+  [ -n "$csrf" ]; check "an admin page carries a CSRF token for the logout" $?
+  get /admin/logout -b "$jar" -c "$jar" -X POST \
+    --data-urlencode "_method=delete" --data-urlencode "_csrf_token=$csrf"
+  check "logout answers with a redirect" $([ "$status" = 302 ]; echo $?) "got $status"
+  get /admin/formats -b "$jar"
+  check "the session no longer works after the logout" \
+    $([ "$status" = 302 ] && [[ "$redirect" == */admin/login ]]; echo $?) "got $status $redirect"
+else
+  echo "Admin (skipped: set SMOKE_ADMIN_USER and SMOKE_ADMIN_PASSWORD to include it)"
+fi
+
+echo
+echo "$passed passed, $failed failed"
+[ "$failed" -eq 0 ]
