@@ -1,0 +1,135 @@
+{
+  "exported_at": "2026-10-26T22:28:35Z",
+  "formats": [
+    {
+      "date": "2010-04-24",
+      "description": "Named after the Shonen Jump Championship in Edison, New Jersey. It’s late Synchro era, before Xyz monsters, with decks like Blackwings, Lightsworn, Quickdraw Plants, and Zombies.",
+      "name": "Edison",
+      "topics": [
+        {
+          "name": "Floodgates",
+          "questions": []
+        },
+        {
+          "name": "Damage Step",
+          "questions": [
+            {
+              "cards": [
+                {
+                  "name": "Honest",
+                  "password": 37742478
+                }
+              ],
+              "choices": [
+                {
+                  "correct": true,
+                  "text": "Turn Player"
+                },
+                {
+                  "correct": false,
+                  "text": "Non-Turn Player"
+                },
+                {
+                  "correct": false,
+                  "text": "Turn Player has to pass prio until the last step of damage step"
+                },
+                {
+                  "correct": false,
+                  "text": "This is some dumb bullshit"
+                }
+              ],
+              "points": null,
+              "submitted_by": null,
+              "text": "Who wins if both players have [Honest] and how does it have to be used"
+            }
+          ]
+        },
+        {
+          "name": "Weird Interactions",
+          "questions": [
+            {
+              "cards": [
+                {
+                  "name": "Gladiator Beast Darius",
+                  "password": 25924653
+                },
+                {
+                  "name": "Gladiator Beast Gyzarus",
+                  "password": 48156348
+                },
+                {
+                  "name": "Book of Moon",
+                  "password": 14087893
+                },
+                {
+                  "name": "Starlight Road",
+                  "password": 58120309
+                }
+              ],
+              "choices": [
+                {
+                  "correct": false,
+                  "text": "Player 1 summons Gyzarus and declares the targets. Player 2 can not activate startlight road if 2 targets are selected, since the Gyzarus is negated."
+                },
+                {
+                  "correct": true,
+                  "text": "Player 1 summons Gyzarus and declares the targets. If Book of Moon is used on Darius the effect of Gyzarus is no longer negated and will resolve."
+                },
+                {
+                  "correct": false,
+                  "text": "Since Gyzarus is negated no targets are declared."
+                },
+                {
+                  "correct": false,
+                  "text": "Player 1 summons Gyzarus and declares the targets. Only if Gyzarus is Book of Mooned will its effect resolve."
+                }
+              ],
+              "points": 50,
+              "submitted_by": null,
+              "text": "Player 1 summons [Gladiator Beast Darius] with another GB's effect and uses it to target and revive [Gladiator Beast Gyzarus]. Player 1 also has a [Book of Moon] in hand. Player 2 has [Starlight Road] face-down.\n\nWhich of the following Scenarios is the correct one."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2005-04-01",
+      "description": "The most famous retro format, named after Scapegoat, which was used as fodder for Black Luster Soldier – Envoy of the Beginning. The game is slow and grindy, built around Chaos monsters, Breaker, Sangan, and careful card advantage.",
+      "name": "Goat",
+      "topics": [
+        {
+          "name": "Combos",
+          "questions": []
+        },
+        {
+          "name": "Floodgates",
+          "questions": []
+        },
+        {
+          "name": "Battle",
+          "questions": []
+        }
+      ]
+    },
+    {
+      "date": "2011-09-01",
+      "description": "Synchro-heavy format built on Tengu and Plant combos like Spore and Glow-Up Bulb, alongside Agents and Six Samurai. It sits just before Xyz monsters fully took over.",
+      "name": "Tengu",
+      "topics": [
+        {
+          "name": "Combos",
+          "questions": []
+        },
+        {
+          "name": "Timing",
+          "questions": []
+        },
+        {
+          "name": "Floodgates",
+          "questions": []
+        }
+      ]
+    }
+  ],
+  "version": 1
+}
