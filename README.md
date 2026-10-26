@@ -32,9 +32,19 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
 
 | Source | Used for | Notes |
 |---|---|---|
-| [YGOPRODeck API](https://ygoprodeck.com/api-guide/) | card search, TCG release date, frame type, artwork | 20 requests/s, going over blocks the IP for 1 h, so a search needs 3+ characters. Images must not be hotlinked, so each artwork is downloaded once and served from the database |
+| [YGOPRODeck API](https://ygoprodeck.com/api-guide/) | card search, TCG release date, frame type, artwork | 20 requests/s, going over blocks the IP for 1 h, so a search needs 3+ characters, and every request goes through one gate (see below). Images must not be hotlinked, so each artwork is downloaded once and served from the database |
 | [YAML Yugi](https://github.com/DawnbrandBots/yaml-yugi) | names, current texts, Pendulum Effects and stats in 10+ languages, Konami id, Yugipedia page id | static JSON on jsDelivr |
 | [Yugipedia](https://yugipedia.com) | errata history (`Card Errata:` pages), set release dates | MediaWiki API; text is CC BY-SA 4.0 and must be credited where it is shown |
+
+Every request to the YGOPRODeck API goes through
+`MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate`, so admins and players together
+stay under the cap. It is a token bucket of 8 requests/s (burst 8; set with
+`config :millennium_quiz, MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate, rate: ..., burst: ...`).
+Admin requests are served first; player requests only get a permit while the
+bucket is more than half full, wait at most 1.5 s in a queue of 10 and then
+get `{:error, :busy}`. An answer of 403 or 429 opens a breaker that refuses
+every request for 5 minutes. Search results are cached for 24 h. The bucket is
+per node: with several nodes divide the rate by their number.
 
 `MillenniumQuiz.Cards.text_on/3` picks the text for a date: the newest printed
 version released by then. Reprints that bring back an older wording (e.g.

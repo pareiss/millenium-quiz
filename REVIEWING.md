@@ -67,6 +67,10 @@ here (see "Decisions and known false positives" at the end).
 - YGOPRODeck: 20 requests/s, going over blocks the IP for an hour. Anything that
   can fire per keystroke must be debounced and need 3+ characters. Its images
   must not be hotlinked: they are downloaded once and served from our database.
+  Every request to `db.ygoprodeck.com` goes through `YGOPRODeck.Gate`
+  (`acquire/2` before the request, Req retries off, `trip/2` on 403/429): one
+  budget for admins and players together. A new call to that API that skips
+  the gate is a bug. Player-triggered lookups must use `priority: :player`.
 - Yugipedia texts are CC BY-SA 4.0: wherever card texts are shown to players,
   the credit line must be there.
 - Errata semantics (`MillenniumQuiz.Cards.ErrataParser`, `Cards.text_on/3`):
