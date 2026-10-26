@@ -443,6 +443,15 @@ redirect; and that the LiveView websocket upgrades for the site's own origin and
 one. With admin credentials it also logs in and reads the admin pages and the backup (one login, and it logs out again; the
 password is never printed). The exit code is 1 when a check fails, so it can also run in a script or CI.
 
+**Before a merge, on GitHub:** two workflows run on every pull request and on `master`.
+`CI` (`.github/workflows/ci.yml`) compiles with warnings as errors, checks the formatting and unused
+deps, and runs the tests. `Smoke` (`.github/workflows/smoke.yml`) builds the production release the
+way the host does (`bin/build-assets`, `mix release`), boots it against Postgres with migrations and
+the first admin on boot, and runs `bin/smoke-test` against it, with an admin login. It catches what the
+tests cannot: a release that does not build, boot or migrate, or serves a broken page or websocket. On
+failure the server log is attached to the run as the `smoke-server-log` artifact. Both only block a
+merge when they are set as required checks in the branch protection of `master` (Settings, Branches).
+
 Moving to another host later (for example a small VPS) needs only the backup
 file and the same environment variables, with the `Dockerfile` or a release.
 
