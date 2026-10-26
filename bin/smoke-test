@@ -60,7 +60,12 @@ home_html="$(cat "$work/body")"
 get /suggest
 check "/suggest answers 200" $([ "$status" = 200 ]; echo $?) "got $status"
 body_has 'id="suggest-form"' || body_has 'no-formats'; check "/suggest shows the form (or says there is no format)" $?
-body_has 'card-markup-help'; check "/suggest explains the [Card Name] markup" $?
+# with no format in the database there is no form, and so no explanation
+if body_has 'id="suggest-form"'; then
+  body_has 'card-markup-help'; check "/suggest explains the [Card Name] markup" $?
+else
+  skip "/suggest explains the [Card Name] markup (no format yet, so no form)"
+fi
 
 # A made-up private link: the page looks the token up in question_submissions,
 # so a redirect (not a 500) shows the table exists, i.e. the migration ran.
