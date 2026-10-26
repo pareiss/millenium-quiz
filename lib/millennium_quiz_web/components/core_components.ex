@@ -344,6 +344,12 @@ defmodule MillenniumQuizWeb.CoreComponents do
         </p>
         <ul class="list-disc space-y-1 pl-5">
           <li :if={@audience == :player}>
+            After a <kbd class="kbd kbd-xs">[</kbd>
+            and two letters, matching card names are suggested (once you have chosen a format);
+            <kbd class="kbd kbd-xs">Tab</kbd>
+            or a tap inserts one. Not every card is in the list, so type the name as printed if yours is missing.
+          </li>
+          <li :if={@audience == :player}>
             Use the name as printed on the card. You do not attach the card yourself: an admin does that when reviewing your question.
           </li>
           <li :if={@audience == :admin}>

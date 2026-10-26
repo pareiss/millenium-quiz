@@ -4,7 +4,7 @@ defmodule MillenniumQuizWeb.SuggestLiveTest do
   import Phoenix.LiveViewTest
   import MillenniumQuiz.QuizFixtures
 
-  alias MillenniumQuiz.{Quiz, Repo}
+  alias MillenniumQuiz.{CardSourcesStub, Quiz, Repo}
   alias MillenniumQuiz.Quiz.Submission
 
   setup do
@@ -40,6 +40,60 @@ defmodule MillenniumQuizWeb.SuggestLiveTest do
     {:ok, view, _} = live(conn, ~p"/suggest")
     assert has_element?(view, "#card-markup-help", "square brackets")
     assert has_element?(view, "#card-markup-help", "Monster Reborn")
+  end
+
+  describe "card name suggestions after a [" do
+    setup do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+      %{reborn: reborn}
+    end
+
+    test "the textarea has the autocomplete hook and its list", %{conn: conn} do
+      {:ok, view, _} = live(conn, ~p"/suggest")
+      assert has_element?(view, "textarea[phx-hook=CardLinkInput][data-suggestions]")
+      assert has_element?(view, "#question-text-suggestions[role=listbox]")
+    end
+
+    test "suggests pool cards released by the chosen format's date",
+         %{conn: conn, reborn: reborn} do
+      early = format_fixture(%{"date" => "2004-06-01"})
+      late = format_fixture(%{"date" => "2010-06-01"})
+      {:ok, view, _} = live(conn, ~p"/suggest")
+
+      # no format yet: nothing
+      render_hook(view, "suggest_cards", %{"query" => "monster re"})
+      assert_reply(view, %{suggestions: []})
+
+      view |> element("#suggest-form") |> render_change(%{"format_id" => late.id})
+      render_hook(view, "suggest_cards", %{"query" => "monster re"})
+      assert_reply(view, %{suggestions: [%{id: id, name: "Monster Reborn", source: "pool"}]})
+      assert id == reborn.id
+
+      # released after the format's date, too short, malformed
+      view |> element("#suggest-form") |> render_change(%{"format_id" => early.id})
+      render_hook(view, "suggest_cards", %{"query" => "plain"})
+      assert_reply(view, %{suggestions: []})
+      render_hook(view, "suggest_cards", %{"query" => "m"})
+      assert_reply(view, %{suggestions: []})
+      render_hook(view, "suggest_cards", %{"query" => 5})
+      assert_reply(view, %{suggestions: []})
+    end
+
+    test "never asks the card sources, and choosing a card changes nothing on the server",
+         %{conn: conn} do
+      late = format_fixture(%{"date" => "2010-06-01"})
+      # a request to a source would fail the test: no stub allowed for this process
+      Req.Test.stub(MillenniumQuiz.Cards, fn _ -> flunk("the card sources were asked") end)
+      {:ok, view, _} = live(conn, ~p"/suggest")
+      view |> element("#suggest-form") |> render_change(%{"format_id" => late.id})
+
+      render_hook(view, "suggest_cards", %{"query" => "nothing in the pool"})
+      assert_reply(view, %{suggestions: []})
+      render_hook(view, "link_card", %{"id" => "1"})
+      render_hook(view, "link_card", %{"password" => "83764719"})
+      assert has_element?(view, "#suggest-form")
+    end
   end
 
   test "sends a suggestion and shows its private status page", %{conn: conn, format: f, topic: t} do

@@ -5,7 +5,7 @@ defmodule MillenniumQuizWeb.SuggestLive do
   """
   use MillenniumQuizWeb, :live_view
 
-  alias MillenniumQuiz.{Quiz, RateLimit}
+  alias MillenniumQuiz.{Cards, Quiz, RateLimit}
   alias MillenniumQuiz.Quiz.{Choice, Question, Submission}
   alias MillenniumQuizWeb.ClientIP
 
@@ -65,13 +65,29 @@ defmodule MillenniumQuizWeb.SuggestLive do
             />
           </div>
 
-          <.input
-            field={@form[:text]}
-            type="textarea"
-            label="Question"
-            rows="3"
-            maxlength={Question.max_text_length()}
-          />
+          <div class="relative">
+            <.input
+              field={@form[:text]}
+              type="textarea"
+              label="Question"
+              rows="3"
+              maxlength={Question.max_text_length()}
+              phx-hook="CardLinkInput"
+              data-suggestions="question-text-suggestions"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="question-text-suggestions"
+            />
+            <ul
+              id="question-text-suggestions"
+              class="mq-suggestions"
+              role="listbox"
+              aria-label="Card suggestions"
+              phx-update="ignore"
+              hidden
+            >
+            </ul>
+          </div>
           <.card_markup_help audience={:player} />
 
           <fieldset class="space-y-2">
@@ -186,6 +202,27 @@ defmodule MillenniumQuizWeb.SuggestLive do
     changeset = Quiz.change_submission(%Submission{}, params["submission"] || %{})
     {:noreply, assign(socket, :form, to_form(changeset, action: :validate, as: :submission))}
   end
+
+  # Called by the textarea hook while the player types `[Card Name`. Only cards
+  # already in the card pool, released by the format's date: no network, so a
+  # public page cannot be used to hammer the card sources. Choosing a card only
+  # writes its name; an admin attaches the card.
+  def handle_event("suggest_cards", %{"query" => query}, socket) when is_binary(query) do
+    format = Enum.find(socket.assigns.formats, &(&1.id == socket.assigns.format_id))
+
+    suggestions =
+      if format do
+        for card <- Cards.suggest(String.trim(query), before: format.date),
+            do: %{id: card.id, name: card.name, source: "pool"}
+      else
+        []
+      end
+
+    {:reply, %{suggestions: suggestions}, socket}
+  end
+
+  def handle_event("suggest_cards", _params, socket),
+    do: {:reply, %{suggestions: []}, socket}
 
   def handle_event("submit", %{"website" => website}, socket) when website != "" do
     # a bot filled the honeypot: look successful, store nothing
