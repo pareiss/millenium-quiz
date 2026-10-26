@@ -427,6 +427,22 @@ if you add many cards, lower `GAME_LIMIT`.
 - `TRUSTED_PROXY_HOPS`: log in wrongly a few times from two devices and read the logs or the rate-limit behaviour; if everybody shares one address, the number is too low;
 - two connections are enough: `gigalixir logs` shows no "connection not available" / queue timeouts while two people play.
 
+**After every deploy: `bin/smoke-test`.** It checks the running site in about ten seconds and
+creates nothing on it (no game, no suggestion):
+
+```sh
+bin/smoke-test                       # the Gigalixir app (or $SMOKE_URL)
+bin/smoke-test http://localhost:4000 # any other address
+SMOKE_ADMIN_USER=admin SMOKE_ADMIN_PASSWORD=... bin/smoke-test   # also logs in
+```
+
+It checks that the home page, `/suggest` and the assets answer; that the database is migrated (an
+unknown suggestion link redirects instead of failing); that unknown paths are 404s, not 500s; that every
+admin page and `/admin/backup.json` redirect to the login; the security headers and the http to https
+redirect; and that the LiveView websocket upgrades for the site's own origin and is refused for a foreign
+one. With admin credentials it also logs in and reads the admin pages and the backup (one login; the
+password is never printed). The exit code is 1 when a check fails, so it can also run in a script or CI.
+
 Moving to another host later (for example a small VPS) needs only the backup
 file and the same environment variables, with the `Dockerfile` or a release.
 
