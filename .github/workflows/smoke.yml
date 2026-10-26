@@ -1,0 +1,101 @@
+# Builds the production release, boots it against Postgres the way the host
+# does (migrations and the first admin on boot) and runs bin/smoke-test against
+# it, with an admin login. It catches what the test suite cannot: a release that
+# does not build (asset hook, runtime config), does not boot, does not migrate,
+# or serves a broken page or websocket. Runs on every PR and on master.
+name: Smoke
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      MIX_ENV: prod
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+        with:
+          elixir-version: "1.17.3"
+          otp-version: "27.3"
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-prod-${{ runner.os }}-1.17.3-27.3-${{ hashFiles('mix.lock') }}
+          restore-keys: mix-prod-${{ runner.os }}-1.17.3-27.3-
+
+      - run: mix deps.get --only prod
+
+      # the vix (libvips) NIF can't be downloaded by Erlang's :httpc
+      - run: bin/fetch-vix-nif
+
+      - run: mix compile
+
+      # the same script the Gigalixir build runs as its post-compile hook
+      - run: bin/build-assets
+
+      - run: mix release --overwrite
+
+      - name: Start the release
+        run: |
+          export PHX_SERVER=true PORT=4000
+          # plain http on localhost, as config/runtime.exs describes
+          export PHX_HOST=localhost PHX_SCHEME=http PHX_URL_PORT=4000
+          export DATABASE_URL=ecto://postgres:postgres@localhost/postgres
+          export SECRET_KEY_BASE="$(openssl rand -base64 48)"
+          # migrations and the first admin on boot, as on a host without a shell
+          export MIGRATE_ON_BOOT=true ADMIN_USERNAME=smoke ADMIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "SMOKE_ADMIN_PASSWORD=$ADMIN_PASSWORD" >>"$GITHUB_ENV"
+          nohup _build/prod/rel/millennium_quiz/bin/millennium_quiz start >server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:4000/healthz/ready >/dev/null 2>&1; then
+              echo "ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "the release did not become ready in 60 s" >&2
+          cat server.log >&2
+          exit 1
+
+      - name: Smoke test
+        env:
+          SMOKE_ADMIN_USER: smoke
+        run: bin/smoke-test http://localhost:4000
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: smoke-server-log
+          path: server.log
+          retention-days: 14
