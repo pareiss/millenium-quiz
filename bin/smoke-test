@@ -5,9 +5,11 @@
 #
 #   bin/smoke-test [URL]            # default: $SMOKE_URL or the Gigalixir app
 #
-# With SMOKE_ADMIN_USER and SMOKE_ADMIN_PASSWORD set it also logs in and reads
-# the admin pages and the backup (one login; the login rate limit is 10 per
-# 5 minutes per address). The password is never printed.
+# With SMOKE_ADMIN_USER and SMOKE_ADMIN_PASSWORD set it also logs in, reads the
+# admin pages and the backup, and logs out again (so no session is left behind).
+# The login rate limit is 5 per 5 minutes per username and address, so run it
+# with credentials at most that often. The password is never printed and never
+# put on a command line (curl reads it from stdin).
 # Exit code: 0 all passed, 1 at least one check failed.
 set -uo pipefail
 
@@ -134,10 +136,11 @@ if [ -n "${SMOKE_ADMIN_USER:-}" ] && [ -n "${SMOKE_ADMIN_PASSWORD:-}" ]; then
   get /admin/login -c "$jar"
   csrf="$(grep -o 'name="_csrf_token"[^>]*value="[^"]*"' "$work/body" | sed 's/.*value="//;s/"$//' | head -1)"
   # a wrong password also answers 302, but back to the login page
-  status="$(curl -sS -m 15 -o /dev/null -D "$work/head" -b "$jar" -c "$jar" -w '%{http_code}' \
+  # the password goes in through stdin: a command line can be read by other users
+  status="$(printf '%s' "$SMOKE_ADMIN_PASSWORD" | curl -sS -m 15 -o /dev/null -D "$work/head" -b "$jar" -c "$jar" -w '%{http_code}' \
     --data-urlencode "_csrf_token=$csrf" \
     --data-urlencode "user[username]=$SMOKE_ADMIN_USER" \
-    --data-urlencode "user[password]=$SMOKE_ADMIN_PASSWORD" "$base/admin/login")"
+    --data-urlencode "user[password]@-" "$base/admin/login")"
   redirect="$(grep -i '^location:' "$work/head" | tail -1 | sed 's/^[^:]*: *//' | tr -d '\r')"
   check "login succeeds (goes to /admin/formats)" \
     $([ "$status" = 302 ] && [[ "$redirect" == */admin/formats ]]; echo $?) "got $status $redirect"
@@ -149,6 +152,18 @@ if [ -n "${SMOKE_ADMIN_USER:-}" ] && [ -n "${SMOKE_ADMIN_PASSWORD:-}" ]; then
   get /admin/backup.json -b "$jar"
   check "the backup downloads as JSON" \
     $([ "$status" = 200 ] && grep -q '"formats"' "$work/body"; echo $?) "got $status"
+
+  # Log out, so the run leaves no session (a valid token for 14 days) behind.
+  # (-c: the page may set the cookie that holds the CSRF secret the token belongs to)
+  get /admin/formats -b "$jar" -c "$jar"
+  csrf="$(grep -o 'name="csrf-token"[^>]*content="[^"]*"' "$work/body" | sed 's/.*content="//;s/"$//' | head -1)"
+  [ -n "$csrf" ]; check "an admin page carries a CSRF token for the logout" $?
+  get /admin/logout -b "$jar" -c "$jar" -X POST \
+    --data-urlencode "_method=delete" --data-urlencode "_csrf_token=$csrf"
+  check "logout answers with a redirect" $([ "$status" = 302 ]; echo $?) "got $status"
+  get /admin/formats -b "$jar"
+  check "the session no longer works after the logout" \
+    $([ "$status" = 302 ] && [[ "$redirect" == */admin/login ]]; echo $?) "got $status $redirect"
 else
   echo "Admin (skipped: set SMOKE_ADMIN_USER and SMOKE_ADMIN_PASSWORD to include it)"
 fi

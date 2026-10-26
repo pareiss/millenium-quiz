@@ -440,7 +440,7 @@ It checks that the home page, `/suggest` and the assets answer; that the databas
 unknown suggestion link redirects instead of failing); that unknown paths are 404s, not 500s; that every
 admin page and `/admin/backup.json` redirect to the login; the security headers and the http to https
 redirect; and that the LiveView websocket upgrades for the site's own origin and is refused for a foreign
-one. With admin credentials it also logs in and reads the admin pages and the backup (one login; the
+one. With admin credentials it also logs in and reads the admin pages and the backup (one login, and it logs out again; the
 password is never printed). The exit code is 1 when a check fails, so it can also run in a script or CI.
 
 Moving to another host later (for example a small VPS) needs only the backup
