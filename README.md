@@ -47,6 +47,9 @@ get `{:error, :busy}`. An answer of 403 or 429 opens a breaker that refuses
 every request for 5 minutes. Search results are cached for 24 h. The bucket is
 per node: with several nodes divide both `rate` and `burst` by their number (each
 node's bucket starts full, so the bursts add up).
+The card-name suggestions on `/suggest` use it at player priority (only when the
+card pool has no match, 3+ characters, at most 30 a minute per client); when the
+gate is busy or blocked the list is simply empty.
 
 `MillenniumQuiz.Cards.text_on/3` picks the text for a date: the newest printed
 version released by then. Reprints that bring back an older wording (e.g.

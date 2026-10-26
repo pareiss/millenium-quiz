@@ -9,6 +9,8 @@ defmodule MillenniumQuizWeb.SuggestLive do
   alias MillenniumQuiz.Quiz.{Choice, Question, Submission}
   alias MillenniumQuizWeb.ClientIP
 
+  @remote_suggestions 5
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -203,19 +205,27 @@ defmodule MillenniumQuizWeb.SuggestLive do
     {:noreply, assign(socket, :form, to_form(changeset, action: :validate, as: :submission))}
   end
 
-  # Called by the textarea hook while the player types `[Card Name`. Only cards
-  # already in the card pool, released by the format's date: no network, so a
-  # public page cannot be used to hammer the card sources. Choosing a card only
-  # writes its name; an admin attaches the card.
+  # Called by the textarea hook while the player types `[Card Name`. Cards of
+  # the card pool released by the format's date come first (no network). When
+  # there are none, YGOPRODeck is asked for the name, with the lowest priority
+  # at the gate (`YGOPRODeck.Gate`) and a limit per client, so players cannot
+  # use up what the admins need. Whatever goes wrong there (busy, blocked,
+  # limit, error) is just no suggestion. Choosing one only writes the name; an
+  # admin attaches the card.
   def handle_event("suggest_cards", %{"query" => query}, socket) when is_binary(query) do
     format = Enum.find(socket.assigns.formats, &(&1.id == socket.assigns.format_id))
+    query = String.trim(query)
 
     suggestions =
-      if format do
-        for card <- Cards.suggest(String.trim(query), before: format.date),
-            do: %{id: card.id, name: card.name, source: "pool"}
-      else
-        []
+      cond do
+        is_nil(format) ->
+          []
+
+        pool = pool_suggestions(query, format) ->
+          pool
+
+        true ->
+          remote_suggestions(query, format, socket)
       end
 
     {:reply, %{suggestions: suggestions}, socket}
@@ -267,6 +277,25 @@ defmodule MillenniumQuizWeb.SuggestLive do
 
   defp blank?(%{"text" => text}) when is_binary(text), do: String.trim(text) == ""
   defp blank?(_), do: true
+
+  defp pool_suggestions(query, format) do
+    case Cards.suggest(query, before: format.date) do
+      [] -> nil
+      cards -> for card <- cards, do: %{id: card.id, name: card.name, source: "pool"}
+    end
+  end
+
+  # `source: "name"`: nothing to import or link, unlike the admin form's list.
+  defp remote_suggestions(query, format, socket) do
+    with true <- String.length(query) >= Cards.min_query_length(),
+         :ok <- RateLimit.check_rule(:suggest_remote_ip, socket.assigns.client_ip),
+         {:ok, results} <- Cards.search(query, format, priority: :player) do
+      for r <- Enum.take(results, @remote_suggestions),
+          do: %{id: r.password, name: r.name, source: "name"}
+    else
+      _ -> []
+    end
+  end
 
   defp assign_form(socket, submission),
     do: assign(socket, :form, to_form(Quiz.change_submission(submission), as: :submission))
