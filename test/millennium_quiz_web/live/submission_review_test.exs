@@ -36,6 +36,21 @@ defmodule MillenniumQuizWeb.SubmissionReviewTest do
       assert has_element?(view, "#menu-submissions")
     end
 
+    test "every filter opens, including the ones for reviewed suggestions", %{
+      conn: conn,
+      submission: s
+    } do
+      for status <- ~w(pending approved rejected all bogus) do
+        {:ok, view, _} = live(conn, ~p"/admin/submissions?status=#{status}")
+        assert has_element?(view, "#submission-filters")
+      end
+
+      {:ok, view, _} = live(conn, ~p"/admin/submissions?status=all")
+      assert has_element?(view, "#submission-#{s.id}")
+      {:ok, view, _} = live(conn, ~p"/admin/submissions?status=approved")
+      refute has_element?(view, "#submission-#{s.id}")
+    end
+
     test "the admin navigation shows how many are pending", %{conn: conn, submission: s} do
       {:ok, view, _} = live(conn, ~p"/admin/backup")
       assert has_element?(view, "#nav-pending", "1")

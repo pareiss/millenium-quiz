@@ -93,14 +93,32 @@ defmodule MillenniumQuizWeb.SuggestLiveTest do
 
   describe "rate limit" do
     setup do
+      # the counters live in ETS and outlast a test
+      :ets.delete_all_objects(MillenniumQuiz.RateLimit.Backend)
+
       Application.put_env(:millennium_quiz, MillenniumQuiz.RateLimit,
         enabled: true,
         limits: [submit_ip: {1, 60_000}]
       )
 
       on_exit(fn ->
+        :ets.delete_all_objects(MillenniumQuiz.RateLimit.Backend)
         Application.put_env(:millennium_quiz, MillenniumQuiz.RateLimit, enabled: false)
       end)
+    end
+
+    test "a form with mistakes does not use up the limit", %{conn: conn, format: f, topic: t} do
+      {:ok, view, _} = live(conn, ~p"/suggest")
+      view |> element("#suggest-form") |> render_change(%{"format_id" => f.id})
+
+      for _ <- 1..3 do
+        html = fill(view, f, t, %{"text" => ""}) |> render_submit()
+        assert html =~ "can&#39;t be blank"
+        refute html =~ "sent a lot of suggestions"
+      end
+
+      assert {:error, {:live_redirect, _}} = fill(view, f, t) |> render_submit()
+      assert length(Repo.all(Submission)) == 1
     end
 
     test "stops a client sending many", %{conn: conn, format: f, topic: t} do

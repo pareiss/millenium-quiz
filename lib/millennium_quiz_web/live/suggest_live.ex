@@ -195,10 +195,13 @@ defmodule MillenniumQuizWeb.SuggestLive do
   def handle_event("submit", params, socket) do
     socket = select(socket, params)
 
+    attrs = prune_blank_choices(params["submission"] || %{})
+
+    # Mistakes in the form are not suggestions: only a valid one counts for the limit.
     with {:ok, topic} <- find_topic(socket),
+         :ok <- validate(attrs),
          :ok <- rate_limit(socket),
-         {:ok, submission} <-
-           Quiz.create_submission(topic, prune_blank_choices(params["submission"] || %{})) do
+         {:ok, submission} <- Quiz.create_submission(topic, attrs) do
       {:noreply, push_navigate(socket, to: ~p"/suggest/#{submission.token}")}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -259,6 +262,11 @@ defmodule MillenniumQuizWeb.SuggestLive do
       nil -> {:error, :no_topic}
       topic -> {:ok, topic}
     end
+  end
+
+  defp validate(attrs) do
+    changeset = Quiz.change_submission(%Submission{choices: []}, attrs)
+    if changeset.valid?, do: :ok, else: {:error, %{changeset | action: :insert}}
   end
 
   defp rate_limit(socket) do

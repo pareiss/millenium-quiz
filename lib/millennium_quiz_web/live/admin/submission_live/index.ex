@@ -182,7 +182,13 @@ defmodule MillenniumQuizWeb.Admin.SubmissionLive.Index do
 
   defp load(socket) do
     filter = socket.assigns.filter
-    status = if filter == "all", do: :all, else: String.to_existing_atom(filter)
+
+    status =
+      case filter do
+        "all" -> :all
+        "pending" -> :pending
+        other -> other
+      end
 
     socket
     |> assign(:submissions, Quiz.list_submissions(status))
