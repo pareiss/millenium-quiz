@@ -2,8 +2,16 @@
 //
 // While the caret sits behind an *open* bracket ("... [Monster Re|") the typed
 // part is sent to the server (`suggest_cards`, debounced). The best match is
-// shown in a listbox; Tab (or a click) writes "[Full Name]" into the text and
-// sends `link_card`. The list lives in the element named by `data-suggestions`
+// shown in a listbox; Tab, Enter (or a click) writes "[Full Name]" into the
+// text and sends `link_card`. Enter only does that while the list is open, else
+// it is a line break as usual. A list is only ever acted on for the query it was
+// made for: it is hidden as soon as the query changes, and answers for an older
+// query are dropped.
+//
+// The server answers `suggest_cards` with {suggestions} at once, or with
+// {suggestions: [], pending: true} when the names come later as a
+// `card_links:suggestions` event {query, suggestions} (the card sources can be
+// slow, so the page does not wait for them). The list lives in the element named by `data-suggestions`
 // (a `phx-update="ignore"` container, so LiveView patches leave it alone).
 const DEBOUNCE_MS = 250
 const MIN_QUERY = 2
@@ -26,6 +34,7 @@ export const CardLinkInput = {
     this.seq = 0 // answers older than the latest request are dropped
     this.timer = null
     this.suggestions = []
+    this.suggestionsFor = null // the query `suggestions` belongs to
     this.active = 0
     this.lastQuery = null
     this.dismissed = false
@@ -42,6 +51,14 @@ export const CardLinkInput = {
     })
     this.el.addEventListener("keydown", this.onKeydown)
     this.el.addEventListener("blur", this.onBlur)
+
+    this.handleEvent("card_links:suggestions", ({query, suggestions}) => {
+      if (query !== this.lastQuery) return // the player has typed on since
+      this.suggestions = suggestions || []
+      this.suggestionsFor = query
+      this.active = 0
+      this.render()
+    })
 
     this.handleEvent("card_links:set_text", ({text}) => {
       const old = this.el.value
@@ -69,13 +86,16 @@ export const CardLinkInput = {
     this.dismissed = false
     clearTimeout(this.timer)
     this.seq++ // invalidates answers still on their way
-    if (query === null || query.length < MIN_QUERY) return this.hide()
+    // the list of the old query must not be acted on (Tab, Enter) meanwhile
+    this.hide()
+    if (query === null || query.length < MIN_QUERY) return
 
     const seq = this.seq
     this.timer = setTimeout(() => {
       this.pushEvent("suggest_cards", {query}, reply => {
         if (seq !== this.seq) return
         this.suggestions = (reply && reply.suggestions) || []
+        this.suggestionsFor = query
         this.active = 0
         this.render()
       })
@@ -83,11 +103,13 @@ export const CardLinkInput = {
   },
 
   keydown(e) {
-    const shown = this.suggestions.length > 0 && !this.dismissed
+    const shown =
+      this.suggestions.length > 0 && !this.dismissed && this.suggestionsFor === this.lastQuery
     if (e.key === "]") {
       const open = openBracket(this.el.value, this.el.selectionStart)
       const typed = open && open.query.trim().toLowerCase()
-      const match = typed && this.suggestions.find(s => s.name.toLowerCase() === typed)
+      const current = this.suggestionsFor === this.lastQuery ? this.suggestions : []
+      const match = typed && current.find(s => s.name.toLowerCase() === typed)
       if (match) {
         e.preventDefault()
         this.accept(match)
@@ -96,6 +118,9 @@ export const CardLinkInput = {
     }
     if (!shown) return
     if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault()
+      this.accept(this.suggestions[this.active])
+    } else if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && !e.isComposing) {
       e.preventDefault()
       this.accept(this.suggestions[this.active])
     } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {

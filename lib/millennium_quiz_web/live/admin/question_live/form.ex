@@ -175,6 +175,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
           Type <kbd class="kbd kbd-xs">[</kbd>
           and a card name to link a card<span class="hidden [@media(hover:hover)]:inline">;
             <kbd class="kbd kbd-xs">Tab</kbd>
+            or <kbd class="kbd kbd-xs">Enter</kbd>
             accepts the suggestion</span>.
           <span class="[@media(hover:hover)]:hidden">Tap a suggestion to insert it.</span>
         </p>

@@ -27,6 +27,8 @@ defmodule MillenniumQuiz.RateLimit do
     # Deliberately none for logins: it would let an attacker lock the admin out.
     email_global: {60, :timer.hours(1)},
     create_global: {300, :timer.hours(1)},
+    # Name lookups at YGOPRODeck while a player types (`SuggestLive`).
+    suggest_remote_ip: {30, :timer.minutes(1)},
     submit_global: {100, :timer.hours(1)},
     # All events of one LiveView socket (`MillenniumQuizWeb.EventLimit`).
     socket_events: {120, :timer.seconds(10)},

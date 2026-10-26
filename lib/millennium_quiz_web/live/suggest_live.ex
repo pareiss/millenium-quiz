@@ -9,6 +9,8 @@ defmodule MillenniumQuizWeb.SuggestLive do
   alias MillenniumQuiz.Quiz.{Choice, Question, Submission}
   alias MillenniumQuizWeb.ClientIP
 
+  @remote_suggestions 5
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -88,6 +90,16 @@ defmodule MillenniumQuizWeb.SuggestLive do
             >
             </ul>
           </div>
+          <p
+            :if={@format_date}
+            class="-mt-2 flex items-start gap-2 text-sm text-base-content/70"
+            id="card-date-note"
+          >
+            <.icon name="hero-calendar" class="mt-0.5 size-4 shrink-0" />
+            <span>
+              Card suggestions only include cards released by {display_date(@format_date)}, the date of this format. A newer card will not show up.
+            </span>
+          </p>
           <.card_markup_help audience={:player} />
 
           <fieldset class="space-y-2">
@@ -190,6 +202,9 @@ defmodule MillenniumQuizWeb.SuggestLive do
      |> assign(:format_id, nil)
      |> assign(:topic_id, nil)
      |> assign(:topics, [])
+     |> assign(:format_date, nil)
+     |> assign(:remote_inflight, nil)
+     |> assign(:remote_next, nil)
      |> assign(:error, nil)
      # connect_info is only readable in mount.
      |> assign(:client_ip, ClientIP.from_socket(socket))
@@ -203,22 +218,34 @@ defmodule MillenniumQuizWeb.SuggestLive do
     {:noreply, assign(socket, :form, to_form(changeset, action: :validate, as: :submission))}
   end
 
-  # Called by the textarea hook while the player types `[Card Name`. Only cards
-  # already in the card pool, released by the format's date: no network, so a
-  # public page cannot be used to hammer the card sources. Choosing a card only
-  # writes its name; an admin attaches the card.
+  # Called by the textarea hook while the player types `[Card Name`. Cards of
+  # the card pool released by the format's date come first (no network) and are
+  # the reply. When there are none, YGOPRODeck is asked for the name in a task,
+  # so a slow or busy gate never holds up the form: the reply is `pending` and
+  # the names follow as a `card_links:suggestions` event carrying the query they
+  # are for. The lookup has the lowest priority at the gate
+  # (`YGOPRODeck.Gate`) and a limit per client, so players cannot use up what
+  # the admins need; only one runs at a time and of the queries typed meanwhile
+  # only the latest is asked. Whatever goes wrong (busy, blocked, limit, error)
+  # is just no suggestion. Choosing one only writes the name; an admin attaches
+  # the card.
   def handle_event("suggest_cards", %{"query" => query}, socket) when is_binary(query) do
-    format = Enum.find(socket.assigns.formats, &(&1.id == socket.assigns.format_id))
+    format = current_format(socket)
+    query = String.trim(query)
 
-    suggestions =
-      if format do
-        for card <- Cards.suggest(String.trim(query), before: format.date),
-            do: %{id: card.id, name: card.name, source: "pool"}
-      else
-        []
-      end
+    cond do
+      is_nil(format) ->
+        {:reply, %{suggestions: []}, socket}
 
-    {:reply, %{suggestions: suggestions}, socket}
+      pool = pool_suggestions(query, format) ->
+        {:reply, %{suggestions: pool}, socket}
+
+      String.length(query) < Cards.min_query_length() ->
+        {:reply, %{suggestions: []}, socket}
+
+      true ->
+        {:reply, %{suggestions: [], pending: true}, remote_lookup(socket, query)}
+    end
   end
 
   def handle_event("suggest_cards", _params, socket),
@@ -254,6 +281,26 @@ defmodule MillenniumQuizWeb.SuggestLive do
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
+  @impl true
+  def handle_async(:remote_suggestions, result, socket) do
+    socket =
+      case result do
+        {:ok, {query, suggestions}} ->
+          push_event(socket, "card_links:suggestions", %{query: query, suggestions: suggestions})
+
+        # the task died: the hook is told nothing and shows nothing
+        {:exit, _reason} ->
+          socket
+      end
+
+    socket = assign(socket, :remote_inflight, nil)
+
+    case socket.assigns.remote_next do
+      nil -> {:noreply, socket}
+      query -> {:noreply, socket |> assign(:remote_next, nil) |> remote_lookup(query)}
+    end
+  end
+
   # The form starts with four answer fields; a player who needs fewer leaves
   # the rest empty instead of having to remove them.
   defp prune_blank_choices(%{"choices" => choices} = params) when is_map(choices) do
@@ -268,6 +315,45 @@ defmodule MillenniumQuizWeb.SuggestLive do
   defp blank?(%{"text" => text}) when is_binary(text), do: String.trim(text) == ""
   defp blank?(_), do: true
 
+  defp pool_suggestions(query, format) do
+    case Cards.suggest(query, before: format.date) do
+      [] -> nil
+      cards -> for card <- cards, do: %{id: card.id, name: card.name, source: "pool"}
+    end
+  end
+
+  defp current_format(socket),
+    do: Enum.find(socket.assigns.formats, &(&1.id == socket.assigns.format_id))
+
+  # One lookup at a time; a query that arrives meanwhile waits and a newer one
+  # replaces it.
+  defp remote_lookup(%{assigns: %{remote_inflight: nil}} = socket, query) do
+    format = current_format(socket)
+    ip = socket.assigns.client_ip
+    limit = fn -> RateLimit.check_rule(:suggest_remote_ip, ip) end
+
+    socket
+    |> assign(:remote_inflight, query)
+    |> start_async(:remote_suggestions, fn ->
+      {query, remote_names(query, format, limit)}
+    end)
+  end
+
+  defp remote_lookup(socket, query), do: assign(socket, :remote_next, query)
+
+  # `source: "name"`: nothing to import or link, unlike the admin form's list.
+  # The client's limit is counted only for a lookup that is not cached.
+  defp remote_names(query, format, limit) do
+    case Cards.search(query, format, priority: :player, before_request: limit) do
+      {:ok, results} ->
+        for r <- Enum.take(results, @remote_suggestions),
+            do: %{id: r.password, name: r.name, source: "name"}
+
+      {:error, _reason} ->
+        []
+    end
+  end
+
   defp assign_form(socket, submission),
     do: assign(socket, :form, to_form(Quiz.change_submission(submission), as: :submission))
 
@@ -281,6 +367,7 @@ defmodule MillenniumQuizWeb.SuggestLive do
 
     socket
     |> assign(:format_id, format && format.id)
+    |> assign(:format_date, format && format.date)
     |> assign(:topics, topics)
     |> assign(:topic_id, topic_id)
   end

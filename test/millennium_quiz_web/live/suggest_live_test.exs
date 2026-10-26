@@ -36,6 +36,18 @@ defmodule MillenniumQuizWeb.SuggestLiveTest do
     assert has_element?(view, "#suggest-link[href='/suggest']")
   end
 
+  test "says which cards are suggested once a format is chosen", %{conn: conn, format: f} do
+    {:ok, view, _} = live(conn, ~p"/suggest")
+    refute has_element?(view, "#card-date-note")
+
+    view |> element("#suggest-form") |> render_change(%{"format_id" => f.id})
+    assert has_element?(view, "#card-date-note", "released by")
+    assert has_element?(view, "#card-date-note", "2005")
+
+    view |> element("#suggest-form") |> render_change(%{"format_id" => ""})
+    refute has_element?(view, "#card-date-note")
+  end
+
   test "explains the [Card Name] markup", %{conn: conn} do
     {:ok, view, _} = live(conn, ~p"/suggest")
     assert has_element?(view, "#card-markup-help", "square brackets")
@@ -58,7 +70,7 @@ defmodule MillenniumQuizWeb.SuggestLiveTest do
     test "suggests pool cards released by the chosen format's date",
          %{conn: conn, reborn: reborn} do
       early = format_fixture(%{"date" => "2004-06-01"})
-      late = format_fixture(%{"date" => "2010-06-01"})
+      late = format_fixture(%{"date" => "2020-06-01"})
       {:ok, view, _} = live(conn, ~p"/suggest")
 
       # no format yet: nothing
@@ -80,19 +92,238 @@ defmodule MillenniumQuizWeb.SuggestLiveTest do
       assert_reply(view, %{suggestions: []})
     end
 
-    test "never asks the card sources, and choosing a card changes nothing on the server",
-         %{conn: conn} do
-      late = format_fixture(%{"date" => "2010-06-01"})
-      # a request to a source would fail the test: no stub allowed for this process
-      Req.Test.stub(MillenniumQuiz.Cards, fn _ -> flunk("the card sources were asked") end)
-      {:ok, view, _} = live(conn, ~p"/suggest")
-      view |> element("#suggest-form") |> render_change(%{"format_id" => late.id})
+    # the remote part answers `pending` and the names follow as an event
+    defp remote(view, query) do
+      render_hook(view, "suggest_cards", %{"query" => query})
+      assert_reply(view, %{suggestions: [], pending: true})
+      render_async(view)
+    end
 
-      render_hook(view, "suggest_cards", %{"query" => "nothing in the pool"})
+    defp choose_format(view, format),
+      do: view |> element("#suggest-form") |> render_change(%{"format_id" => format.id})
+
+    test "asks YGOPRODeck for a name the pool does not have, as a player, and lists names only",
+         %{conn: conn} do
+      late = format_fixture(%{"date" => "2020-06-01"})
+      {:ok, view, _} = live(conn, ~p"/suggest")
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+      choose_format(view, late)
+
+      # not in the pool (the stub's Plain Card), but known to YGOPRODeck
+      remote(view, "plain")
+
+      assert_push_event(view, "card_links:suggestions", %{
+        query: "plain",
+        suggestions: [%{name: "Plain Card", source: "name"}]
+      })
+
+      # too short for the remote search: answered at once, nothing is asked
+      render_hook(view, "suggest_cards", %{"query" => "pl"})
       assert_reply(view, %{suggestions: []})
+
+      # choosing a card changes nothing on the server
       render_hook(view, "link_card", %{"id" => "1"})
       render_hook(view, "link_card", %{"password" => "83764719"})
       assert has_element?(view, "#suggest-form")
+    end
+
+    test "pool matches win: no request is made for them", %{conn: conn} do
+      late = format_fixture(%{"date" => "2020-06-01"})
+      Req.Test.stub(MillenniumQuiz.Cards, fn _ -> flunk("the card sources were asked") end)
+      {:ok, view, _} = live(conn, ~p"/suggest")
+      choose_format(view, late)
+
+      render_hook(view, "suggest_cards", %{"query" => "monster re"})
+      assert_reply(view, %{suggestions: [%{name: "Monster Reborn", source: "pool"}]})
+    end
+
+    test "a failing source is just no suggestion", %{conn: conn} do
+      late = format_fixture(%{"date" => "2020-06-01"})
+      {:ok, view, _} = live(conn, ~p"/suggest")
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+      choose_format(view, late)
+
+      Req.Test.stub(MillenniumQuiz.Cards, &Plug.Conn.send_resp(&1, 500, "down"))
+      remote(view, "plain")
+      assert_push_event(view, "card_links:suggestions", %{query: "plain", suggestions: []})
+    end
+
+    test "the form is not held up while a lookup is waiting", %{conn: conn, topic: topic} do
+      late = format_fixture(%{"date" => "2020-06-01"})
+      {:ok, view, _} = live(conn, ~p"/suggest")
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+      choose_format(view, late)
+
+      test_pid = self()
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        send(test_pid, {:asked, self()})
+        receive do: (:go -> CardSourcesStub.handle(conn))
+      end)
+
+      render_hook(view, "suggest_cards", %{"query" => "plain"})
+      assert_reply(view, %{suggestions: [], pending: true})
+      assert_receive {:asked, task}
+
+      # the lookup is stuck, the form still answers
+      html =
+        view
+        |> form("#suggest-form", %{"submission" => %{"text" => "typing on"}})
+        |> render_change()
+
+      assert html =~ "typing on"
+      assert topic
+
+      send(task, :go)
+      render_async(view)
+      assert_push_event(view, "card_links:suggestions", %{query: "plain"})
+    end
+
+    test "one lookup at a time: of the queries typed meanwhile only the latest is asked",
+         %{conn: conn} do
+      late = format_fixture(%{"date" => "2020-06-01"})
+      {:ok, view, _} = live(conn, ~p"/suggest")
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+      choose_format(view, late)
+
+      test_pid = self()
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        send(test_pid, {:asked, self(), Plug.Conn.fetch_query_params(conn).query_params["fname"]})
+        receive do: (:go -> CardSourcesStub.handle(conn))
+      end)
+
+      for query <- ["plain", "plain c", "plain ca", "plain car"] do
+        render_hook(view, "suggest_cards", %{"query" => query})
+        assert_reply(view, %{pending: true})
+      end
+
+      assert_receive {:asked, first, "plain"}
+      send(first, :go)
+      assert_receive {:asked, second, "plain car"}
+      send(second, :go)
+      render_async(view)
+      refute_receive {:asked, _, _}, 50
+
+      assert_push_event(view, "card_links:suggestions", %{query: "plain"})
+      assert_push_event(view, "card_links:suggestions", %{query: "plain car"})
+    end
+  end
+
+  describe "card name lookups at YGOPRODeck: limits" do
+    # not async-safe: the node's gate and the rate limits are swapped
+    setup do
+      CardSourcesStub.stub!()
+      :ets.delete_all_objects(MillenniumQuiz.RateLimit.Backend)
+
+      on_exit(fn ->
+        :ets.delete_all_objects(MillenniumQuiz.RateLimit.Backend)
+        Application.delete_env(:millennium_quiz, :ygoprodeck_gate)
+        Application.put_env(:millennium_quiz, MillenniumQuiz.RateLimit, enabled: false)
+      end)
+    end
+
+    defp lookup(view, query) do
+      render_hook(view, "suggest_cards", %{"query" => query})
+      assert_reply(view, %{pending: true})
+      render_async(view)
+    end
+
+    defp open_form(conn) do
+      late = format_fixture(%{"date" => "2020-06-01"})
+      {:ok, view, _} = live(conn, ~p"/suggest")
+      Req.Test.allow(MillenniumQuiz.Cards, self(), view.pid)
+      view |> element("#suggest-form") |> render_change(%{"format_id" => late.id})
+      view
+    end
+
+    defp use_gate(opts) do
+      alias MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate
+      name = :player_gate
+
+      start_supervised!(%{
+        id: name,
+        start:
+          {Gate, :start_link,
+           [
+             Keyword.merge(
+               [
+                 name: name,
+                 enabled: true,
+                 clock: &System.monotonic_time/1,
+                 cache_ttl_ms: 0
+               ],
+               opts
+             )
+           ]}
+      })
+
+      Application.put_env(:millennium_quiz, :ygoprodeck_gate, name)
+      name
+    end
+
+    test "players get the lowest priority at the gate", %{conn: conn} do
+      alias MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate
+      # 4 permits, a player needs the bucket over half full; two admins take it down to 2
+      gate = use_gate(burst: 4, rate: 1, player_wait_ms: 50)
+      view = open_form(conn)
+
+      assert Gate.acquire(:admin, gate) == :ok
+      assert Gate.acquire(:admin, gate) == :ok
+
+      lookup(view, "plain")
+      assert_push_event(view, "card_links:suggestions", %{query: "plain", suggestions: []})
+
+      # an admin could still search at that moment
+      assert Gate.acquire(:admin, gate) == :ok
+    end
+
+    test "an open breaker is just no suggestion", %{conn: conn} do
+      alias MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate
+      gate = use_gate(burst: 4)
+      ExUnit.CaptureLog.capture_log(fn -> Gate.trip(nil, gate) end)
+      view = open_form(conn)
+
+      lookup(view, "plain")
+      assert_push_event(view, "card_links:suggestions", %{query: "plain", suggestions: []})
+    end
+
+    test "a client is limited in lookups per minute", %{conn: conn} do
+      Application.put_env(:millennium_quiz, MillenniumQuiz.RateLimit,
+        enabled: true,
+        limits: [suggest_remote_ip: {2, 60_000}]
+      )
+
+      view = open_form(conn)
+
+      for query <- ["plain", "plain c"] do
+        lookup(view, query)
+        assert_push_event(view, "card_links:suggestions", %{query: ^query, suggestions: [_]})
+      end
+
+      lookup(view, "plain ca")
+      assert_push_event(view, "card_links:suggestions", %{query: "plain ca", suggestions: []})
+    end
+
+    test "an answer from the cache does not count against the limit", %{conn: conn} do
+      # a cache of the gate's own, so the repeated name is answered without a request
+      use_gate(burst: 8, cache_ttl_ms: 60_000)
+
+      Application.put_env(:millennium_quiz, MillenniumQuiz.RateLimit,
+        enabled: true,
+        limits: [suggest_remote_ip: {2, 60_000}]
+      )
+
+      view = open_form(conn)
+
+      for _ <- 1..5 do
+        lookup(view, "plain")
+        assert_push_event(view, "card_links:suggestions", %{query: "plain", suggestions: [_]})
+      end
+
+      # only one real request was counted, so a second name is still allowed
+      lookup(view, "plain c")
+      assert_push_event(view, "card_links:suggestions", %{query: "plain c", suggestions: [_]})
     end
   end
 

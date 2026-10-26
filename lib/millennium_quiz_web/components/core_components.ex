@@ -347,7 +347,8 @@ defmodule MillenniumQuizWeb.CoreComponents do
             After a <kbd class="kbd kbd-xs">[</kbd>
             and two letters, matching card names are suggested (once you have chosen a format);
             <kbd class="kbd kbd-xs">Tab</kbd>
-            or a tap inserts one. Not every card is in the list, so type the name as printed if yours is missing.
+            or <kbd class="kbd kbd-xs">Enter</kbd>
+            (or a tap) inserts the highlighted one; the arrow keys pick another. The list can stay empty when many people are typing at once, so just type the name as printed.
           </li>
           <li :if={@audience == :player}>
             Use the name as printed on the card. You do not attach the card yourself: an admin does that when reviewing your question.

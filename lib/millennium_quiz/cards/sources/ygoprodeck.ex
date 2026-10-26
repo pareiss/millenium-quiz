@@ -5,7 +5,9 @@ defmodule MillenniumQuiz.Cards.Sources.YGOPRODeck do
   so callers debounce and only search with 3+ characters, and every request to
   the API goes through `YGOPRODeck.Gate` (shared budget, priorities, cache and
   a breaker). The `:priority` option of `search/2` (`:admin`, the default, or
-  `:player`) says whose request it is (`:gate` names another gate, for tests). The images host is a different server and is not
+  `:player`) says whose request it is (`:gate` names another gate, for tests;
+  `:before_request` is a function returning `:ok` or `{:error, reason}`, called
+  only for an answer that is not cached). The images host is a different server and is not
   counted by the gate.
 
   Besides the errors of the request, `{:error, :busy}` (no permit in time) and
@@ -51,12 +53,18 @@ defmodule MillenniumQuiz.Cards.Sources.YGOPRODeck do
         {:ok, results}
 
       :miss ->
-        with {:ok, results} <- get(params, Keyword.get(opts, :priority, :admin), gate) do
+        with :ok <- before_request(opts[:before_request]),
+             {:ok, results} <- get(params, Keyword.get(opts, :priority, :admin), gate) do
           Gate.cache_put(key, results, gate)
           {:ok, results}
         end
     end
   end
+
+  # `before_request: fun` is asked (once) only when the answer is not cached,
+  # so a limit of the caller's own can count real requests only.
+  defp before_request(nil), do: :ok
+  defp before_request(fun) when is_function(fun, 0), do: fun.()
 
   @doc """
   One card by any of its ids. Asked by id, the API only lists that one
