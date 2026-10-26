@@ -49,5 +49,11 @@ config :millennium_quiz, MillenniumQuiz.Cards,
   req_options: [plug: {Req.Test, MillenniumQuiz.Cards}],
   refresh_pause_ms: 0
 
+# The YGOPRODeck gate lets everything through and caches nothing in tests; the
+# gate's own tests start a gate of their own.
+config :millennium_quiz, MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate,
+  enabled: false,
+  cache_ttl_ms: 0
+
 # The touch-safety lock after a new turn is off in tests; see GameLiveTest.
 config :millennium_quiz, :turn_lock_ms, 0

@@ -6,8 +6,12 @@ defmodule MillenniumQuiz.Cards.Sources.HTTP do
 
   @user_agent "MillenniumQuiz/0.1 (+https://github.com/pareiss/millenium-quiz)"
 
-  def new(base_url) do
+  def new(base_url, extra \\ []) do
     options = Application.get_env(:millennium_quiz, MillenniumQuiz.Cards, [])[:req_options] || []
-    Req.new([base_url: base_url, user_agent: @user_agent, max_retries: 2] ++ options)
+
+    [base_url: base_url, user_agent: @user_agent, max_retries: 2]
+    |> Keyword.merge(extra)
+    |> Keyword.merge(options)
+    |> Req.new()
   end
 end

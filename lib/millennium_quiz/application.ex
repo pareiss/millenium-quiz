@@ -15,6 +15,7 @@ defmodule MillenniumQuiz.Application do
       {DNSCluster, query: Application.get_env(:millennium_quiz, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MillenniumQuiz.PubSub},
       MillenniumQuiz.Cards.ArtworkCache,
+      MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate,
       MillenniumQuiz.RateLimit,
       {Task.Supervisor, name: MillenniumQuiz.TaskSupervisor},
       {Registry, keys: :unique, name: MillenniumQuiz.Games.Registry},

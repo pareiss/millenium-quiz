@@ -408,6 +408,12 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
       {:ok, results} ->
         {:noreply, socket |> assign(:results, results) |> assign(:search_error, nil)}
 
+      {:error, :busy} ->
+        {:noreply,
+         socket
+         |> assign(:results, [])
+         |> assign(:search_error, "The card search is busy. Try again in a moment.")}
+
       {:error, _reason} ->
         {:noreply,
          socket
