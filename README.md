@@ -44,7 +44,8 @@ Admin requests are served first; player requests only get a permit while the
 bucket is more than half full, wait at most 1.5 s in a queue of 10 and then
 get `{:error, :busy}`. An answer of 403 or 429 opens a breaker that refuses
 every request for 5 minutes. Search results are cached for 24 h. The bucket is
-per node: with several nodes divide the rate by their number.
+per node: with several nodes divide both `rate` and `burst` by their number (each
+node's bucket starts full, so the bursts add up).
 
 `MillenniumQuiz.Cards.text_on/3` picks the text for a date: the newest printed
 version released by then. Reprints that bring back an older wording (e.g.

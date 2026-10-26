@@ -44,7 +44,7 @@ defmodule MillenniumQuiz.Cards.Sources.YGOPRODeck do
 
     key = {:search, query |> String.trim() |> String.downcase(), opts[:before]}
 
-    gate = Keyword.get(opts, :gate, Gate)
+    gate = Keyword.get(opts, :gate, default_gate())
 
     case Gate.cache_get(key, gate) do
       {:ok, results} ->
@@ -108,9 +108,13 @@ defmodule MillenniumQuiz.Cards.Sources.YGOPRODeck do
     end
   end
 
+  # The node's gate; `config :millennium_quiz, :ygoprodeck_gate, name` swaps it
+  # (tests use that to get a gate in a chosen state).
+  defp default_gate, do: Application.get_env(:millennium_quiz, :ygoprodeck_gate, Gate)
+
   # One permit from the gate per request. Req's own retries are off: a retry
   # would be a request the gate did not count.
-  defp get(params, priority, gate \\ Gate) do
+  defp get(params, priority, gate \\ default_gate()) do
     with :ok <- Gate.acquire(priority, gate) do
       case Req.get(HTTP.new(@base_url, max_retries: 0),
              url: "/cardinfo.php",
