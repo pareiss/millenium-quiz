@@ -531,6 +531,14 @@ defmodule MillenniumQuizWeb.GameLive do
             Chosen by <.avatar slug={@chooser.avatar} class="size-9" />
             <span>{@chooser.name}</span>
           </p>
+          <p
+            :if={@question[:submitted_by]}
+            class="flex items-center gap-2 text-sm text-base-content/60"
+            id="submitted-by"
+          >
+            <.icon name="hero-light-bulb" class="size-5 text-primary" />
+            <span>Question suggested by {@question[:submitted_by]}</span>
+          </p>
         </div>
 
         <div class="space-y-5">

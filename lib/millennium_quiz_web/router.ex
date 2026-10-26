@@ -26,6 +26,8 @@ defmodule MillenniumQuizWeb.Router do
       live "/", HomeLive
       live "/formats/:id/play", NewGameLive
       live "/games/:id", GameLive
+      live "/suggest", SuggestLive
+      live "/suggest/:token", SuggestStatusLive
     end
 
     get "/categories/*path", LegacyRedirectController, :formats
@@ -56,6 +58,7 @@ defmodule MillenniumQuizWeb.Router do
       live "/formats/:id/edit", FormatLive.Form, :edit
       live "/topics/:topic_id/questions/new", QuestionLive.Form, :new
       live "/questions/:id/edit", QuestionLive.Form, :edit
+      live "/submissions", SubmissionLive.Index, :index
       live "/users", UserLive.Index, :index
       live "/backup", BackupLive, :index
     end

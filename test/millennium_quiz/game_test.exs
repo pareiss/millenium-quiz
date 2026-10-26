@@ -227,6 +227,22 @@ defmodule MillenniumQuiz.GameTest do
     assert Game.from_map(json) == game
   end
 
+  test "the submitter name is kept in a snapshot; older snapshots load without it" do
+    map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+
+    with_name =
+      update_in(map, ["questions"], fn [q | rest] ->
+        [Map.put(q, "submitted_by", "Yugi") | rest]
+      end)
+
+    assert hd(Game.from_map(with_name).questions).submitted_by == "Yugi"
+
+    old =
+      update_in(map, ["questions"], fn qs -> Enum.map(qs, &Map.delete(&1, "submitted_by")) end)
+
+    assert Enum.all?(Game.from_map(old).questions, &(&1.submitted_by == nil))
+  end
+
   test "cards from older snapshots load without their details" do
     map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
     old_card = %{"name" => "Monster Reborn", "text" => "Revive.", "set" => nil}

@@ -318,6 +318,56 @@ defmodule MillenniumQuizWeb.CoreComponents do
   end
 
   @doc """
+  Explains the `[Card Name]` markup of question texts. `audience` is `:player`
+  on the suggestion page (an admin attaches the card) and `:admin` in the
+  question form (the admin attaches it, by search or by typing `[`).
+  """
+  attr :audience, :atom, values: [:player, :admin], required: true
+  attr :id, :string, default: "card-markup-help"
+
+  def card_markup_help(assigns) do
+    ~H"""
+    <details
+      id={@id}
+      class="rounded-field border border-base-300 bg-base-200/40 p-3 text-sm text-base-content/80"
+    >
+      <summary class="cursor-pointer font-medium">
+        <.icon name="hero-information-circle" class="size-4 align-text-bottom" />
+        Mentioning a card: put its name in [square brackets]
+      </summary>
+      <div class="mt-2 space-y-2">
+        <p>
+          Write <code class="font-semibold">What does [Monster Reborn] do?</code>
+          and the question is shown as "What does
+          <span class="font-semibold underline decoration-dotted decoration-2 decoration-[#c39a55] underline-offset-4">Monster Reborn</span>
+          do?": the brackets disappear, the name becomes a link, and tapping or hovering it shows the card drawn with its text as of the format's date.
+        </p>
+        <ul class="list-disc space-y-1 pl-5">
+          <li :if={@audience == :player}>
+            Use the name as printed on the card. You do not attach the card yourself: an admin does that when reviewing your question.
+          </li>
+          <li :if={@audience == :admin}>
+            The brackets only become a link when a card with that name is attached to the question (search above, or type
+            <kbd class="kbd kbd-xs">[</kbd>
+            and a name for suggestions). The name is matched ignoring capitals and spaces just inside the brackets.
+          </li>
+          <li>
+            A bracket pair without a matching card stays as written, brackets included, so ordinary text such as "[sic]" is fine.
+          </li>
+          <li>One card can be mentioned several times; there are no nested brackets.</li>
+          <li :if={@audience == :admin}>
+            To turn a link back into plain text, remove its brackets or remove the card from the question.
+          </li>
+          <li :if={@audience == :player}>
+            Mention a card only when the question needs it. Answers are plain text; brackets in answers are not turned into links.
+          </li>
+        </ul>
+      </div>
+    </details>
+    """
+  end
+
+  @doc """
   Renders a header with title.
   """
   slot :inner_block, required: true

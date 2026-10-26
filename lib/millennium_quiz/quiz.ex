@@ -7,7 +7,7 @@ defmodule MillenniumQuiz.Quiz do
   import Ecto.Query, warn: false
 
   alias MillenniumQuiz.Repo
-  alias MillenniumQuiz.Quiz.{Format, Topic, Question}
+  alias MillenniumQuiz.Quiz.{Format, Topic, Question, Submission}
 
   ## Formats
 
@@ -170,4 +170,117 @@ defmodule MillenniumQuiz.Quiz do
         preload: [topic: t, question_cards: [card: :card_texts]]
     )
   end
+
+  ## Suggested questions
+
+  # Unreviewed submissions that are kept; over it, new ones are refused so a
+  # flood cannot fill the database.
+  @max_pending_submissions 200
+
+  def max_pending_submissions, do: @max_pending_submissions
+
+  @doc "Formats with their topics, for the suggestion form's pickers."
+  def list_formats_with_topics do
+    Repo.all(from f in Format, order_by: f.name, preload: [:topics])
+  end
+
+  @doc """
+  Stores a player's suggestion for `topic`. Returns `{:error, :full}` when
+  `max_pending_submissions/0` are already waiting.
+  """
+  def create_submission(%Topic{} = topic, attrs) do
+    if count_submissions(:pending) >= @max_pending_submissions do
+      {:error, :full}
+    else
+      %Submission{topic_id: topic.id, token: new_token(), choices: []}
+      |> Submission.changeset(attrs)
+      |> Repo.insert()
+    end
+  end
+
+  def change_submission(%Submission{} = submission, attrs \\ %{}),
+    do: Submission.changeset(submission, attrs)
+
+  defp new_token, do: :crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false)
+
+  def get_submission(id) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, id} -> Submission |> Repo.get(id) |> Repo.preload(topic: :format)
+      :error -> nil
+    end
+  end
+
+  @doc "The submission with this private token, or nil."
+  def get_submission_by_token(token) when is_binary(token) do
+    Submission |> Repo.get_by(token: token) |> Repo.preload(topic: :format)
+  end
+
+  @doc "Submissions with this status (or all with `:all`), oldest pending first, newest otherwise."
+  def list_submissions(status) do
+    base = from s in Submission, preload: [topic: :format]
+
+    case status do
+      :pending ->
+        from s in base, where: s.status == "pending", order_by: [asc: s.inserted_at, asc: s.id]
+
+      :all ->
+        from s in base, order_by: [desc: s.inserted_at, desc: s.id]
+
+      status ->
+        from s in base,
+          where: s.status == ^to_string(status),
+          order_by: [desc: s.inserted_at, desc: s.id]
+    end
+    |> Repo.all()
+  end
+
+  def count_submissions(status) do
+    Repo.one(from s in Submission, where: s.status == ^to_string(status), select: count(s.id))
+  end
+
+  @doc """
+  Creates the question an admin made from a pending submission and marks the
+  submission approved, in one transaction. A submission that was reviewed in
+  the meantime (another admin) is refused with `{:error, :reviewed}`.
+  """
+  def approve_submission(%Submission{id: id}, %Topic{} = topic, attrs, card_ids) do
+    Repo.transaction(fn ->
+      submission = Repo.one!(from s in Submission, where: s.id == ^id, lock: "FOR UPDATE")
+
+      if submission.status != "pending" do
+        Repo.rollback(:reviewed)
+      else
+        case create_question(topic, attrs, card_ids) do
+          {:ok, question} ->
+            submission
+            |> Ecto.Changeset.change(
+              status: "approved",
+              question_id: question.id,
+              reviewed_at: now()
+            )
+            |> Repo.update!()
+
+            question
+
+          {:error, changeset} ->
+            Repo.rollback(changeset)
+        end
+      end
+    end)
+  end
+
+  @doc "Marks a pending submission rejected; it is kept."
+  def reject_submission(%Submission{id: id}) do
+    {count, _} =
+      Repo.update_all(
+        from(s in Submission, where: s.id == ^id and s.status == "pending"),
+        set: [status: "rejected", reviewed_at: now()]
+      )
+
+    if count == 1, do: :ok, else: {:error, :reviewed}
+  end
+
+  def delete_submission(%Submission{} = submission), do: Repo.delete(submission)
+
+  defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
 end
