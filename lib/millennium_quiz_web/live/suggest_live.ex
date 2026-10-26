@@ -203,6 +203,8 @@ defmodule MillenniumQuizWeb.SuggestLive do
      |> assign(:topic_id, nil)
      |> assign(:topics, [])
      |> assign(:format_date, nil)
+     |> assign(:remote_inflight, nil)
+     |> assign(:remote_next, nil)
      |> assign(:error, nil)
      # connect_info is only readable in mount.
      |> assign(:client_ip, ClientIP.from_socket(socket))
@@ -217,29 +219,33 @@ defmodule MillenniumQuizWeb.SuggestLive do
   end
 
   # Called by the textarea hook while the player types `[Card Name`. Cards of
-  # the card pool released by the format's date come first (no network). When
-  # there are none, YGOPRODeck is asked for the name, with the lowest priority
-  # at the gate (`YGOPRODeck.Gate`) and a limit per client, so players cannot
-  # use up what the admins need. Whatever goes wrong there (busy, blocked,
-  # limit, error) is just no suggestion. Choosing one only writes the name; an
-  # admin attaches the card.
+  # the card pool released by the format's date come first (no network) and are
+  # the reply. When there are none, YGOPRODeck is asked for the name in a task,
+  # so a slow or busy gate never holds up the form: the reply is `pending` and
+  # the names follow as a `card_links:suggestions` event carrying the query they
+  # are for. The lookup has the lowest priority at the gate
+  # (`YGOPRODeck.Gate`) and a limit per client, so players cannot use up what
+  # the admins need; only one runs at a time and of the queries typed meanwhile
+  # only the latest is asked. Whatever goes wrong (busy, blocked, limit, error)
+  # is just no suggestion. Choosing one only writes the name; an admin attaches
+  # the card.
   def handle_event("suggest_cards", %{"query" => query}, socket) when is_binary(query) do
-    format = Enum.find(socket.assigns.formats, &(&1.id == socket.assigns.format_id))
+    format = current_format(socket)
     query = String.trim(query)
 
-    suggestions =
-      cond do
-        is_nil(format) ->
-          []
+    cond do
+      is_nil(format) ->
+        {:reply, %{suggestions: []}, socket}
 
-        pool = pool_suggestions(query, format) ->
-          pool
+      pool = pool_suggestions(query, format) ->
+        {:reply, %{suggestions: pool}, socket}
 
-        true ->
-          remote_suggestions(query, format, socket)
-      end
+      String.length(query) < Cards.min_query_length() ->
+        {:reply, %{suggestions: []}, socket}
 
-    {:reply, %{suggestions: suggestions}, socket}
+      true ->
+        {:reply, %{suggestions: [], pending: true}, remote_lookup(socket, query)}
+    end
   end
 
   def handle_event("suggest_cards", _params, socket),
@@ -275,6 +281,26 @@ defmodule MillenniumQuizWeb.SuggestLive do
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
+  @impl true
+  def handle_async(:remote_suggestions, result, socket) do
+    socket =
+      case result do
+        {:ok, {query, suggestions}} ->
+          push_event(socket, "card_links:suggestions", %{query: query, suggestions: suggestions})
+
+        # the task died: the hook is told nothing and shows nothing
+        {:exit, _reason} ->
+          socket
+      end
+
+    socket = assign(socket, :remote_inflight, nil)
+
+    case socket.assigns.remote_next do
+      nil -> {:noreply, socket}
+      query -> {:noreply, socket |> assign(:remote_next, nil) |> remote_lookup(query)}
+    end
+  end
+
   # The form starts with four answer fields; a player who needs fewer leaves
   # the rest empty instead of having to remove them.
   defp prune_blank_choices(%{"choices" => choices} = params) when is_map(choices) do
@@ -296,15 +322,35 @@ defmodule MillenniumQuizWeb.SuggestLive do
     end
   end
 
+  defp current_format(socket),
+    do: Enum.find(socket.assigns.formats, &(&1.id == socket.assigns.format_id))
+
+  # One lookup at a time; a query that arrives meanwhile waits and a newer one
+  # replaces it.
+  defp remote_lookup(%{assigns: %{remote_inflight: nil}} = socket, query) do
+    format = current_format(socket)
+    ip = socket.assigns.client_ip
+    limit = fn -> RateLimit.check_rule(:suggest_remote_ip, ip) end
+
+    socket
+    |> assign(:remote_inflight, query)
+    |> start_async(:remote_suggestions, fn ->
+      {query, remote_names(query, format, limit)}
+    end)
+  end
+
+  defp remote_lookup(socket, query), do: assign(socket, :remote_next, query)
+
   # `source: "name"`: nothing to import or link, unlike the admin form's list.
-  defp remote_suggestions(query, format, socket) do
-    with true <- String.length(query) >= Cards.min_query_length(),
-         :ok <- RateLimit.check_rule(:suggest_remote_ip, socket.assigns.client_ip),
-         {:ok, results} <- Cards.search(query, format, priority: :player) do
-      for r <- Enum.take(results, @remote_suggestions),
-          do: %{id: r.password, name: r.name, source: "name"}
-    else
-      _ -> []
+  # The client's limit is counted only for a lookup that is not cached.
+  defp remote_names(query, format, limit) do
+    case Cards.search(query, format, priority: :player, before_request: limit) do
+      {:ok, results} ->
+        for r <- Enum.take(results, @remote_suggestions),
+            do: %{id: r.password, name: r.name, source: "name"}
+
+      {:error, _reason} ->
+        []
     end
   end
 

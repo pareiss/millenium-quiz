@@ -38,7 +38,8 @@ defmodule MillenniumQuiz.Cards do
   Searches cards by name that were released in the TCG by the format's date.
   Each result has `:in_pool` set when the card is already stored locally.
   `priority: :player` (default `:admin`) says whose request it is at the
-  YGOPRODeck gate.
+  YGOPRODeck gate; `before_request:` is a function checked only when the answer
+  is not cached (see `YGOPRODeck.search/2`).
   """
   def search(query, %{date: date}, opts \\ []) do
     query = String.trim(query)
@@ -47,7 +48,10 @@ defmodule MillenniumQuiz.Cards do
       {:ok, []}
     else
       with {:ok, results} <-
-             YGOPRODeck.search(query, [before: date] ++ Keyword.take(opts, [:priority])) do
+             YGOPRODeck.search(
+               query,
+               [before: date] ++ Keyword.take(opts, [:priority, :before_request])
+             ) do
         konami_ids = for %{konami_id: id} when is_integer(id) <- results, do: id
 
         in_pool =
