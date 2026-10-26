@@ -72,9 +72,12 @@ jobs:
           # plain http on localhost, as config/runtime.exs describes
           export PHX_HOST=localhost PHX_SCHEME=http PHX_URL_PORT=4000
           export DATABASE_URL=ecto://postgres:postgres@localhost/postgres
+          # the free tier's pool: migrating on boot needs exactly this much
+          export POOL_SIZE=2
           export SECRET_KEY_BASE="$(openssl rand -base64 48)"
           # migrations and the first admin on boot, as on a host without a shell
           export MIGRATE_ON_BOOT=true ADMIN_USERNAME=smoke ADMIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "::add-mask::$ADMIN_PASSWORD"
           echo "SMOKE_ADMIN_PASSWORD=$ADMIN_PASSWORD" >>"$GITHUB_ENV"
           nohup _build/prod/rel/millennium_quiz/bin/millennium_quiz start >server.log 2>&1 &
           for i in $(seq 1 60); do
