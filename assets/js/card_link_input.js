@@ -2,8 +2,9 @@
 //
 // While the caret sits behind an *open* bracket ("... [Monster Re|") the typed
 // part is sent to the server (`suggest_cards`, debounced). The best match is
-// shown in a listbox; Tab (or a click) writes "[Full Name]" into the text and
-// sends `link_card`. The list lives in the element named by `data-suggestions`
+// shown in a listbox; Tab, Enter (or a click) writes "[Full Name]" into the
+// text and sends `link_card`. Enter only does that while the list is open, else
+// it is a line break as usual. The list lives in the element named by `data-suggestions`
 // (a `phx-update="ignore"` container, so LiveView patches leave it alone).
 const DEBOUNCE_MS = 250
 const MIN_QUERY = 2
@@ -96,6 +97,9 @@ export const CardLinkInput = {
     }
     if (!shown) return
     if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault()
+      this.accept(this.suggestions[this.active])
+    } else if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && !e.isComposing) {
       e.preventDefault()
       this.accept(this.suggestions[this.active])
     } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {

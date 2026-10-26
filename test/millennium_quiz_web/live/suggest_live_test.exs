@@ -36,6 +36,18 @@ defmodule MillenniumQuizWeb.SuggestLiveTest do
     assert has_element?(view, "#suggest-link[href='/suggest']")
   end
 
+  test "says which cards are suggested once a format is chosen", %{conn: conn, format: f} do
+    {:ok, view, _} = live(conn, ~p"/suggest")
+    refute has_element?(view, "#card-date-note")
+
+    view |> element("#suggest-form") |> render_change(%{"format_id" => f.id})
+    assert has_element?(view, "#card-date-note", "released by")
+    assert has_element?(view, "#card-date-note", "2005")
+
+    view |> element("#suggest-form") |> render_change(%{"format_id" => ""})
+    refute has_element?(view, "#card-date-note")
+  end
+
   test "explains the [Card Name] markup", %{conn: conn} do
     {:ok, view, _} = live(conn, ~p"/suggest")
     assert has_element?(view, "#card-markup-help", "square brackets")

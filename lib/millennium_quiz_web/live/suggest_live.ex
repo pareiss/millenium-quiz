@@ -90,6 +90,16 @@ defmodule MillenniumQuizWeb.SuggestLive do
             >
             </ul>
           </div>
+          <p
+            :if={@format_date}
+            class="-mt-2 flex items-start gap-2 text-sm text-base-content/70"
+            id="card-date-note"
+          >
+            <.icon name="hero-calendar" class="mt-0.5 size-4 shrink-0" />
+            <span>
+              Card suggestions only include cards released by {display_date(@format_date)}, the date of this format. A newer card will not show up.
+            </span>
+          </p>
           <.card_markup_help audience={:player} />
 
           <fieldset class="space-y-2">
@@ -192,6 +202,7 @@ defmodule MillenniumQuizWeb.SuggestLive do
      |> assign(:format_id, nil)
      |> assign(:topic_id, nil)
      |> assign(:topics, [])
+     |> assign(:format_date, nil)
      |> assign(:error, nil)
      # connect_info is only readable in mount.
      |> assign(:client_ip, ClientIP.from_socket(socket))
@@ -310,6 +321,7 @@ defmodule MillenniumQuizWeb.SuggestLive do
 
     socket
     |> assign(:format_id, format && format.id)
+    |> assign(:format_date, format && format.date)
     |> assign(:topics, topics)
     |> assign(:topic_id, topic_id)
   end
