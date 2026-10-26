@@ -7,7 +7,11 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      pending_submissions={@pending_submissions}
+    >
       <.link navigate={@return_to} class="text-sm text-base-content/60 hover:text-base-content">
         <span aria-hidden="true">&larr;</span> {@topic.format.name}
       </.link>
@@ -15,6 +19,25 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
         {@page_title}
         <:subtitle>Topic: {@topic.name}</:subtitle>
       </.header>
+
+      <section
+        :if={@submission}
+        class="space-y-2 rounded-box border border-primary/40 bg-primary/5 p-4"
+        id="submission-original"
+      >
+        <h2 class="font-medium">
+          <.icon name="hero-light-bulb" class="size-5 text-primary" /> Suggested by a player
+        </h2>
+        <p class="text-sm text-base-content/60">
+          {if @submission.submitter_name,
+            do: "From #{@submission.submitter_name}",
+            else: "No name given"} · what they wrote is kept as it is; the form below is yours to edit. Saving adds it to this topic and marks the suggestion approved.
+        </p>
+        <p class="font-semibold whitespace-pre-line">{@submission.text}</p>
+        <ol class="list-[upper-alpha] pl-6 text-sm">
+          <li :for={c <- @submission.choices} class={c.correct && "font-semibold"}>{c.text}</li>
+        </ol>
+      </section>
 
       <section
         class="space-y-3 rounded-box border border-base-300 bg-base-100 p-4"
@@ -155,6 +178,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
             accepts the suggestion</span>.
           <span class="[@media(hover:hover)]:hidden">Tap a suggestion to insert it.</span>
         </p>
+        <.card_markup_help audience={:admin} />
 
         <.input
           field={@form[:points]}
@@ -162,6 +186,13 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
           label="Points"
           min="1"
           placeholder={"#{@default_points} (default for position #{@question.position + 1})"}
+        />
+
+        <.input
+          :if={@show_submitter}
+          field={@form[:submitted_by]}
+          label="Suggested by (shown on the reveal; empty for none)"
+          maxlength={Question.max_submitter_length()}
         />
 
         <fieldset class="space-y-2">
@@ -235,8 +266,9 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     {:ok, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  defp apply_action(socket, :new, %{"topic_id" => topic_id}) do
+  defp apply_action(socket, :new, %{"topic_id" => topic_id} = params) do
     topic = Quiz.get_topic!(topic_id)
+    submission = pending_submission(params["submission"], topic)
 
     question = %Question{
       topic_id: topic.id,
@@ -244,8 +276,22 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
       choices: List.duplicate(%Choice{}, 4)
     }
 
+    question =
+      if submission do
+        # a copy for the admin to edit; the submission itself stays as written
+        %{
+          question
+          | text: submission.text,
+            submitted_by: submission.submitter_name,
+            choices: Enum.map(submission.choices, &%Choice{text: &1.text, correct: &1.correct})
+        }
+      else
+        question
+      end
+
     socket
-    |> assign(:page_title, "New question")
+    |> assign(:page_title, if(submission, do: "Review suggestion", else: "New question"))
+    |> assign(:submission, submission)
     |> assign_form(topic, question)
   end
 
@@ -255,13 +301,28 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
 
     socket
     |> assign(:page_title, "Edit question")
+    |> assign(:submission, nil)
     |> assign_form(topic, question)
+  end
+
+  # A submission is only reviewed in the topic it was sent for, and only once.
+  defp pending_submission(nil, _topic), do: nil
+
+  defp pending_submission(id, topic) do
+    case Quiz.get_submission(id) do
+      %{status: "pending", topic_id: topic_id} = submission when topic_id == topic.id ->
+        submission
+
+      _ ->
+        nil
+    end
   end
 
   defp assign_form(socket, topic, question) do
     socket
     |> assign(:topic, topic)
     |> assign(:question, question)
+    |> assign(:show_submitter, socket.assigns.submission != nil or question.submitted_by != nil)
     |> assign(:default_points, Question.default_points(question.position))
     |> assign(:return_to, ~p"/admin/formats/#{topic.format_id}")
     |> assign(:form, to_form(Quiz.change_question(question)))
@@ -305,9 +366,15 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     card_ids = Enum.map(socket.assigns.cards, & &1.id)
 
     result =
-      case socket.assigns.live_action do
-        :new -> Quiz.create_question(socket.assigns.topic, params, card_ids)
-        :edit -> Quiz.update_question(socket.assigns.question, params, card_ids)
+      case {socket.assigns.live_action, socket.assigns.submission} do
+        {:new, nil} ->
+          Quiz.create_question(socket.assigns.topic, params, card_ids)
+
+        {:new, submission} ->
+          Quiz.approve_submission(submission, socket.assigns.topic, params, card_ids)
+
+        {:edit, _} ->
+          Quiz.update_question(socket.assigns.question, params, card_ids)
       end
 
     case result do
@@ -315,7 +382,19 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
         {:noreply,
          socket
          |> put_flash(:info, "Question saved.")
-         |> push_navigate(to: socket.assigns.return_to)}
+         |> push_navigate(
+           to:
+             if(socket.assigns.submission,
+               do: ~p"/admin/submissions",
+               else: socket.assigns.return_to
+             )
+         )}
+
+      {:error, :reviewed} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "That suggestion was already reviewed.")
+         |> push_navigate(to: ~p"/admin/submissions")}
 
       {:error, changeset} ->
         {:noreply, socket |> assign(:form, to_form(changeset)) |> assign_unlinked_names()}

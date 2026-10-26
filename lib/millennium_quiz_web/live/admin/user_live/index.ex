@@ -8,7 +8,11 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      pending_submissions={@pending_submissions}
+    >
       <.header>
         Admins
         <:subtitle>Everyone listed here can edit all quiz content.</:subtitle>

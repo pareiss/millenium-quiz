@@ -8,7 +8,7 @@ defmodule MillenniumQuizWeb.HomeLive do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} width="lg">
       <section class="text-center space-y-3 pt-4 pb-2">
-        <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">Trivia night</p>
+        <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">Yu-Gi-Oh! Trivia</p>
         <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">Choose your format</h1>
         <p class="text-base-content/70 max-w-xl mx-auto">
           2 to 4 players, one device. Take turns choosing questions from the board: the harder the question, the more points it is worth.
@@ -88,6 +88,22 @@ defmodule MillenniumQuizWeb.HomeLive do
           }
         }
       </script>
+      <%!-- fixed to the bottom of the window; the spacer keeps the last row of formats clear of it --%>
+      <div class="h-28 sm:h-20" aria-hidden="true"></div>
+      <footer
+        class="fixed inset-x-0 bottom-0 z-30 border-t border-primary/30 bg-base-100 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgb(0_0_0/0.08)]"
+        id="suggest-footer"
+      >
+        <div class="mx-auto flex max-w-5xl flex-col items-center gap-2 px-4 py-3 text-center sm:flex-row sm:justify-between sm:px-6 sm:text-left">
+          <p class="font-medium">
+            <.icon name="hero-light-bulb" class="size-5 align-text-bottom text-primary" />
+            Got a good question? Send it in and see it in a game.
+          </p>
+          <.link navigate={~p"/suggest"} class="btn btn-primary btn-sm" id="suggest-link">
+            Suggest a question
+          </.link>
+        </div>
+      </footer>
     </Layouts.app>
     """
   end

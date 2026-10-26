@@ -26,6 +26,8 @@ defmodule MillenniumQuizWeb.Router do
       live "/", HomeLive
       live "/formats/:id/play", NewGameLive
       live "/games/:id", GameLive
+      live "/suggest", SuggestLive
+      live "/suggest/:token", SuggestStatusLive
     end
 
     get "/categories/*path", LegacyRedirectController, :formats
@@ -49,13 +51,17 @@ defmodule MillenniumQuizWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :admin,
-      on_mount: [{MillenniumQuizWeb.UserAuth, :require_authenticated}] do
+      on_mount: [
+        {MillenniumQuizWeb.UserAuth, :require_authenticated},
+        MillenniumQuizWeb.AdminPending
+      ] do
       live "/formats", FormatLive.Index, :index
       live "/formats/new", FormatLive.Form, :new
       live "/formats/:id", FormatLive.Show, :show
       live "/formats/:id/edit", FormatLive.Form, :edit
       live "/topics/:topic_id/questions/new", QuestionLive.Form, :new
       live "/questions/:id/edit", QuestionLive.Form, :edit
+      live "/submissions", SubmissionLive.Index, :index
       live "/users", UserLive.Index, :index
       live "/backup", BackupLive, :index
     end

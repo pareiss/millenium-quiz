@@ -27,6 +27,10 @@ defmodule MillenniumQuizWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
 
+  attr :pending_submissions, :integer,
+    default: 0,
+    doc: "suggested questions waiting for review, shown as a badge in the admin navigation"
+
   attr :width, :string, default: "md", values: ~w(md lg), doc: "max content width"
 
   slot :inner_block, required: true
@@ -59,6 +63,12 @@ defmodule MillenniumQuizWeb.Layouts do
           <.link navigate={~p"/admin/formats"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
             Formats
           </.link>
+          <.link navigate={~p"/admin/submissions"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
+            Suggestions
+            <span :if={@pending_submissions > 0} class="badge badge-primary badge-sm" id="nav-pending">
+              {@pending_submissions}
+            </span>
+          </.link>
           <.link navigate={~p"/admin/backup"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
             Backup
           </.link>
@@ -78,14 +88,31 @@ defmodule MillenniumQuizWeb.Layouts do
             <div
               tabindex="0"
               role="button"
-              class="btn btn-ghost btn-sm btn-square"
-              aria-label="Admin menu"
+              class="btn btn-ghost btn-sm btn-square relative"
+              aria-label={
+                if @pending_submissions > 0,
+                  do: "Admin menu, #{@pending_submissions} suggestions waiting",
+                  else: "Admin menu"
+              }
               title="Admin menu"
             >
               <.icon name="hero-bars-3" class="size-5" />
+              <span
+                :if={@pending_submissions > 0}
+                class="absolute right-0.5 top-0.5 size-2.5 rounded-full bg-primary ring-2 ring-base-100"
+                id="menu-pending-dot"
+              />
             </div>
             <ul class="menu dropdown-content z-50 mt-2 w-52 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg">
               <li><.link navigate={~p"/admin/formats"} id="menu-formats">Formats</.link></li>
+              <li>
+                <.link navigate={~p"/admin/submissions"} id="menu-submissions">
+                  Suggestions
+                  <span :if={@pending_submissions > 0} class="badge badge-primary badge-sm">
+                    {@pending_submissions}
+                  </span>
+                </.link>
+              </li>
               <li><.link navigate={~p"/admin/backup"} id="menu-backup">Backup</.link></li>
               <li>
                 <.link navigate={~p"/admin/users"} id="menu-users">

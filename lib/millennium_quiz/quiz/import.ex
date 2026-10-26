@@ -137,15 +137,24 @@ defmodule MillenniumQuiz.Quiz.Import do
   defp question(%{"text" => text, "choices" => choices} = q) when is_list(choices) do
     cards = Map.get(q, "cards") || []
     points = Map.get(q, "points")
+    submitted_by = Map.get(q, "submitted_by")
 
     with :ok <- text(text, "text"),
+         :ok <- optional_text(submitted_by, "submitted_by"),
          :ok <- points(points),
          :ok <- count(choices, @max_choices, "choices"),
          {:ok, choices} <- each(choices, &choice/1, "choice"),
          true <- is_list(cards) or {:error, "cards must be a list."},
          :ok <- count(cards, @max_cards, "cards"),
          {:ok, cards} <- each(cards, &card/1, "card") do
-      {:ok, %{text: text, points: points, choices: choices, cards: cards}}
+      {:ok,
+       %{
+         text: text,
+         points: points,
+         submitted_by: submitted_by,
+         choices: choices,
+         cards: cards
+       }}
     end
   end
 
@@ -275,6 +284,11 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   defp check_question(q) do
     cond do
+      is_binary(q.submitted_by) and
+          String.length(q.submitted_by) > Question.max_submitter_length() ->
+        {:error,
+         "submitted_by is too long (at most #{Question.max_submitter_length()} characters)"}
+
       String.length(q.text) > Question.max_text_length() ->
         {:error, "text is too long (at most #{Question.max_text_length()} characters)"}
 
@@ -400,7 +414,12 @@ defmodule MillenniumQuiz.Quiz.Import do
     |> Enum.reduce(acc, fn {q, i}, acc ->
       {ids, text, warnings, missing} = link_cards(q, pool, format_name, data.name, i)
 
-      attrs = %{"text" => text, "points" => q.points, "choices" => q.choices}
+      attrs = %{
+        "text" => text,
+        "points" => q.points,
+        "submitted_by" => q.submitted_by,
+        "choices" => q.choices
+      }
 
       case Quiz.create_question(topic, attrs, ids) do
         {:ok, _} ->

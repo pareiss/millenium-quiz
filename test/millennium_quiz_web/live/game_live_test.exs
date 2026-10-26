@@ -65,6 +65,28 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert {:ok, %{game: %{mode: :ascending}}} = Games.fetch_game(id)
   end
 
+  test "the reveal names the player who suggested the question", %{conn: conn} do
+    format = format_fixture()
+    [first, second] = format.topics
+    question_fixture(first, %{"submitted_by" => "Yugi"})
+    question_fixture(second)
+
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :free)
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+
+    view |> element("#question-0") |> render_click()
+    view |> element("#choice-0") |> render_click()
+    view |> element("#choice-0") |> render_click()
+    assert has_element?(view, "#reveal #submitted-by", "Question suggested by Yugi")
+    view |> element("#next-round") |> render_click()
+
+    view |> element("#question-1") |> render_click()
+    view |> element("#choice-0") |> render_click()
+    view |> element("#choice-0") |> render_click()
+    assert has_element?(view, "#reveal")
+    refute has_element?(view, "#submitted-by")
+  end
+
   test "a full Heart of the Cards game", %{conn: conn, format: format} do
     {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :free)
     {:ok, view, _html} = live(conn, ~p"/games/#{id}")

@@ -21,10 +21,13 @@ defmodule MillenniumQuiz.RateLimit do
     email_game: {3, :timer.hours(1)},
     email_ip: {10, :timer.hours(1)},
     create_ip: {20, :timer.hours(1)},
+    # Suggested questions (`MillenniumQuizWeb.SuggestLive`).
+    submit_ip: {5, :timer.hours(1)},
     # Caps that do not depend on the client address (addresses can be rotated).
     # Deliberately none for logins: it would let an attacker lock the admin out.
     email_global: {60, :timer.hours(1)},
     create_global: {300, :timer.hours(1)},
+    submit_global: {100, :timer.hours(1)},
     # All events of one LiveView socket (`MillenniumQuizWeb.EventLimit`).
     socket_events: {120, :timer.seconds(10)},
     # Cache misses for resized card artwork per client; over it, the original

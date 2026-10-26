@@ -9,7 +9,11 @@ defmodule MillenniumQuizWeb.Admin.BackupLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      pending_submissions={@pending_submissions}
+    >
       <.header>
         Backup
         <:subtitle>
