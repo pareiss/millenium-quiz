@@ -6,7 +6,12 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} width="lg">
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      pending_submissions={@pending_submissions}
+      width="lg"
+    >
       <.header>
         Formats
         <:subtitle>

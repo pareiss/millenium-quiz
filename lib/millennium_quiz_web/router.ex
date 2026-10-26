@@ -51,7 +51,10 @@ defmodule MillenniumQuizWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :admin,
-      on_mount: [{MillenniumQuizWeb.UserAuth, :require_authenticated}] do
+      on_mount: [
+        {MillenniumQuizWeb.UserAuth, :require_authenticated},
+        MillenniumQuizWeb.AdminPending
+      ] do
       live "/formats", FormatLive.Index, :index
       live "/formats/new", FormatLive.Form, :new
       live "/formats/:id", FormatLive.Show, :show

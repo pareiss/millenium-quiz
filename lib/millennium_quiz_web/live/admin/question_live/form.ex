@@ -7,7 +7,11 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      pending_submissions={@pending_submissions}
+    >
       <.link navigate={@return_to} class="text-sm text-base-content/60 hover:text-base-content">
         <span aria-hidden="true">&larr;</span> {@topic.format.name}
       </.link>

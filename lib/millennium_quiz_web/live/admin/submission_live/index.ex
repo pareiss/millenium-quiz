@@ -13,7 +13,11 @@ defmodule MillenniumQuizWeb.Admin.SubmissionLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      pending_submissions={@pending_submissions}
+    >
       <.header>
         Suggested questions
         <:subtitle>Questions sent in by players, waiting for you to add, edit or reject.</:subtitle>
@@ -183,6 +187,7 @@ defmodule MillenniumQuizWeb.Admin.SubmissionLive.Index do
     socket
     |> assign(:submissions, Quiz.list_submissions(status))
     |> assign(:pending_count, Quiz.count_submissions(:pending))
+    |> then(&assign(&1, :pending_submissions, &1.assigns.pending_count))
   end
 
   defp status_class("pending"), do: "badge-warning"

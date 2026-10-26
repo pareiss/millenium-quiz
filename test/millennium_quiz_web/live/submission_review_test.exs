@@ -36,6 +36,15 @@ defmodule MillenniumQuizWeb.SubmissionReviewTest do
       assert has_element?(view, "#menu-submissions")
     end
 
+    test "the admin navigation shows how many are pending", %{conn: conn, submission: s} do
+      {:ok, view, _} = live(conn, ~p"/admin/backup")
+      assert has_element?(view, "#nav-pending", "1")
+
+      Quiz.reject_submission(s)
+      {:ok, view, _} = live(conn, ~p"/admin/backup")
+      refute has_element?(view, "#nav-pending")
+    end
+
     test "review opens a prefilled form and approving adds the question",
          %{conn: conn, topic: topic, submission: s} do
       {:ok, view, _} = live(conn, ~p"/admin/submissions")

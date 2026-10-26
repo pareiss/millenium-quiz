@@ -7,7 +7,12 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} width="lg">
+    <Layouts.app
+      flash={@flash}
+      current_scope={@current_scope}
+      pending_submissions={@pending_submissions}
+      width="lg"
+    >
       <.link
         navigate={~p"/admin/formats"}
         class="text-sm text-base-content/60 hover:text-base-content"
