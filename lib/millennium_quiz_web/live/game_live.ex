@@ -358,7 +358,7 @@ defmodule MillenniumQuizWeb.GameLive do
 
   @doc """
   The segments of a question's text: `{:text, binary}` and
-  `{:card, name, index}`, where `index` is the position in `question.cards`
+  `{:player, 1 | 2}` and `{:card, name, index}`, where `index` is the position in `question.cards`
   (the `phx-value-card` of the `zoom_card` event). Resolved against the
   question as snapshotted in the game, never against the database.
   """
@@ -375,6 +375,8 @@ defmodule MillenniumQuizWeb.GameLive do
       <%= case seg do %>
         <% {:text, text} -> %>
           <span>{text}</span>
+        <% {:player, player} -> %>
+          <.player_badge player={player} />
         <% {:card, name, index} -> %>
           <button
             type="button"

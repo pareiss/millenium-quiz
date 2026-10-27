@@ -16,6 +16,7 @@ It plays one game of that format, creating a game on the site it is pointed at
 Checks the question view (docs/plans/tablet-phone-layout.md):
   - no horizontal overflow, on the board and in the question
   - cards per row: 4 on a portrait tablet, 3 on a landscape one, 2 on a phone
+  - the {P1} / {P2} badges of the question text are shown, blue and red
   - the score line is on the board and gone in the question
   - the site's top bar is gone in the question when the screen is at most 920px
     high, and stays on a tall tablet
@@ -75,6 +76,8 @@ def metrics(page):
             perRow: cards.filter(c => Math.round(c.getBoundingClientRect().top) === firstTop).length,
             header: header ? getComputedStyle(header).display : 'missing',
             score: !!document.querySelector('#scoreboard'),
+            badges: [...document.querySelectorAll('#question-text .mq-player-badge')]
+              .map(b => [b.textContent.trim(), getComputedStyle(b).backgroundColor, b.getBoundingClientRect().width > 0]),
           }
         }"""
     )
@@ -128,6 +131,9 @@ with sync_playwright() as p:
         check(f"{name}: no horizontal overflow", m["overX"] <= 0, f"{m['overX']}px")
         check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
         check(f"{name}: no score line", not m["score"])
+        check(f"{name}: P1 blue and P2 red badges shown",
+              m["badges"] == [["P1", "rgb(37, 99, 235)", True], ["P2", "rgb(220, 38, 38)", True]],
+              str(m["badges"]))
         expected = "none" if h <= 920 else "block"
         check(f"{name}: top bar {'hidden' if h <= 920 else 'shown'}", m["header"] == expected,
               f"display {m['header']}")

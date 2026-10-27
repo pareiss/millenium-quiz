@@ -45,7 +45,7 @@ else
 
   # the first question of the board has 4 cards (bin/layout-test picks it)
   for {topic, text, count} <- [
-        {four, "Which of these four cards is the first?", 4},
+        {four, "{P1} and {P2} look at four cards: which of these is the first?", 4},
         {fewer, "Which of these three cards is the first?", 3},
         {fewer, "What does this card look like?", 1}
       ] do

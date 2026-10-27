@@ -25,15 +25,22 @@ defmodule MillenniumQuiz.Quiz.CardLinks do
   """
 
   @link ~r/\[([^\[\]]+)\]/u
+  @player ~r/^\{P([12])\}$/iu
+  @player_anywhere ~r/\{P([12])\}/iu
+  @token ~r/\[[^\[\]]+\]|\{P[12]\}/iu
 
   @type card :: %{required(:name) => String.t(), optional(any) => any}
-  @type segment :: {:text, String.t()} | {:card, String.t(), non_neg_integer}
+  @type segment ::
+          {:text, String.t()} | {:card, String.t(), non_neg_integer} | {:player, 1 | 2}
 
   @doc """
   Splits `text` into segments. `cards` is the question's cards in order.
   `{:card, name, index}` carries the name as written in the text (trimmed) and
   the position of the card in `cards`. Adjacent text is merged and empty text
   is never returned.
+
+  `{P1}` and `{P2}` (any case) become `{:player, 1}` and `{:player, 2}`: the
+  markers for the two duellists. Any other `{..}` stays plain text.
   """
   @spec parse(String.t() | nil, [card]) :: [segment]
   def parse(nil, _cards), do: []
@@ -44,18 +51,26 @@ defmodule MillenniumQuiz.Quiz.CardLinks do
       |> Enum.with_index()
       |> Enum.reduce(%{}, fn {card, i}, acc -> Map.put_new(acc, key(card.name), i) end)
 
-    @link
+    @token
     |> Regex.split(text, include_captures: true)
     |> Enum.flat_map(fn part ->
-      with [_, name] <- Regex.run(@link, part),
-           name = String.trim(name),
-           i when is_integer(i) <- Map.get(index, key(name)) do
-        [{:card, name, i}]
+      with [_, n] <- Regex.run(@player, part) do
+        [{:player, String.to_integer(n)}]
       else
-        _ -> [{:text, part}]
+        _ -> link_segment(part, index)
       end
     end)
     |> merge_text()
+  end
+
+  defp link_segment(part, index) do
+    with [_, name] <- Regex.run(@link, part),
+         name = String.trim(name),
+         i when is_integer(i) <- Map.get(index, key(name)) do
+      [{:card, name, i}]
+    else
+      _ -> [{:text, part}]
+    end
   end
 
   @doc "The distinct bracketed names of `text`, trimmed, in order of first use."
@@ -86,7 +101,8 @@ defmodule MillenniumQuiz.Quiz.CardLinks do
   end
 
   @doc """
-  The text with every link replaced by its name. Used where the cards are not
+  The text with every link replaced by its name and every `{P1}`/`{P2}` by
+  "P1"/"P2". Used where the cards are not
   at hand (truncated texts in admin lists and delete dialogs), so there any
   `[non-empty text without brackets]` is treated as a link, whether or not a
   card of that name exists.
@@ -95,9 +111,11 @@ defmodule MillenniumQuiz.Quiz.CardLinks do
   def plain(nil), do: ""
 
   def plain(text) when is_binary(text) do
-    Regex.replace(@link, text, fn _whole, inner ->
+    @link
+    |> Regex.replace(text, fn _whole, inner ->
       if String.trim(inner) == "", do: "[" <> inner <> "]", else: String.trim(inner)
     end)
+    |> then(&Regex.replace(@player_anywhere, &1, "P\\1"))
   end
 
   @doc """
