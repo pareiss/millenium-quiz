@@ -646,8 +646,8 @@ defmodule MillenniumQuizWeb.GameLive do
 
   # The outline around a card a player owns, in the player's colour. It sits
   # outside the drawn card, which is not changed.
-  defp owner_outline(1), do: "rounded-md outline outline-4 outline-offset-2 outline-[#2563eb]"
-  defp owner_outline(2), do: "rounded-md outline outline-4 outline-offset-2 outline-[#dc2626]"
+  defp owner_outline(1), do: "rounded-md outline outline-[3px] outline-offset-1 outline-[#2563eb]"
+  defp owner_outline(2), do: "rounded-md outline outline-[3px] outline-offset-1 outline-[#dc2626]"
   defp owner_outline(nil), do: nil
 
   attr :cards, :list, required: true

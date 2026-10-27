@@ -388,20 +388,20 @@ defmodule MillenniumQuizWeb.AdminTest do
       render_hook(view, "link_card", %{"id" => to_string(plain.id)})
 
       # nobody owns a card at first
-      assert has_element?(view, "#owner-#{reborn.id}-none[aria-checked=true]")
-      assert has_element?(view, "#owner-#{reborn.id}-1[aria-checked=false]")
+      assert has_element?(view, "#owner-#{reborn.id}-none[aria-pressed=true]")
+      assert has_element?(view, "#owner-#{reborn.id}-1[aria-pressed=false]")
 
       view |> element("#owner-#{reborn.id}-1") |> render_click()
       view |> element("#owner-#{plain.id}-2") |> render_click()
-      assert has_element?(view, "#owner-#{reborn.id}-1[aria-checked=true]")
-      assert has_element?(view, "#owner-#{reborn.id}-none[aria-checked=false]")
-      assert has_element?(view, "#owner-#{plain.id}-2[aria-checked=true]")
+      assert has_element?(view, "#owner-#{reborn.id}-1[aria-pressed=true]")
+      assert has_element?(view, "#owner-#{reborn.id}-none[aria-pressed=false]")
+      assert has_element?(view, "#owner-#{plain.id}-2[aria-pressed=true]")
 
       # a card that is not attached, and odd values, change nothing
       render_hook(view, "set_owner", %{"id" => "999999", "owner" => "1"})
       render_hook(view, "set_owner", %{"id" => to_string(plain.id), "owner" => "3"})
       render_hook(view, "set_owner", %{"id" => "x", "owner" => "1"})
-      assert has_element?(view, "#owner-#{plain.id}-2[aria-checked=true]")
+      assert has_element?(view, "#owner-#{plain.id}-2[aria-pressed=true]")
 
       params = %{
         text: "[Monster Reborn] against [Plain Card]",
@@ -425,8 +425,8 @@ defmodule MillenniumQuizWeb.AdminTest do
 
       # editing loads the owners; changing one and removing the other card
       {:ok, edit, _html} = live(conn, ~p"/admin/questions/#{question.id}/edit")
-      assert has_element?(edit, "#owner-#{reborn.id}-1[aria-checked=true]")
-      assert has_element?(edit, "#owner-#{plain.id}-2[aria-checked=true]")
+      assert has_element?(edit, "#owner-#{reborn.id}-1[aria-pressed=true]")
+      assert has_element?(edit, "#owner-#{plain.id}-2[aria-pressed=true]")
 
       edit |> element("#owner-#{reborn.id}-none") |> render_click()
       edit |> element("#remove-card-#{plain.id}") |> render_click()
@@ -438,7 +438,7 @@ defmodule MillenniumQuizWeb.AdminTest do
       edit |> element("#owner-#{reborn.id}-2") |> render_click()
       edit |> element("#remove-card-#{reborn.id}") |> render_click()
       render_hook(edit, "link_card", %{"id" => to_string(reborn.id)})
-      assert has_element?(edit, "#owner-#{reborn.id}-none[aria-checked=true]")
+      assert has_element?(edit, "#owner-#{reborn.id}-none[aria-pressed=true]")
     end
 
     test "link_card is idempotent for ids and passwords and doesn't re-import",

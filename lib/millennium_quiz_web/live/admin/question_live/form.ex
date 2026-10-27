@@ -82,7 +82,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
             </div>
             <div
               class="flex flex-wrap items-center gap-2 text-sm"
-              role="radiogroup"
+              role="group"
               aria-label={"Whose card is #{card.name}?"}
               id={"owner-#{card.id}"}
             >
@@ -90,8 +90,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
               <button
                 :for={{value, label} <- [{"none", "Nobody"}, {"1", "Player 1"}, {"2", "Player 2"}]}
                 type="button"
-                role="radio"
-                aria-checked={to_string(owner_value(@owners, card.id) == value)}
+                aria-pressed={to_string(owner_value(@owners, card.id) == value)}
                 phx-click="set_owner"
                 phx-value-id={card.id}
                 phx-value-owner={value}
@@ -436,18 +435,18 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   end
 
   def handle_event("save", %{"question" => params}, socket) do
-    card_ids = card_entries(socket)
+    cards = card_entries(socket)
 
     result =
       case {socket.assigns.live_action, socket.assigns.submission} do
         {:new, nil} ->
-          Quiz.create_question(socket.assigns.topic, params, card_ids)
+          Quiz.create_question(socket.assigns.topic, params, cards)
 
         {:new, submission} ->
-          Quiz.approve_submission(submission, socket.assigns.topic, params, card_ids)
+          Quiz.approve_submission(submission, socket.assigns.topic, params, cards)
 
         {:edit, _} ->
-          Quiz.update_question(socket.assigns.question, params, card_ids)
+          Quiz.update_question(socket.assigns.question, params, cards)
       end
 
     case result do

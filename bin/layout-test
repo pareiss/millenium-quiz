@@ -84,6 +84,13 @@ def metrics(page):
               return [e.dataset.owner, st.outlineColor, st.outlineStyle, st.outlineWidth,
                       b.left >= 0 && b.right <= innerWidth && b.width > 0]
             }),
+            // the clear space between the outlines of two owned cards side by side:
+            // the cards' gap less what each outline takes outside its card (3px + offset 1px)
+            ownedGap: (() => {
+              const [a, b] = [...document.querySelectorAll('#question-cards [data-owner]')]
+                .map(e => e.closest('article').getBoundingClientRect()) // not the card: it lifts under the mouse
+              return a && b && Math.round(a.top) === Math.round(b.top) ? Math.round(b.left - a.right - 8) : null
+            })(),
             ownedLinks: [...document.querySelectorAll('#question-text button[data-owner]')]
               .map(b => [b.dataset.owner, getComputedStyle(b).textDecorationColor]),
             answerBadges: document.querySelectorAll('.mq-choices .mq-player-badge').length,
@@ -143,8 +150,10 @@ with sync_playwright() as p:
         check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
         check(f"{name}: no score line", not m["score"])
         check(f"{name}: cards of P1 and P2 have a blue and a red outline and a badge inside the screen",
-              m["owned"] == [["1", "rgb(37, 99, 235)", "solid", "4px", True],
-                             ["2", "rgb(220, 38, 38)", "solid", "4px", True]], str(m["owned"]))
+              m["owned"] == [["1", "rgb(37, 99, 235)", "solid", "3px", True],
+                             ["2", "rgb(220, 38, 38)", "solid", "3px", True]], str(m["owned"]))
+        check(f"{name}: the blue and the red outline do not touch (at least 3px apart)",
+              m["ownedGap"] is not None and m["ownedGap"] >= 3, str(m["ownedGap"]))
         check(f"{name}: their links in the text are blue and red",
               m["ownedLinks"] == [["1", "rgb(37, 99, 235)"], ["2", "rgb(220, 38, 38)"]], str(m["ownedLinks"]))
         check(f"{name}: the answer has its P2 badge", m["answerBadges"] == 1, str(m["answerBadges"]))
