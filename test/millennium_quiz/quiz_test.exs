@@ -157,5 +157,49 @@ defmodule MillenniumQuiz.QuizTest do
       assert {:ok, _} = Quiz.update_question(Quiz.get_question!(q.id), %{}, [b.id, c.id])
       assert card_ids(q) == [b.id, c.id]
     end
+
+    defp owners(question) do
+      question.id
+      |> Quiz.get_question!()
+      |> Map.fetch!(:question_cards)
+      |> Enum.map(&{&1.card_id, &1.owner})
+    end
+
+    test "a card can belong to player 1 or 2; a bare id has no owner", %{
+      question: q,
+      a: a,
+      b: b,
+      c: c
+    } do
+      assert owners(q) == [{a.id, nil}, {b.id, nil}]
+
+      assert {:ok, _} = Quiz.update_question(q, %{}, [{a.id, 1}, {b.id, 2}, c.id])
+      assert owners(q) == [{a.id, 1}, {b.id, 2}, {c.id, nil}]
+
+      # changing only the owners, and taking one away
+      assert {:ok, _} =
+               Quiz.update_question(Quiz.get_question!(q.id), %{}, [{a.id, 2}, {b.id, nil}])
+
+      assert owners(q) == [{a.id, 2}, {b.id, nil}]
+
+      # a card listed twice counts once, the first entry wins
+      assert {:ok, _} =
+               Quiz.update_question(Quiz.get_question!(q.id), %{}, [{a.id, 1}, a.id, {a.id, 2}])
+
+      assert owners(q) == [{a.id, 1}]
+    end
+
+    test "any other owner is refused, by the changeset and by the database", %{question: q, a: a} do
+      for bad <- [0, 3, -1] do
+        assert {:error, cs} = Quiz.update_question(q, %{}, [{a.id, bad}])
+
+        assert %{question_cards: errors} = errors_on(cs)
+        assert %{owner: ["is invalid"]} in errors
+      end
+
+      assert_raise Postgrex.Error, ~r/owner_is_a_player/, fn ->
+        Repo.query!("UPDATE question_cards SET owner = 3")
+      end
+    end
   end
 end

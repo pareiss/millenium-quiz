@@ -220,11 +220,58 @@ defmodule MillenniumQuiz.GameTest do
              atk: "3000",
              def: "?",
              pendulum_scale: 4,
-             pendulum_text: "Once per turn: draw 1 card."
+             pendulum_text: "Once per turn: draw 1 card.",
+             owner: nil
            }
 
     json = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
     assert Game.from_map(json) == game
+  end
+
+  test "the owner of a card is snapshotted; older snapshots and odd values load without one" do
+    card = %Card{id: 7, name: "Plain Card", card_texts: []}
+    [first | rest] = questions()
+
+    {:ok, game} =
+      Game.new(
+        @format,
+        ["Ann", "Bob"],
+        [
+          %{
+            first
+            | question_cards: [
+                %QuestionCard{card: card, owner: 2},
+                %QuestionCard{card: %{card | id: 8, name: "Other"}, owner: nil}
+              ]
+          }
+          | rest
+        ],
+        @no_shuffle
+      )
+
+    assert [%{owner: 2}, %{owner: nil}] = Enum.find(game.questions, &(&1.id == 1)).cards
+
+    map = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+    assert Game.from_map(map) == game
+
+    # a snapshot from before owners has no "owner" key; a wrong value is no owner
+    strip = fn value ->
+      update_in(map, ["questions"], fn qs ->
+        Enum.map(qs, fn q ->
+          Map.update!(q, "cards", fn cards ->
+            Enum.map(
+              cards,
+              &if(value == :drop, do: Map.delete(&1, "owner"), else: Map.put(&1, "owner", value))
+            )
+          end)
+        end)
+      end)
+    end
+
+    for value <- [:drop, 3, "1", 0] do
+      cards = Enum.find(Game.from_map(strip.(value)).questions, &(&1.id == 1)).cards
+      assert Enum.all?(cards, &(&1.owner == nil)), inspect(value)
+    end
   end
 
   test "the submitter name is kept in a snapshot; older snapshots load without it" do

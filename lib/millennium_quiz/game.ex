@@ -90,7 +90,8 @@ defmodule MillenniumQuiz.Game do
   @typedoc """
   A card as printed on the format's date. `id` is the card pool id (for the
   artwork); it and the printed details are nil in snapshots taken before
-  they were stored.
+  they were stored. `owner` is the player the card belongs to in the question
+  (1 or 2), nil for nobody and in snapshots taken before owners existed.
   """
   @type card :: %{
           id: integer() | nil,
@@ -108,7 +109,8 @@ defmodule MillenniumQuiz.Game do
           atk: String.t() | nil,
           def: String.t() | nil,
           pendulum_scale: integer() | nil,
-          pendulum_text: String.t() | nil
+          pendulum_text: String.t() | nil,
+          owner: 1 | 2 | nil
         }
   @type t :: %__MODULE__{
           format_id: integer() | nil,
@@ -240,11 +242,11 @@ defmodule MillenniumQuiz.Game do
   defp snapshot_cards(%Ecto.Association.NotLoaded{}, _date), do: []
 
   defp snapshot_cards(question_cards, date) do
-    for %{card: card} <- question_cards do
+    for %{card: card} = question_card <- question_cards do
       card
       |> Map.take(@card_details)
       |> Map.merge(Cards.printed_on(card, date))
-      |> Map.merge(%{id: card.id, name: card.name})
+      |> Map.merge(%{id: card.id, name: card.name, owner: question_card.owner})
     end
   end
 
@@ -469,7 +471,8 @@ defmodule MillenniumQuiz.Game do
     }
   end
 
-  # Older snapshots only have name, text and set.
+  # Older snapshots only have name, text and set, and none has an owner (the
+  # player the card belongs to: nil, 1 or 2).
   defp card_from_map(card) do
     details = Map.new(@card_details, &{&1, card[Atom.to_string(&1)]})
 
@@ -479,7 +482,8 @@ defmodule MillenniumQuiz.Game do
       text: card["text"],
       set: card["set"],
       link_arrows: card["link_arrows"] || [],
-      pendulum_text: card["pendulum_text"]
+      pendulum_text: card["pendulum_text"],
+      owner: if(card["owner"] in [1, 2], do: card["owner"])
     })
   end
 

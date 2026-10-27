@@ -30,7 +30,7 @@ else
     Quiz.create_format(%{
       "name" => "Layout check",
       "date" => Date.utc_today(),
-      "description" => "Fixture for bin/layout-test: questions with 4, 3 and 1 cards.",
+      "description" => "Fixture for bin/layout-test: questions with 4, 3 and 1 cards, the first two cards of each owned by player 1 and 2.",
       "topics" => %{"0" => %{"name" => "Four cards"}, "1" => %{"name" => "Fewer cards"}}
     })
 
@@ -45,7 +45,7 @@ else
 
   # the first question of the board has 4 cards (bin/layout-test picks it)
   for {topic, text, count} <- [
-        {four, "{P1} and {P2} look at four cards: which of these is the first?", 4},
+        {four, "{P1} and {P2} look at four cards: is [Layout Card 1] or [Layout Card 2] the first?", 4},
         {fewer, "Which of these three cards is the first?", 3},
         {fewer, "What does this card look like?", 1}
       ] do
@@ -53,7 +53,8 @@ else
       Quiz.create_question(
         topic,
         %{"text" => text, "choices" => choices},
-        cards |> Enum.take(count) |> Enum.map(& &1.id)
+        # the first two cards belong to player 1 and player 2
+        cards |> Enum.take(count) |> Enum.with_index() |> Enum.map(fn {card, i} -> {card.id, if(i < 2, do: i + 1)} end)
       )
   end
 

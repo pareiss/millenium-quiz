@@ -83,21 +83,22 @@ defmodule MillenniumQuiz.Quiz do
   end
 
   @doc """
-  Creates a question at the end of the topic. `card_ids` (card pool ids, in
-  display order) sets the cards the question is about.
+  Creates a question at the end of the topic. `cards` sets the cards the
+  question is about, in display order: card pool ids, or `{id, owner}` with the
+  owner 1, 2 or nil (see `Question.put_cards/2`).
   """
-  def create_question(%Topic{} = topic, attrs, card_ids \\ []) do
+  def create_question(%Topic{} = topic, attrs, cards \\ []) do
     %Question{topic_id: topic.id, position: next_question_position(topic), question_cards: []}
     |> Question.changeset(attrs)
-    |> Question.put_cards(card_ids)
+    |> Question.put_cards(cards)
     |> Repo.insert()
   end
 
-  def update_question(%Question{} = question, attrs, card_ids \\ nil) do
+  def update_question(%Question{} = question, attrs, cards \\ nil) do
     question
     |> Repo.preload(:question_cards)
     |> Question.changeset(attrs)
-    |> then(&if(card_ids, do: Question.put_cards(&1, card_ids), else: &1))
+    |> then(&if(cards, do: Question.put_cards(&1, cards), else: &1))
     |> Repo.update()
   end
 
@@ -243,14 +244,14 @@ defmodule MillenniumQuiz.Quiz do
   submission approved, in one transaction. A submission that was reviewed in
   the meantime (another admin) is refused with `{:error, :reviewed}`.
   """
-  def approve_submission(%Submission{id: id}, %Topic{} = topic, attrs, card_ids) do
+  def approve_submission(%Submission{id: id}, %Topic{} = topic, attrs, cards) do
     Repo.transaction(fn ->
       submission = Repo.one!(from s in Submission, where: s.id == ^id, lock: "FOR UPDATE")
 
       if submission.status != "pending" do
         Repo.rollback(:reviewed)
       else
-        case create_question(topic, attrs, card_ids) do
+        case create_question(topic, attrs, cards) do
           {:ok, question} ->
             submission
             |> Ecto.Changeset.change(

@@ -526,6 +526,7 @@ defmodule MillenniumQuizWeb.CoreComponents do
   and red for player 2. The number is in the text, so colour is not the only cue.
   """
   attr :player, :integer, values: [1, 2], required: true
+  attr :class, :any, default: nil
 
   def player_badge(assigns) do
     ~H"""
@@ -533,7 +534,8 @@ defmodule MillenniumQuizWeb.CoreComponents do
       class={[
         "mq-player-badge mx-0.5 inline-block rounded-full px-[0.55em] pb-[0.1em] pt-[0.08em] align-[0.08em] text-[0.72em] font-bold leading-snug tracking-wide text-white",
         @player == 1 && "bg-[#2563eb]",
-        @player == 2 && "bg-[#dc2626]"
+        @player == 2 && "bg-[#dc2626]",
+        @class
       ]}
       role="img"
       aria-label={"Player #{@player}"}

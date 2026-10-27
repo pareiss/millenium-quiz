@@ -144,6 +144,24 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
 }
 @media (pointer: coarse) { .mq-card { --mq-min-text: 8px; } }
 
+/* A card a player owns (data-owner on its wrapper): a thin ring in the player's
+   colour right at the card's edge, and a glow that fades out around it. Both
+   are shadows of the card face, so they follow its rounded corners exactly,
+   and are sized in the card's own unit (cqw), so they scale with the card. The
+   face keeps its drop shadow below them. Blue for player 1, red for player 2. */
+.mq-owned[data-owner="1"] .mq-card__face {
+  box-shadow:
+    0 0 0 0.7cqw #2563eb,
+    0 0 4cqw 1.2cqw rgb(37 99 235 / 0.6),
+    0 0.6cqw 2.4cqw rgb(0 0 0 / 0.35);
+}
+.mq-owned[data-owner="2"] .mq-card__face {
+  box-shadow:
+    0 0 0 0.7cqw #dc2626,
+    0 0 4cqw 1.2cqw rgb(220 38 38 / 0.6),
+    0 0.6cqw 2.4cqw rgb(0 0 0 / 0.35);
+}
+
 /* Card fonts: free lookalikes of the fonts on real cards, served from
    priv/static/fonts (SIL Open Font License, see the OFL files there).
    Cinzel draws lowercase as small capitals, like card names. */
