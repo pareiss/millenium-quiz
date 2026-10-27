@@ -477,6 +477,15 @@ viewport. It creates a game on the site, so run it against a local server or CI,
 (setup in the script's header; the Smoke workflow runs it, and the release's `seed_layout_fixture` refuses to run without `LAYOUT_FIXTURE=1`). Every new feature should add a tablet and a
 phone check there.
 
+**JavaScript: `bin/js-test`.** There is no Node in this project (esbuild runs without `node_modules`), so
+`assets/js/card_link_input.js` (the `[Card Name]` autocomplete of the question form) is tested in the same
+headless Chromium as the layout test: the module is loaded as an ES module and driven with real key
+events, a real textarea and a real caret, with a stand-in for LiveView's `pushEvent` and `handleEvent`.
+25 tests cover the open-bracket rule, the debounce and the 2-character minimum, dropping answers for an
+older query, Tab/Enter/arrows/Escape/`]`, reusing a `]` behind the caret, `maxlength`, clicks, answers that
+come later, and `destroyed()`. Setup is in the script's header (the Smoke workflow runs it). A change to
+that file should add a test there; a new hook can copy the harness.
+
 **Before a merge, on GitHub:** two workflows run on every pull request and on `master`.
 `CI` (`.github/workflows/ci.yml`) compiles with warnings as errors, checks the formatting and unused
 deps, and runs the tests. `Smoke` (`.github/workflows/smoke.yml`) builds the production release the

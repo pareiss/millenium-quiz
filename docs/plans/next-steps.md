@@ -6,7 +6,7 @@ In order:
 
 1. Tablet and phone layout, see [tablet-phone-layout.md](tablet-phone-layout.md).
 2. A local list of all card names, to cut YGOPRODeck traffic (built: `card_names`, `Cards.CardNames`; refreshed by the app itself, weekly).
-3. JS tests for `assets/js/card_link_input.js`.
+3. JS tests for `assets/js/card_link_input.js` (built: `bin/js-test`, Playwright, no Node).
 4. Features: player 1 / player 2 colours in questions, per-format profile pictures, a visual redesign, board states.
 
 Open questions:

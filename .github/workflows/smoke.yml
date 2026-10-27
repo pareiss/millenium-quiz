@@ -1,7 +1,7 @@
 # Builds the production release, boots it against Postgres the way the host
 # does (migrations and the first admin on boot) and runs bin/smoke-test against
 # it, with an admin login, then runs bin/layout-test in a headless browser at
-# tablet and phone sizes. It catches what the test suite cannot: a release that
+# tablet and phone sizes and bin/js-test (the JS of the question form). It catches what the test suite cannot: a release that
 # does not build (asset hook, runtime config), does not boot, does not migrate,
 # or serves a broken page or websocket. Runs on every PR and on master.
 name: Smoke
@@ -107,6 +107,11 @@ jobs:
           .venv-layout/bin/pip install --quiet -r bin/layout-test-requirements.txt
           .venv-layout/bin/playwright install --with-deps chromium
           .venv-layout/bin/python bin/layout-test http://localhost:4000
+
+      # assets/js/card_link_input.js in the same browser (no server needed; there is no Node here)
+      - name: JS tests
+        if: ${{ !cancelled() }}
+        run: .venv-layout/bin/python bin/js-test
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
