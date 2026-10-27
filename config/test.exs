@@ -57,3 +57,6 @@ config :millennium_quiz, MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate,
 
 # The touch-safety lock after a new turn is off in tests; see GameLiveTest.
 config :millennium_quiz, :turn_lock_ms, 0
+
+# no background refresh of the card names in tests (they call refresh/1 themselves)
+config :millennium_quiz, MillenniumQuiz.Cards.CardNames.Refresher, enabled: false

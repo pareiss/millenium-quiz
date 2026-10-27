@@ -18,6 +18,7 @@ defmodule MillenniumQuiz.Application do
       MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate,
       MillenniumQuiz.RateLimit,
       {Task.Supervisor, name: MillenniumQuiz.TaskSupervisor},
+      MillenniumQuiz.Cards.CardNames.Refresher,
       {Registry, keys: :unique, name: MillenniumQuiz.Games.Registry},
       {DynamicSupervisor, name: MillenniumQuiz.Games.Supervisor, strategy: :one_for_one},
       # Start to serve requests, typically the last entry

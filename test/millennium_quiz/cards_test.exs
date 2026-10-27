@@ -5,7 +5,7 @@ defmodule MillenniumQuiz.CardsTest do
   @moduletag :capture_log
 
   alias MillenniumQuiz.{Cards, CardSourcesStub}
-  alias MillenniumQuiz.Cards.{Card, CardText}
+  alias MillenniumQuiz.Cards.{Card, CardNames, CardText}
 
   setup do
     CardSourcesStub.stub!()
@@ -21,6 +21,50 @@ defmodule MillenniumQuiz.CardsTest do
 
       assert {:ok, []} = Cards.search("plain", %{date: ~D[2004-01-01]})
       assert {:ok, [%{name: "Plain Card"}]} = Cards.search("plain", %{date: ~D[2016-01-01]})
+    end
+
+    test "looks in the list of card names first and does not ask YGOPRODeck" do
+      {:ok, _} = CardNames.refresh(today: ~D[2026-10-27])
+      test = self()
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        send(test, :asked_the_remote)
+        Plug.Conn.send_resp(conn, 500, "must not be asked")
+      end)
+
+      assert {:ok, [%{name: "Monster Reborn", in_pool: false}]} =
+               Cards.search("reborn", %{date: ~D[2004-01-01]})
+
+      refute_received :asked_the_remote
+    end
+
+    test "asks YGOPRODeck when the list finds nothing for the date" do
+      # Plain Card is in the list (released 2015) but not by 2004 for the list;
+      # the remote is asked, and answers nothing for 2004 either
+      {:ok, _} = CardNames.refresh(today: ~D[2026-10-27])
+      test = self()
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        send(test, {:asked_the_remote, conn.query_string})
+        CardSourcesStub.handle(conn)
+      end)
+
+      assert {:ok, []} = Cards.search("plain", %{date: ~D[2004-01-01]})
+      assert_received {:asked_the_remote, query}
+      assert query =~ "fname=plain"
+    end
+
+    test "asks YGOPRODeck for a card the list does not have" do
+      test = self()
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        send(test, :asked_the_remote)
+        CardSourcesStub.handle(conn)
+      end)
+
+      # the list is empty
+      assert {:ok, [%{name: "Plain Card"}]} = Cards.search("plain", %{date: ~D[2016-01-01]})
+      assert_received :asked_the_remote
     end
 
     test "marks cards that are already in the pool" do
