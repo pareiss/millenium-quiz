@@ -1,7 +1,7 @@
 # Content for bin/layout-test: a format whose questions have 4, 3 and 1 cards.
 # The cards are inserted directly (no network, no artwork), so it works in CI.
-# mix run priv/repo/layout_fixture.exs (or Release.seed_layout_fixture() in a
-# release). Running it twice does nothing, the format name is unique.
+# mix run priv/repo/layout_fixture.exs (or LAYOUT_FIXTURE=1 with
+# Release.seed_layout_fixture() in a release). Running it twice does nothing, the format name is unique.
 alias MillenniumQuiz.Cards.Card
 alias MillenniumQuiz.{Quiz, Repo}
 alias MillenniumQuiz.Quiz.Format

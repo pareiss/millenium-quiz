@@ -458,7 +458,7 @@ viewports. It checks that nothing overflows sideways, 4 cards fit a row on a por
 landscape one, 2 on a phone), the score line and the site's top bar make room in the question view, the
 pass-the-device bar shrinks by itself, and that the question does not scroll further than a limit per
 viewport. It creates a game on the site, so run it against a local server or CI, not the live site
-(setup in the script's header; the Smoke workflow runs it). Every new feature should add a tablet and a
+(setup in the script's header; the Smoke workflow runs it, and the release's `seed_layout_fixture` refuses to run without `LAYOUT_FIXTURE=1`). Every new feature should add a tablet and a
 phone check there.
 
 **Before a merge, on GitHub:** two workflows run on every pull request and on `master`.

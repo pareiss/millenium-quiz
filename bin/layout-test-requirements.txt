@@ -1,0 +1,2 @@
+# For bin/layout-test (pinned: a new Playwright or Chromium can move the layout numbers)
+playwright==1.64.1
