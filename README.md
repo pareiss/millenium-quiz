@@ -469,11 +469,14 @@ password is never printed). The exit code is 1 when a check fails, so it can als
 
 **Container image (`.github/workflows/image.yml`).** For a host that runs containers (the k3s deployment in
 `millennium-quiz-deploy`), CI builds the `Dockerfile` and pushes `ghcr.io/pareiss/millennium-quiz` from
-`master`: a tag per commit (`sha-1a2b3c4`, never moves; pin this one in the deployment) and `latest`. A pull
-request only builds it, and only when something the image is made of changed (`Dockerfile`, `mix.lock`,
-`config/`, `rel/`, ...). The push uses the job's own `GITHUB_TOKEN`, no other secret. After the first push the
-package is private: either make it public (the code is) under the repository's *Packages* settings, or give
-the cluster an image pull secret. Gigalixir does not use the image; it builds the release itself.
+`master`, but only after the `CI` and `Smoke` runs of that commit have passed (the workflow waits for them
+and fails if either did not): a tag per commit (`sha-1a2b3c4`, never moves; pin this one in the deployment)
+and `latest`. Nothing is pushed from any other branch, a pull request or a manual run elsewhere. A pull
+request only builds the image, and only when something Docker-specific changed (`Dockerfile`, `mix.lock`,
+`config/`, `rel/`, the two scripts it runs): the app's own code and assets are built in prod by Smoke on every
+pull request. The push uses the job's own `GITHUB_TOKEN`, no other secret. After the first push the package is
+private: either make it public (the code is) under the repository's *Packages* settings, or give the cluster
+an image pull secret. Gigalixir does not use the image; it builds the release itself.
 
 **Layout: `bin/layout-test`.** `bin/smoke-test` is curl-only and cannot see a layout. `bin/layout-test`
 plays one game of the fixture format "Layout check" (`priv/repo/layout_fixture.exs`: questions with 4, 3

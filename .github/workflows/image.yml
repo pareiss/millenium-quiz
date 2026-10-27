@@ -1,13 +1,18 @@
 # Builds the Dockerfile, the image the k3s deployment runs (millennium-quiz-deploy),
-# and pushes it to GitHub's registry from master:
+# and pushes it to GitHub's registry from master, once CI and Smoke have passed
+# on that commit:
 #
 #   ghcr.io/pareiss/millennium-quiz:sha-<7 characters>   one tag per commit, never moves
-#   ghcr.io/pareiss/millennium-quiz:latest                the newest master
+#   ghcr.io/pareiss/millennium-quiz:latest                the newest master that passed
 #
 # The deployment should pin the sha tag (a `latest` that moves under a running
-# cluster is a surprise). On a pull request the image is only built, never
-# pushed, and only when something it is made of changed: nothing else in CI
-# builds the Dockerfile, so a break there would otherwise show up at deploy time.
+# cluster is a surprise). Nothing is pushed from any other branch, from a pull
+# request or from a manual run on another branch: those only build the image.
+# A pull request builds it only when something Docker-specific changed
+# (Dockerfile, the builder's inputs): the app's own code and assets are built in
+# prod by the Smoke workflow on every pull request. What a Docker build can
+# break that Smoke cannot is the builder image (Debian, the OTP patch version),
+# the file copying and the final stage.
 name: Image
 
 on:
@@ -34,12 +39,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Only for master: waits until the CI and Smoke runs of this commit have
+  # finished and fails when either did not succeed, so no image is built from a
+  # commit whose tests failed. (Pull requests need not wait: the master rule
+  # requires both checks before a merge; this also covers a push that bypassed it.)
+  gate:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      actions: read
+    steps:
+      - name: CI and Smoke passed on this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          for _ in $(seq 1 70); do
+            runs="$(gh run list --commit "$SHA" --event push --limit 50 --json name,status,conclusion,createdAt)"
+            pending=0
+            for workflow in CI Smoke; do
+              run="$(jq -c --arg w "$workflow" '[.[] | select(.name == $w)] | sort_by(.createdAt) | last // empty' <<<"$runs")"
+              if [ -z "$run" ]; then
+                pending=1
+              elif [ "$(jq -r .status <<<"$run")" != completed ]; then
+                pending=1
+              elif [ "$(jq -r .conclusion <<<"$run")" != success ]; then
+                echo "$workflow did not succeed on $SHA ($(jq -r .conclusion <<<"$run")): no image"
+                exit 1
+              fi
+            done
+            if [ "$pending" = 0 ]; then
+              echo "CI and Smoke passed on $SHA"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "CI and Smoke did not finish in time on $SHA: no image"
+          exit 1
+
   image:
+    needs: gate
+    # the gate is skipped on a pull request; a failed gate means no image
+    if: ${{ !cancelled() && (needs.gate.result == 'success' || needs.gate.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
       packages: write # pushing to ghcr.io with the job's own token; no other secret
+    env:
+      # only master pushes: not a pull request, not a manual run on another branch
+      PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -47,7 +98,7 @@ jobs:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
-        if: github.event_name != 'pull_request'
+        if: env.PUBLISH == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -64,7 +115,7 @@ jobs:
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ env.PUBLISH == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
