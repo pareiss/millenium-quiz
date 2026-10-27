@@ -36,6 +36,21 @@ defmodule MillenniumQuizWeb.SubmissionReviewTest do
       assert has_element?(view, "#menu-submissions")
     end
 
+    test "the list draws {P1} and {P2} as badges", %{conn: conn, topic: topic} do
+      {:ok, s} =
+        Quiz.create_submission(topic, %{
+          "text" => "{P1} attacks {P2}",
+          "choices" => %{
+            "0" => %{"text" => "{P2} loses", "correct" => "true"},
+            "1" => %{"text" => "Nothing"}
+          }
+        })
+
+      {:ok, view, _} = live(conn, ~p"/admin/submissions")
+      assert has_element?(view, "#submission-#{s.id} p .mq-player-badge", "P1")
+      assert has_element?(view, "#submission-#{s.id} li .mq-player-badge", "P2")
+    end
+
     test "every filter opens, including the ones for reviewed suggestions", %{
       conn: conn,
       submission: s

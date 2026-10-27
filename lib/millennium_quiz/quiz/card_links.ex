@@ -102,20 +102,25 @@ defmodule MillenniumQuiz.Quiz.CardLinks do
 
   @doc """
   The text with every link replaced by its name and every `{P1}`/`{P2}` by
-  "P1"/"P2". Used where the cards are not
+  "P1"/"P2" (with `keep_players: true` the markers stay, for a caller that
+  draws them as badges). Used where the cards are not
   at hand (truncated texts in admin lists and delete dialogs), so there any
   `[non-empty text without brackets]` is treated as a link, whether or not a
   card of that name exists.
   """
-  @spec plain(String.t() | nil) :: String.t()
-  def plain(nil), do: ""
+  @spec plain(String.t() | nil, keyword) :: String.t()
+  def plain(text, opts \\ [])
+  def plain(nil, _opts), do: ""
 
-  def plain(text) when is_binary(text) do
-    @link
-    |> Regex.replace(text, fn _whole, inner ->
-      if String.trim(inner) == "", do: "[" <> inner <> "]", else: String.trim(inner)
-    end)
-    |> then(&Regex.replace(@player_anywhere, &1, "P\\1"))
+  def plain(text, opts) when is_binary(text) do
+    unlinked =
+      Regex.replace(@link, text, fn _whole, inner ->
+        if String.trim(inner) == "", do: "[" <> inner <> "]", else: String.trim(inner)
+      end)
+
+    if opts[:keep_players],
+      do: unlinked,
+      else: Regex.replace(@player_anywhere, unlinked, "P\\1")
   end
 
   @doc """

@@ -203,12 +203,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
           <legend class="font-medium mb-1">
             Answers <span class="text-sm text-base-content/60">(2–6, tick the correct one)</span>
           </legend>
-          <p class="-mt-1 text-xs text-base-content/60" id="choice-hint">
-            Type <kbd class="kbd kbd-xs">[</kbd>
-            and a card name to insert the name; <kbd class="kbd kbd-xs">{"{P1}"}</kbd>
-            and <kbd class="kbd kbd-xs">{"{P2}"}</kbd>
-            show as the blue and red badge.
-          </p>
+          <.answer_markup_hint />
           <.inputs_for :let={choice} field={@form[:choices]}>
             <%!-- letter, answer, remove; "Correct" sits under the answer on a
                  phone and in the row from sm up --%>

@@ -54,6 +54,47 @@ defmodule MillenniumQuizWeb.SuggestLiveTest do
     assert has_element?(view, "#card-markup-help", "Monster Reborn")
   end
 
+  test "the answer fields suggest card names too, as bare names", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/suggest")
+
+    for i <- 0..3 do
+      assert has_element?(
+               view,
+               "input#submission_choices_#{i}_text[phx-hook=CardLinkInput][data-mode=plain][data-suggestions='choice-suggestions-#{i}']"
+             )
+
+      assert has_element?(
+               view,
+               "ul#choice-suggestions-#{i}[role=listbox][phx-update=ignore][hidden]"
+             )
+    end
+
+    refute has_element?(view, "#submission_text[data-mode]")
+    assert has_element?(view, "#choice-hint", "{P1}")
+    assert has_element?(view, "#card-markup-help", "{P2}")
+  end
+
+  test "{P1} and {P2} show as badges on the status page", %{conn: conn, format: f, topic: t} do
+    {:ok, view, _} = live(conn, ~p"/suggest")
+    view |> element("#suggest-form") |> render_change(%{"format_id" => f.id})
+
+    fill(view, f, t, %{
+      "text" => "{P1} attacks [Dark Hole] of {P2}",
+      "choices" => %{
+        "0" => %{"text" => "{P1} wins", "correct" => "true"},
+        "1" => %{"text" => "{P2} wins"}
+      }
+    })
+    |> render_submit()
+
+    [s] = Repo.all(Submission)
+    {:ok, page, _} = live(conn, ~p"/suggest/#{s.token}")
+    assert has_element?(page, "#suggestion-copy p .mq-player-badge", "P1")
+    assert has_element?(page, "#suggestion-copy p .mq-player-badge", "P2")
+    assert has_element?(page, "#suggestion-copy p", "attacks Dark Hole of")
+    assert has_element?(page, "#suggestion-copy li .mq-player-badge", "P2")
+  end
+
   describe "card name suggestions after a [" do
     setup do
       CardSourcesStub.stub!()

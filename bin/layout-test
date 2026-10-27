@@ -20,6 +20,7 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - the score line is on the board and gone in the question
   - the site's top bar is gone in the question when the screen is at most 920px
     high, and stays on a tall tablet
+  - the answer fields of /suggest list card names inside the screen and a pick writes the bare name
   - the pass-the-device bar folds away by itself, for the first player and again
     for the next
   - how far the question must scroll stays under a limit per viewport
@@ -149,6 +150,31 @@ with sync_playwright() as p:
           f"{pass_bar_height(page)}px")
     page.wait_for_timeout(5000)
     check("and folds away again", pass_bar_height(page) <= 50, f"{pass_bar_height(page)}px")
+
+    print("Suggestion form (answer fields)")
+    page.goto(base + "/suggest")
+    page.wait_for_selector("#suggest-format")
+    page.wait_for_selector("[data-phx-main].phx-connected")  # the select needs the socket
+    page.select_option("#suggest-format", label="Layout check")
+    page.wait_for_selector("#card-date-note")
+    for name, w, h, _, _ in VIEWPORTS:
+        page.set_viewport_size({"width": w, "height": h})
+        page.fill("#submission_choices_0_text", "")
+        page.click("#submission_choices_0_text")
+        page.keyboard.type("[Layout Ca", delay=15)
+        page.wait_for_selector("#choice-suggestions-0 [role=option]", timeout=5000)
+        box = page.evaluate(
+            """() => {
+              const r = document.getElementById('choice-suggestions-0').getBoundingClientRect()
+              const d = document.documentElement
+              return {left: r.left, right: r.right, overX: d.scrollWidth - d.clientWidth, width: innerWidth}
+            }"""
+        )
+        check(f"{name}: the answer's card list opens inside the screen, no horizontal overflow",
+              box["left"] >= 0 and box["right"] <= box["width"] and box["overX"] <= 0, str(box))
+        page.keyboard.press("Tab")
+        value = page.input_value("#submission_choices_0_text")
+        check(f"{name}: a pick writes the bare name", value == "Layout Card 1", value)
 
     browser.close()
 
