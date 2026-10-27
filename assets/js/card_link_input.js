@@ -13,6 +13,11 @@
 // `card_links:suggestions` event {query, suggestions} (the card sources can be
 // slow, so the page does not wait for them). The list lives in the element named by `data-suggestions`
 // (a `phx-update="ignore"` container, so LiveView patches leave it alone).
+//
+// With `data-mode="plain"` (the answer fields) a pick writes the bare name, no
+// brackets, and no card is attached to the question: the `[` only opens the
+// list. Such a field also ignores `card_links:set_text`, which is meant for the
+// question text.
 const DEBOUNCE_MS = 250
 const MIN_QUERY = 2
 
@@ -41,7 +46,14 @@ export const CardLinkInput = {
 
     this.onInput = () => this.update()
     this.onCaret = () => this.update()
-    this.onBlur = () => this.hide()
+    this.plain = this.el.dataset.mode === "plain"
+    this.onBlur = () => {
+      // the field is left: no list of its own may open from answers to other fields
+      this.hide()
+      clearTimeout(this.timer)
+      this.seq++
+      this.lastQuery = null
+    }
     this.onKeydown = e => this.keydown(e)
     this.el.addEventListener("input", this.onInput)
     this.el.addEventListener("click", this.onCaret)
@@ -62,6 +74,7 @@ export const CardLinkInput = {
     })
 
     this.handleEvent("card_links:set_text", ({text}) => {
+      if (this.plain) return
       const old = this.el.value
       const caret = this.el.selectionStart
       this.el.value = text
@@ -144,7 +157,7 @@ export const CardLinkInput = {
     const caret = this.el.selectionStart
     // an existing `]` right behind the caret is reused, not doubled
     const end = text[caret] === "]" ? caret + 1 : caret
-    const link = `[${s.name}]`
+    const link = this.plain ? s.name : `[${s.name}]`
     const next = text.slice(0, open.start) + link + text.slice(end)
     const max = this.el.maxLength
     if (max > 0 && next.length > max) return this.hide() // no room: leave the text alone
@@ -155,6 +168,8 @@ export const CardLinkInput = {
     this.el.dispatchEvent(new Event("input", {bubbles: true})) // phx-change + counters
     this.hide()
     this.lastQuery = null
+
+    if (this.plain) return
 
     // always sent: the server ignores a card that is already attached, and a
     // retry after a failed or dropped import must still go through

@@ -76,6 +76,7 @@ def metrics(page):
             perRow: cards.filter(c => Math.round(c.getBoundingClientRect().top) === firstTop).length,
             header: header ? getComputedStyle(header).display : 'missing',
             score: !!document.querySelector('#scoreboard'),
+            answerBadges: document.querySelectorAll('.mq-choices .mq-player-badge').length,
             badges: [...document.querySelectorAll('#question-text .mq-player-badge')]
               .map(b => [b.textContent.trim(), getComputedStyle(b).backgroundColor, b.getBoundingClientRect().width > 0]),
           }
@@ -131,6 +132,7 @@ with sync_playwright() as p:
         check(f"{name}: no horizontal overflow", m["overX"] <= 0, f"{m['overX']}px")
         check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
         check(f"{name}: no score line", not m["score"])
+        check(f"{name}: the answer has its P2 badge", m["answerBadges"] == 1, str(m["answerBadges"]))
         check(f"{name}: P1 blue and P2 red badges shown",
               m["badges"] == [["P1", "rgb(37, 99, 235)", True], ["P2", "rgb(220, 38, 38)", True]],
               str(m["badges"]))

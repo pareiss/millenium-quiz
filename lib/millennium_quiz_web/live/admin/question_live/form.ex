@@ -203,6 +203,12 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
           <legend class="font-medium mb-1">
             Answers <span class="text-sm text-base-content/60">(2–6, tick the correct one)</span>
           </legend>
+          <p class="-mt-1 text-xs text-base-content/60" id="choice-hint">
+            Type <kbd class="kbd kbd-xs">[</kbd>
+            and a card name to insert the name; <kbd class="kbd kbd-xs">{"{P1}"}</kbd>
+            and <kbd class="kbd kbd-xs">{"{P2}"}</kbd>
+            show as the blue and red badge.
+          </p>
           <.inputs_for :let={choice} field={@form[:choices]}>
             <%!-- letter, answer, remove; "Correct" sits under the answer on a
                  phone and in the row from sm up --%>
@@ -211,8 +217,28 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
               <span class="mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-base-200 text-sm font-semibold">
                 {<<?A + choice.index>>}
               </span>
-              <div>
-                <.input field={choice[:text]} placeholder="Answer" maxlength="200" />
+              <div class="relative">
+                <.input
+                  field={choice[:text]}
+                  placeholder="Answer"
+                  maxlength="200"
+                  autocomplete="off"
+                  phx-hook="CardLinkInput"
+                  data-mode="plain"
+                  data-suggestions={"choice-suggestions-#{choice.index}"}
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-controls={"choice-suggestions-#{choice.index}"}
+                />
+                <ul
+                  id={"choice-suggestions-#{choice.index}"}
+                  class="mq-suggestions"
+                  role="listbox"
+                  aria-label="Card suggestions"
+                  phx-update="ignore"
+                  hidden
+                >
+                </ul>
               </div>
               <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:mt-2">
                 <.input

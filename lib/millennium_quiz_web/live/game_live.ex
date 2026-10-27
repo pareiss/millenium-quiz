@@ -344,7 +344,7 @@ defmodule MillenniumQuizWeb.GameLive do
               <span class="grid place-items-center size-8 shrink-0 rounded-full bg-base-200 font-semibold group-hover:bg-primary group-hover:text-primary-content transition">
                 {<<?A + i>>}
               </span>
-              <span>{choice}</span>
+              <span><.answer_text text={choice} /></span>
             </button>
           </div>
           <p class="text-sm text-base-content/60">
@@ -568,7 +568,7 @@ defmodule MillenniumQuizWeb.GameLive do
               <span class="grid place-items-center size-7 shrink-0 rounded-full bg-base-200 text-sm">
                 {<<?A + i>>}
               </span>
-              <span class="flex-1">{choice}</span>
+              <span class="flex-1"><.answer_text text={choice} /></span>
               <.icon
                 :if={i == @question.correct}
                 name="hero-check-circle"

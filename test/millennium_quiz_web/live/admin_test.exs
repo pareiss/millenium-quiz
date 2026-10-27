@@ -112,6 +112,26 @@ defmodule MillenniumQuizWeb.AdminTest do
              )
     end
 
+    test "the answer fields have the card name autocomplete (bare names)", %{conn: conn} do
+      topic = hd(format_fixture().topics)
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+
+      for i <- 0..3 do
+        assert has_element?(
+                 view,
+                 "input#question_choices_#{i}_text[phx-hook='CardLinkInput'][data-mode='plain'][data-suggestions='choice-suggestions-#{i}'][maxlength='200']"
+               )
+
+        assert has_element?(
+                 view,
+                 "ul#choice-suggestions-#{i}[role='listbox'][phx-update='ignore'][hidden]"
+               )
+      end
+
+      refute has_element?(view, "#question_text[data-mode]")
+      assert has_element?(view, "#choice-hint", "{P1}")
+    end
+
     test "creates a question with default points and reorders it", %{conn: conn} do
       format = format_fixture()
       topic = hd(format.topics)

@@ -38,7 +38,7 @@ else
 
   choices = %{
     "0" => %{"text" => "The first", "correct" => "true"},
-    "1" => %{"text" => "The second"},
+    "1" => %{"text" => "{P2} is second"},
     "2" => %{"text" => "The third"},
     "3" => %{"text" => "The fourth"}
   }

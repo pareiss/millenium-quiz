@@ -30,12 +30,13 @@ PAGE = """<!doctype html><meta charset="utf-8">
 <script type="module">
   import {openBracket, CardLinkInput} from "/card_link_input.js"
   window.openBracket = openBracket
-  window.mount = (maxlength) => {
+  window.mount = (maxlength, plain) => {
     if (window.hook) window.hook.destroyed() // as LiveView does: no timer of the last test fires into this one
     document.body.innerHTML =
       `<textarea id="t" ${maxlength ? `maxlength="${maxlength}"` : ""}></textarea><ul id="list" hidden></ul>`
     const el = document.getElementById("t")
     el.dataset.suggestions = "list"
+    if (plain) el.dataset.mode = "plain"
     const hook = Object.create(CardLinkInput)
     hook.el = el
     window.pushed = []
@@ -95,8 +96,8 @@ with sync_playwright() as p:
 
     # ---- helpers on the page
 
-    def mount(maxlength=None):
-        page.evaluate("m => mount(m)", maxlength)
+    def mount(maxlength=None, plain=False):
+        page.evaluate("([m, p]) => mount(m, p)", [maxlength, plain])
 
     def text():
         return page.evaluate("document.getElementById('t').value")
@@ -408,6 +409,51 @@ with sync_playwright() as p:
         check(not list_open())
 
     run("the server can replace the text", test_set_text)
+
+    # ---- answer fields (data-mode="plain")
+
+    def test_plain_tab_writes_bare_name():
+        mount(plain=True)
+        set_text("The ", None)
+        type_query("[Monster Re", [REBORN, REINCARNATION])
+        page.keyboard.press("Tab")
+        check(text() == "The Monster Reborn", text())
+        check(caret() == len("The Monster Reborn"), "caret behind the name")
+        check(pushed("link_card") == [], "no card is attached for an answer")
+        check(page.evaluate("inputs") >= 1, "an input event is sent for phx-change")
+        check(not list_open())
+
+    run("answer field: a pick writes the bare name and attaches nothing", test_plain_tab_writes_bare_name)
+
+    def test_plain_close_bracket_and_click():
+        mount(plain=True)
+        type_query("[Monster Reborn", [REBORN])
+        keydown("]")
+        check(text() == "Monster Reborn", text())
+        set_text("")
+        type_query("[Monster Re", [REBORN])
+        page.click("#list li")
+        check(text() == "Monster Reborn", text())
+        check(pushed("link_card") == [])
+
+    run("answer field: ] on an exact name and a click work the same", test_plain_close_bracket_and_click)
+
+    def test_plain_ignores_set_text():
+        mount(plain=True)
+        set_text("Answer text")
+        page.evaluate("handlers['card_links:set_text']({text: 'the question text'})")
+        check(text() == "Answer text", text())
+
+    run("answer field: the question text from the server does not overwrite it", test_plain_ignores_set_text)
+
+    def test_blur_drops_late_answers():
+        mount(plain=True)
+        type_query("[Monster Re")
+        page.evaluate("document.getElementById('t').blur()")
+        page.evaluate("handlers['card_links:suggestions']({query: 'Monster Re', suggestions: [{id: 1, name: 'Monster Reborn'}]})")
+        check(not list_open(), "a field that was left opens no list")
+
+    run("a field that was left ignores late suggestions", test_blur_drops_late_answers)
 
     # ---- tidy up
 
