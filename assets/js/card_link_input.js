@@ -45,10 +45,11 @@ export const CardLinkInput = {
     this.onKeydown = e => this.keydown(e)
     this.el.addEventListener("input", this.onInput)
     this.el.addEventListener("click", this.onCaret)
-    this.el.addEventListener("keyup", e => {
+    this.onKeyup = e => {
       // only caret moves re-evaluate; Up/Down/Tab/Escape belong to the list
       if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) this.update()
-    })
+    }
+    this.el.addEventListener("keyup", this.onKeyup)
     this.el.addEventListener("keydown", this.onKeydown)
     this.el.addEventListener("blur", this.onBlur)
 
@@ -75,6 +76,7 @@ export const CardLinkInput = {
     this.el.removeEventListener("input", this.onInput)
     this.el.removeEventListener("click", this.onCaret)
     this.el.removeEventListener("keydown", this.onKeydown)
+    this.el.removeEventListener("keyup", this.onKeyup)
     this.el.removeEventListener("blur", this.onBlur)
   },
 

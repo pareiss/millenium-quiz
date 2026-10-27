@@ -245,7 +245,7 @@ with sync_playwright() as p:
         check(list_open())
         page.keyboard.type("s")
         check(not list_open(), "the old list must not be acted on")
-        check(not keydown("Tab") is False, "Tab is left alone while no list is shown")
+        check(keydown("Tab") is True, "Tab is left alone while no list is shown")
 
     run("the list is hidden as soon as the query changes", test_list_closes_when_query_changes)
 
@@ -337,9 +337,8 @@ with sync_playwright() as p:
     def test_existing_bracket_reused():
         mount()
         set_text("see [Monster Re] now", len("see [Monster Re"))
-        page.keyboard.press("Home")
-        page.keyboard.press("End")
-        set_text("see [Monster Re] now", len("see [Monster Re"))
+        # a value set from script fires no input event: a caret move (keyup) makes
+        # the hook look at the caret
         page.keyboard.press("ArrowLeft")
         page.keyboard.press("ArrowRight")
         wait_for_suggest()
@@ -401,9 +400,11 @@ with sync_playwright() as p:
 
     def test_set_text():
         mount()
-        set_text("abc [Mon", len("abc [Mon"))
+        # the caret is behind "[Mon", 3 characters from the end
+        set_text("abc [Mon] x", len("abc [Mon"))
         page.evaluate("handlers['card_links:set_text']({text: 'abc [Monster Reborn] x'})")
         check(text() == "abc [Monster Reborn] x")
+        check(caret() == len("abc [Monster Reborn"), f"the caret keeps its distance from the end: {caret()}")
         check(not list_open())
 
     run("the server can replace the text", test_set_text)
@@ -412,13 +413,18 @@ with sync_playwright() as p:
 
     def test_destroyed():
         mount()
-        page.keyboard.type("[Mo")
+        page.keyboard.type("[Mon")
         page.evaluate("hook.destroyed()")
         page.wait_for_timeout(450)
         check(pushed("suggest_cards") == [], "the pending request is cancelled")
+        # a caret move to another query ("Mo" instead of "Mon") re-evaluates through
+        # the keyup listener: it must be gone too
+        page.keyboard.press("ArrowLeft")
+        page.wait_for_timeout(450)
+        check(pushed("suggest_cards") == [], "a caret move no longer triggers a request")
         page.keyboard.type("n")
         page.wait_for_timeout(450)
-        check(pushed("suggest_cards") == [], "and the input no longer triggers one")
+        check(pushed("suggest_cards") == [], "and neither does typing")
 
     run("destroyed() cancels the pending request and the listeners", test_destroyed)
 
