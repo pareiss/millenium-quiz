@@ -76,8 +76,15 @@ defmodule MillenniumQuiz.Cards.CardNames do
   @doc """
   Fetches the names and stores them. Options: `:today` (a `Date`, for tests)
   and `:gate`. Returns `{:ok, count}`, the number of names written, or
-  `{:error, reason, count}` when a request failed (what was fetched before is
-  kept; run it again).
+  `{:error, reason, fetched}` when a request failed, with the number of names
+  fetched before it.
+
+  All the windows are fetched first and written in one transaction, so a
+  failed refresh writes nothing: the list stays as it was, and as stale as it
+  was, which is what makes `Refresher` try again at its next check (a list
+  half filled by a failed first run would count as fresh, and would hide the
+  newer cards from the search, which only asks YGOPRODeck when nothing matches).
+  The results held at once are the compact maps, not the raw answers.
 
   After a refresh that went through, rows it did not write are deleted, but
   only when it wrote at least 90% as many names as the list held: an answer
@@ -85,22 +92,31 @@ defmodule MillenniumQuiz.Cards.CardNames do
   """
   def refresh(opts \\ []) do
     today = Keyword.get(opts, :today, Date.utc_today())
-    started = DateTime.utc_now(:second)
-    before_count = count()
 
-    result =
-      Enum.reduce_while(windows(today), {:ok, 0}, fn {first, last}, {:ok, count} ->
+    fetched =
+      Enum.reduce_while(windows(today), {:ok, []}, fn {first, last}, {:ok, acc} ->
         case YGOPRODeck.released_between(first, last, Keyword.take(opts, [:gate])) do
-          {:ok, results} -> {:cont, {:ok, count + store(results)}}
-          {:error, reason} -> {:halt, {:error, reason, count}}
+          {:ok, results} -> {:cont, {:ok, [results | acc]}}
+          {:error, reason} -> {:halt, {:error, reason, acc |> List.flatten() |> length()}}
         end
       end)
 
-    with {:ok, written} <- result, true <- written >= before_count * 0.9 do
+    with {:ok, windows} <- fetched do
+      {:ok, written} = Repo.transaction(fn -> replace(windows) end, timeout: :timer.minutes(2))
+      {:ok, written}
+    end
+  end
+
+  defp replace(windows) do
+    started = DateTime.utc_now(:second)
+    before_count = count()
+    written = windows |> Enum.reverse() |> Enum.map(&store/1) |> Enum.sum()
+
+    if written >= before_count * 0.9 do
       Repo.delete_all(from c in CardName, where: c.updated_at < ^started)
     end
 
-    result
+    written
   end
 
   defp store(results) do

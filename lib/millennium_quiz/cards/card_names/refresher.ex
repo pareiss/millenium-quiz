@@ -8,7 +8,8 @@ defmodule MillenniumQuiz.Cards.CardNames.Refresher do
   refreshes it when it is empty or older than `max_age_days`. The refresh runs
   in a task under `MillenniumQuiz.TaskSupervisor` and never crashes this
   process: a failure (YGOPRODeck down, the table not migrated yet) is logged
-  and tried again at the next check.
+  and tried again at the next check: a failed refresh writes nothing
+  (`CardNames.refresh/1`), so the list is still due.
 
       config :millennium_quiz, MillenniumQuiz.Cards.CardNames.Refresher,
         enabled: false  # the test suite does this

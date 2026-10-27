@@ -63,15 +63,20 @@ defmodule MillenniumQuiz.Cards.CardNamesTest do
       assert Repo.get_by!(CardName, password: 83_764_719).name == "Monster Reborn"
     end
 
-    test "keeps what it has and says so when a request fails" do
+    test "writes nothing and stays stale when a request fails halfway" do
       Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
         if conn.query_string =~ "startdate=2003",
           do: Plug.Conn.send_resp(conn, 500, "no"),
           else: CardSourcesStub.handle(conn)
       end)
 
+      # the first window (up to 2002) was fetched, the second failed: 1 name fetched
       assert {:error, {:http, 500}, 1} = CardNames.refresh(today: @today)
-      assert CardNames.count() == 1
+
+      # nothing was written, so the list is still empty and still due: a half
+      # filled list would count as fresh for a week and hide newer cards
+      assert CardNames.count() == 0
+      assert CardNames.stale?(7)
     end
   end
 
@@ -123,6 +128,7 @@ defmodule MillenniumQuiz.Cards.CardNamesTest do
 
       assert {:error, {:http, 500}, 1} = CardNames.refresh(today: @today)
       assert Repo.get_by(CardName, password: 500)
+      assert CardNames.count() == 1
     end
   end
 

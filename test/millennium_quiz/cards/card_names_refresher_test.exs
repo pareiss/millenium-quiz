@@ -68,6 +68,21 @@ defmodule MillenniumQuiz.Cards.CardNames.RefresherTest do
     refute_receive :refreshed, 300
   end
 
+  test "a refresh that failed leaves the list due, so the next check tries again" do
+    test = self()
+
+    start_refresher(
+      interval_ms: 50,
+      refresh: fn ->
+        send(test, :tried)
+        {:error, {:http, 500}, 1}
+      end
+    )
+
+    assert_receive :tried, 1_000
+    assert_receive :tried, 1_000
+  end
+
   test "survives a refresh that raises and tries again at the next check" do
     test = self()
 
