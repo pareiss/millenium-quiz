@@ -178,6 +178,9 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
             or <kbd class="kbd kbd-xs">Enter</kbd>
             accepts the suggestion</span>.
           <span class="[@media(hover:hover)]:hidden">Tap a suggestion to insert it.</span>
+          <kbd class="kbd kbd-xs">{"{P1}"}</kbd>
+          and <kbd class="kbd kbd-xs">{"{P2}"}</kbd>
+          mark the two players, in the question or an answer (a blue and a red badge).
         </p>
         <.card_markup_help audience={:admin} />
 

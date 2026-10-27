@@ -100,6 +100,36 @@ defmodule MillenniumQuiz.Quiz.CardLinksTest do
     end
   end
 
+  describe "player markers" do
+    test "{P1} and {P2} in any case become player segments" do
+      assert [
+               {:player, 1},
+               {:text, " attacks "},
+               {:card, "Dark Magician", 1},
+               {:text, " of "},
+               {:player, 2},
+               {:player, 2}
+             ] = CardLinks.parse("{P1} attacks [Dark Magician] of {p2}{P2}", @cards)
+    end
+
+    test "other braces stay text, and a marker in brackets is no marker" do
+      assert [{:text, "{P3} {P} {} {P1 {"}, {:player, 1}] =
+               CardLinks.parse("{P3} {P} {} {P1 {{P1}", @cards)
+
+      assert [{:text, "[{P1}]"}] = CardLinks.parse("[{P1}]", @cards)
+    end
+
+    test "plain/1 reads the text like parse/2: a marker in brackets is no marker" do
+      assert "{P1} and P2" = CardLinks.plain("[{P1}] and {P2}")
+      assert "[] [ ] {P3}" = CardLinks.plain("[] [ ] {P3}")
+    end
+
+    test "plain/1 writes P1 and P2" do
+      assert "P1 beats P2 with Dark Magician" =
+               CardLinks.plain("{P1} beats {p2} with [Dark Magician]")
+    end
+  end
+
   describe "plain/1" do
     test "replaces every bracket pair with its name" do
       assert "Dark Magician and Mr. Volcano's Fury and Anything" =

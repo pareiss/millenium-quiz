@@ -418,6 +418,53 @@ defmodule MillenniumQuizWeb.GameLiveTest do
       assert has_element?(view, "#reveal #question-text [data-card-index=\"1\"]", "Plain Card")
     end
 
+    test "{P1} and {P2} are blue and red badges, while answering and on reveal", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+
+      {view, _id, _qs} =
+        start_with_text(conn, "{P1} plays [Monster Reborn] against {P2}", [reborn.id])
+
+      assert has_element?(view, "#question-text .mq-player-badge.bg-\\[\\#2563eb\\]", "P1")
+      assert has_element?(view, "#question-text .mq-player-badge.bg-\\[\\#dc2626\\]", "P2")
+      assert has_element?(view, "#question-text [aria-label=\"Player 2\"]")
+      assert has_element?(view, "#question-text [data-card-index=\"0\"]", "Monster Reborn")
+
+      view |> element("#choice-0") |> render_click()
+      view |> element("#choice-0") |> render_click()
+      assert has_element?(view, "#reveal #question-text .mq-player-badge", "P1")
+    end
+
+    test "{P1} and {P2} in answers are badges too, and other text stays", %{conn: conn} do
+      choices = %{
+        "0" => %{"text" => "{P1} wins", "correct" => "true"},
+        "1" => %{"text" => "{P2} wins <b>x</b>"},
+        "2" => %{"text" => "Draw [Monster Reborn]"}
+      }
+
+      format = format_fixture(%{"date" => "2020-01-01"})
+
+      for topic <- format.topics,
+          do:
+            {:ok, _} = Quiz.create_question(topic, %{"text" => "Who?", "choices" => choices}, [])
+
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+      view |> element("#question-0") |> render_click()
+
+      assert has_element?(view, "#choice-0 .mq-player-badge.bg-\\[\\#2563eb\\]", "P1")
+      assert has_element?(view, "#choice-0", "wins")
+      assert has_element?(view, "#choice-1 .mq-player-badge.bg-\\[\\#dc2626\\]", "P2")
+      assert has_element?(view, "#choice-1", "<b>x</b>")
+      assert has_element?(view, "#choice-2", "Draw [Monster Reborn]")
+      refute has_element?(view, "#choice-2 .mq-player-badge")
+
+      view |> element("#choice-0") |> render_click()
+      view |> element("#choice-0") |> render_click()
+      assert has_element?(view, "#reveal-choice-0 .mq-player-badge", "P1")
+      assert has_element?(view, "#reveal-choice-1 .mq-player-badge", "P2")
+    end
+
     test "links are buttons that open the enlarged card, while answering and on reveal",
          %{conn: conn} do
       CardSourcesStub.stub!()
