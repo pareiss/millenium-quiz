@@ -644,12 +644,6 @@ defmodule MillenniumQuizWeb.GameLive do
     """
   end
 
-  # The outline around a card a player owns, in the player's colour. It sits
-  # outside the drawn card, which is not changed.
-  defp owner_outline(1), do: "rounded-md outline outline-[3px] outline-offset-1 outline-[#2563eb]"
-  defp owner_outline(2), do: "rounded-md outline outline-[3px] outline-offset-1 outline-[#dc2626]"
-  defp owner_outline(nil), do: nil
-
   attr :cards, :list, required: true
 
   # The cards a question is about, drawn with their text as of the format's
@@ -672,10 +666,7 @@ defmodule MillenniumQuizWeb.GameLive do
           class="w-[calc(50%-0.375rem)] sm:w-[clamp(8.5rem,calc((100%_-_2.25rem)/4),11rem)]"
         >
           <div
-            class={[
-              "mq-nosel relative cursor-zoom-in transition motion-safe:hover:-translate-y-1 hover:drop-shadow-lg",
-              owner_outline(card_owner(@cards, i))
-            ]}
+            class="mq-nosel mq-owned relative cursor-zoom-in transition motion-safe:hover:-translate-y-1 hover:drop-shadow-lg"
             data-owner={card_owner(@cards, i)}
             phx-click="zoom_card"
             phx-value-card={i}

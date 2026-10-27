@@ -439,14 +439,14 @@ defmodule MillenniumQuizWeb.GameLiveTest do
 
         assert has_element?(
                  view,
-                 scope <> "#question-card-0 [data-owner=\"1\"].outline-\\[\\#2563eb\\]"
+                 scope <> "#question-card-0 .mq-owned[data-owner=\"1\"]"
                )
 
         assert has_element?(view, scope <> "#question-card-0 .mq-owner-badge", "P1")
 
         assert has_element?(
                  view,
-                 scope <> "#question-card-1 [data-owner=\"2\"].outline-\\[\\#dc2626\\]"
+                 scope <> "#question-card-1 .mq-owned[data-owner=\"2\"]"
                )
 
         assert has_element?(view, scope <> "#question-card-1 .mq-owner-badge", "P2")

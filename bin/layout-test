@@ -16,7 +16,7 @@ It plays one game of that format, creating a game on the site it is pointed at
 Checks the question view (docs/plans/tablet-phone-layout.md):
   - no horizontal overflow, on the board and in the question
   - cards per row: 4 on a portrait tablet, 3 on a landscape one, 2 on a phone
-  - the cards of player 1 and 2 have a blue / red outline and a badge, their links in the
+  - the cards of player 1 and 2 have a blue / red ring with a fading glow and a badge, their links in the
     text are blue / red (and none of it breaks the cards-per-row or overflow checks)
   - the {P1} / {P2} badges of the question text are shown, blue and red
   - the score line is on the board and gone in the question
@@ -79,17 +79,27 @@ def metrics(page):
             perRow: cards.filter(c => Math.round(c.getBoundingClientRect().top) === firstTop).length,
             header: header ? getComputedStyle(header).display : 'missing',
             score: !!document.querySelector('#scoreboard'),
-            owned: [...document.querySelectorAll('#question-cards [data-owner]')].map(e => {
-              const st = getComputedStyle(e), b = e.querySelector('.mq-owner-badge').getBoundingClientRect()
-              return [e.dataset.owner, st.outlineColor, st.outlineStyle, st.outlineWidth,
-                      b.left >= 0 && b.right <= innerWidth && b.width > 0]
-            }),
-            // the clear space between the outlines of two owned cards side by side:
-            // the cards' gap less what each outline takes outside its card (3px + offset 1px)
-            ownedGap: (() => {
-              const [a, b] = [...document.querySelectorAll('#question-cards [data-owner]')]
-                .map(e => e.closest('article').getBoundingClientRect()) // not the card: it lifts under the mouse
-              return a && b && Math.round(a.top) === Math.round(b.top) ? Math.round(b.left - a.right - 8) : null
+            // the ring and glow of an owned card are shadows of its face: ring colour and
+            // width, glow colour, the badge inside the screen, and the clear space between
+            // the rings of two owned cards side by side (their gap less both rings)
+            owned: (() => {
+              const els = [...document.querySelectorAll('#question-cards [data-owner]')]
+              const info = els.map(e => {
+                const shadow = getComputedStyle(e.querySelector('.mq-card__face')).boxShadow
+                const ring = shadow.match(/(rgb\(\d+, \d+, \d+\)) 0px 0px 0px ([\d.]+)px/)
+                const glow = shadow.match(/rgba\((\d+, \d+, \d+), ([\d.]+)\) 0px 0px ([\d.]+)px ([\d.]+)px/)
+                const b = e.querySelector('.mq-owner-badge').getBoundingClientRect()
+                return {owner: e.dataset.owner, ring: ring && ring[1], ringPx: ring ? parseFloat(ring[2]) : 0,
+                        glow: glow && glow[1], glowAlpha: glow ? parseFloat(glow[2]) : 0,
+                        badgeIn: b.left >= 0 && b.right <= innerWidth && b.width > 0,
+                        box: e.closest('article').getBoundingClientRect()} // not the card: it lifts under the mouse
+              })
+              const [a, c] = info
+              const sameRow = a && c && Math.round(a.box.top) === Math.round(c.box.top)
+              return {
+                cards: info.map(i => [i.owner, i.ring, i.glow, i.glowAlpha > 0.3, i.ringPx >= 0.7, i.badgeIn]),
+                gap: sameRow ? Math.round(c.box.left - a.box.right - a.ringPx - c.ringPx) : null,
+              }
             })(),
             ownedLinks: [...document.querySelectorAll('#question-text button[data-owner]')]
               .map(b => [b.dataset.owner, getComputedStyle(b).textDecorationColor]),
@@ -149,11 +159,11 @@ with sync_playwright() as p:
         check(f"{name}: no horizontal overflow", m["overX"] <= 0, f"{m['overX']}px")
         check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
         check(f"{name}: no score line", not m["score"])
-        check(f"{name}: cards of P1 and P2 have a blue and a red outline and a badge inside the screen",
-              m["owned"] == [["1", "rgb(37, 99, 235)", "solid", "3px", True],
-                             ["2", "rgb(220, 38, 38)", "solid", "3px", True]], str(m["owned"]))
-        check(f"{name}: the blue and the red outline do not touch (at least 3px apart)",
-              m["ownedGap"] is not None and m["ownedGap"] >= 3, str(m["ownedGap"]))
+        check(f"{name}: cards of P1 and P2 have a blue and a red ring with a glow, and a badge inside the screen",
+              m["owned"]["cards"] == [["1", "rgb(37, 99, 235)", "37, 99, 235", True, True, True],
+                                      ["2", "rgb(220, 38, 38)", "220, 38, 38", True, True, True]], str(m["owned"]["cards"]))
+        check(f"{name}: the two rings do not touch (at least 3px apart)",
+              m["owned"]["gap"] is not None and m["owned"]["gap"] >= 3, str(m["owned"]["gap"]))
         check(f"{name}: their links in the text are blue and red",
               m["ownedLinks"] == [["1", "rgb(37, 99, 235)"], ["2", "rgb(220, 38, 38)"]], str(m["ownedLinks"]))
         check(f"{name}: the answer has its P2 badge", m["answerBadges"] == 1, str(m["answerBadges"]))
