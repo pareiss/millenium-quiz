@@ -101,20 +101,22 @@ defmodule MillenniumQuiz.Quiz.CardLinks do
 
   @doc """
   The text with every link replaced by its name and every `{P1}`/`{P2}` by
-  "P1"/"P2". Used where the cards are not at hand (truncated texts in admin
-  lists and delete dialogs), so there any `[non-empty text without brackets]`
-  is treated as a link, whether or not a card of that name exists. One pass
-  with the tokens of `parse/2`, so a marker inside brackets is no marker here
-  either: `[{P1}]` becomes `{P1}`.
+  "P1"/"P2" (with `keep_players: true` the markers stay, for a caller that
+  draws them as badges). Used where the cards are not at hand (truncated texts
+  in admin lists and delete dialogs), so there any `[non-empty text without
+  brackets]` is treated as a link, whether or not a card of that name exists.
+  One pass with the tokens of `parse/2`, so a marker inside brackets is no
+  marker here either: `[{P1}]` becomes `{P1}`.
   """
-  @spec plain(String.t() | nil) :: String.t()
-  def plain(nil), do: ""
+  @spec plain(String.t() | nil, keyword) :: String.t()
+  def plain(text, opts \\ [])
+  def plain(nil, _opts), do: ""
 
-  def plain(text) when is_binary(text) do
+  def plain(text, opts) when is_binary(text) do
     Regex.replace(@token, text, fn whole ->
       case Regex.run(@player, whole) do
         [_, n] ->
-          "P" <> n
+          if opts[:keep_players], do: whole, else: "P" <> n
 
         nil ->
           inner = String.slice(whole, 1..-2//1)

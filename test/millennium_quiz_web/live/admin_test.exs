@@ -112,6 +112,28 @@ defmodule MillenniumQuizWeb.AdminTest do
              )
     end
 
+    test "the answer fields have the card name autocomplete (bare names)", %{conn: conn} do
+      topic = hd(format_fixture().topics)
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+
+      for i <- 0..3 do
+        assert has_element?(
+                 view,
+                 "input#question_choices_#{i}_text[phx-hook='CardLinkInput'][data-mode='plain'][data-suggestions='choice-suggestions-#{i}'][maxlength='200']"
+               )
+
+        assert has_element?(
+                 view,
+                 "ul#choice-suggestions-#{i}[role='listbox'][phx-update='ignore'][hidden]"
+               )
+      end
+
+      refute has_element?(view, "#question_text[data-mode]")
+      assert has_element?(view, "#choice-hint", "{P1}")
+      assert has_element?(view, "#choice-hint", "this question's cards")
+      assert has_element?(view, "input#question_choices_0_text[aria-describedby=choice-hint]")
+    end
+
     test "creates a question with default points and reorders it", %{conn: conn} do
       format = format_fixture()
       topic = hd(format.topics)
@@ -269,6 +291,35 @@ defmodule MillenniumQuizWeb.AdminTest do
       # a failing remote search is an empty list, not a crash
       Req.Test.stub(MillenniumQuiz.Cards, &Plug.Conn.send_resp(&1, 500, "down"))
       render_hook(view, "suggest_cards", %{"query" => "dark"})
+      assert_reply(view, %{suggestions: []})
+    end
+
+    test "an answer field suggests only the question's attached cards, without any request",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+      {:ok, _plain} = MillenniumQuiz.Cards.import(CardSourcesStub.plain().password)
+      topic = hd(format_fixture(%{"date" => "2020-01-01"}).topics)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+      # no Req.Test.allow: a request to a card source from the view would fail
+
+      # nothing attached yet: both cards are in the pool, none is suggested
+      render_hook(view, "suggest_cards", %{"query" => "monster", "scope" => "attached"})
+      assert_reply(view, %{suggestions: []})
+
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+
+      render_hook(view, "suggest_cards", %{"query" => "REBORN", "scope" => "attached"})
+      assert_reply(view, %{suggestions: [%{id: id, name: "Monster Reborn", source: "pool"}]})
+      assert id == reborn.id
+
+      # too short; a pool card that is not attached; a name nobody has (no search)
+      render_hook(view, "suggest_cards", %{"query" => "m", "scope" => "attached"})
+      assert_reply(view, %{suggestions: []})
+      render_hook(view, "suggest_cards", %{"query" => "plain", "scope" => "attached"})
+      assert_reply(view, %{suggestions: []})
+      render_hook(view, "suggest_cards", %{"query" => "zzzz", "scope" => "attached"})
       assert_reply(view, %{suggestions: []})
     end
 

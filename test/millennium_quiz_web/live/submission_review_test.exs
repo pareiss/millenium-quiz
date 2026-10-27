@@ -36,6 +36,41 @@ defmodule MillenniumQuizWeb.SubmissionReviewTest do
       assert has_element?(view, "#menu-submissions")
     end
 
+    test "the list draws {P1} and {P2} as badges", %{conn: conn, topic: topic} do
+      {:ok, s} =
+        Quiz.create_submission(topic, %{
+          "text" => "{P1} attacks {P2}",
+          "choices" => %{
+            "0" => %{"text" => "{P2} loses", "correct" => "true"},
+            "1" => %{"text" => "Nothing"}
+          }
+        })
+
+      {:ok, view, _} = live(conn, ~p"/admin/submissions")
+      assert has_element?(view, "#submission-#{s.id} p .mq-player-badge", "P1")
+      assert has_element?(view, "#submission-#{s.id} li .mq-player-badge", "P2")
+    end
+
+    test "the review form keeps what the player wrote, markers and brackets included",
+         %{conn: conn, topic: topic} do
+      {:ok, s} =
+        Quiz.create_submission(topic, %{
+          "text" => "{P1} uses [Monster Reborn]",
+          "choices" => %{
+            "0" => %{"text" => "{P2} [Pot of Greed]", "correct" => "true"},
+            "1" => %{"text" => "Nothing"}
+          }
+        })
+
+      {:ok, form, _} =
+        live(conn, ~p"/admin/topics/#{topic.id}/questions/new?#{[submission: s.id]}")
+
+      assert has_element?(form, "#original-text", "{P1} uses [Monster Reborn]")
+      assert has_element?(form, "#original-choices li", "{P2} [Pot of Greed]")
+      refute has_element?(form, "#original-text .mq-player-badge")
+      refute has_element?(form, "#original-choices .mq-player-badge")
+    end
+
     test "every filter opens, including the ones for reviewed suggestions", %{
       conn: conn,
       submission: s

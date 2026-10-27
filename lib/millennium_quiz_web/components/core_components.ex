@@ -362,6 +362,11 @@ defmodule MillenniumQuizWeb.CoreComponents do
             A bracket pair without a matching card stays as written, brackets included, so ordinary text such as "[sic]" is fine.
           </li>
           <li>One card can be mentioned several times; there are no nested brackets.</li>
+          <li>
+            <kbd class="kbd kbd-xs">{"{P1}"}</kbd>
+            and <kbd class="kbd kbd-xs">{"{P2}"}</kbd>
+            (in the question or an answer) show as a blue and a red badge for the two players.
+          </li>
           <li :if={@audience == :admin}>
             To turn a link back into plain text, remove its brackets or remove the card from the question.
           </li>
@@ -539,7 +544,28 @@ defmodule MillenniumQuizWeb.CoreComponents do
   end
 
   @doc """
-  An answer text: plain, with `{P1}` / `{P2}` shown as `player_badge/1`.
+  The hint under the answer fields of the question form (with the list of the
+  question's cards) and of the suggestion form (`autocomplete={false}`: a
+  suggestion has no cards).
+  """
+  attr :autocomplete, :boolean, default: true
+
+  def answer_markup_hint(assigns) do
+    ~H"""
+    <p class="-mt-1 text-xs text-base-content/60" id="choice-hint">
+      <span :if={@autocomplete}>
+        Type <kbd class="kbd kbd-xs">[</kbd>
+        to pick one of this question's cards by name (inserts the name only).
+      </span>
+      <kbd class="kbd kbd-xs">{"{P1}"}</kbd>
+      and <kbd class="kbd kbd-xs">{"{P2}"}</kbd>
+      show as the blue and red badge.
+    </p>
+    """
+  end
+
+  @doc """
+  An answer text (or the text of a question shown without card links): plain, with `{P1}` / `{P2}` shown as `player_badge/1`.
   """
   attr :text, :string, required: true
 
