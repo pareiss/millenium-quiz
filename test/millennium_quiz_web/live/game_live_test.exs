@@ -160,6 +160,7 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     refute has_element?(view, "#scoreboard")
     # the "pass the device" bar goes by itself (css animation, no hook)
     assert has_element?(view, ".mq-passbar #current-player")
+    assert has_element?(view, ".mq-passbar .mq-passbar__timer")
     assert has_element?(view, ".mq-choices #choice-0")
   end
 

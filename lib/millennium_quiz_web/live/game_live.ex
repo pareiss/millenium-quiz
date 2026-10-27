@@ -305,10 +305,12 @@ defmodule MillenniumQuizWeb.GameLive do
       data-turn-panel
       class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden reveal-pop"
     >
-      <%!-- goes by itself after a few seconds (app.css), when a question comes up
-           and again for each next player; the choices below cannot be tapped
-           until it has gone, so nobody hits the wrong one as the page moves --%>
+      <%!-- goes by itself after about 3 seconds (app.css), when a question comes
+           up and again for each next player; on a phone or tablet the choices
+           below cannot be tapped until it has gone, so nobody hits the wrong one
+           as the page moves, and the line along its bottom runs out meanwhile --%>
       <div class="mq-passbar bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
+        <span class="mq-passbar__timer" aria-hidden="true"></span>
         <.avatar slug={@player.avatar} class="size-14" />
         <p class="min-w-0">
           Pass the device to <strong class="text-lg" id="current-player">{@player.name}</strong>
