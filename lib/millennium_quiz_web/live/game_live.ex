@@ -120,7 +120,7 @@ defmodule MillenniumQuizWeb.GameLive do
     <div class="space-y-2 sm:space-y-3">
       <div class="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
         <div>
-          <p class="text-xs sm:text-sm font-medium uppercase tracking-[0.12em] sm:tracking-[0.2em] text-primary">
+          <p class="mq-qhide text-xs sm:text-sm font-medium uppercase tracking-[0.12em] sm:tracking-[0.2em] text-primary">
             {@game.format_name}
             <span class="text-base-content/50" id="game-mode">· {Game.mode_name(@game.mode)}</span>
           </p>
@@ -150,7 +150,7 @@ defmodule MillenniumQuizWeb.GameLive do
       <%!-- the final panel has the standings --%>
       <progress
         :if={not @finished?}
-        class="progress progress-primary w-full"
+        class="mq-qhide progress progress-primary w-full"
         value={Enum.count(@game.questions, & &1.result)}
         max={Game.total_rounds(@game)}
       />

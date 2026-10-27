@@ -46,3 +46,5 @@ npm-debug.log
 __pycache__/
 
 gigalixir_free_db.json
+# Python venv of bin/layout-test
+/.venv-layout/

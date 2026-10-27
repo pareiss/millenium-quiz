@@ -36,6 +36,22 @@ defmodule MillenniumQuiz.Release do
     with_repo(fn -> Code.eval_file(Application.app_dir(@app, "priv/repo/seeds.exs")) end)
   end
 
+  @doc """
+  Content for `bin/layout-test`: a format with questions of 4, 3 and 1 cards,
+  and four cards that exist nowhere else. For CI and local servers only: it
+  refuses to run unless `LAYOUT_FIXTURE=1` is set, so it cannot be run on the
+  live database by accident (the Smoke workflow sets it).
+  """
+  def seed_layout_fixture do
+    if System.get_env("LAYOUT_FIXTURE") == "1" do
+      with_repo(fn ->
+        Code.eval_file(Application.app_dir(@app, "priv/repo/layout_fixture.exs"))
+      end)
+    else
+      IO.puts("Not seeding the layout fixture: set LAYOUT_FIXTURE=1 (CI and local servers only).")
+    end
+  end
+
   @doc "Fetches every card in the card pool again (new errata, stats, artworks)."
   def refresh_cards do
     {:ok, _} = Application.ensure_all_started(:req)
