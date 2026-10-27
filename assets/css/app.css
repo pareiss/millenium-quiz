@@ -1025,4 +1025,7 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
    upright (1024px and up) keeps its bar. */
 @media (max-height: 920px) {
   body:has(#game[data-phase="answering"]) #site-header { display: none; }
+  /* and so do the game's format line and progress bar: the title row with Pause
+     and End stays */
+  #game[data-phase="answering"] .mq-qhide { display: none; }
 }

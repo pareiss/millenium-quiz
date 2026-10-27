@@ -1,6 +1,6 @@
 # Tablet and phone layout (high priority)
 
-Reported 2026-10-26 from use on real tablets. Not started.
+Reported 2026-10-26 from use on real tablets. Items 1 to 4 and 6 are built (PRs #34, #35 and the `layout-smoke` PR); item 5 is partly done: the question view is short enough on most phones, still scrolls on the smallest ones and on a phone on its side. Not yet tried on a real device.
 
 1. On many tablet widths only 3 cards fit on a line instead of 4. Slightly smaller cards would give 4. Find the card width and breakpoints (`card_components.ex`, `assets/css/app.css`) and measure at 768, 810, 820, 834, 912, 1024 and 1180 px.
 2. In the question view, hide the top bar when there is not enough vertical space. Starting value: viewport height 700 px (`@media (max-height: 700px)`), to be tuned from screenshots.

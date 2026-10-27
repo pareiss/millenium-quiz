@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Layout smoke test: tablet and phone viewports in a headless browser.
+
+    bin/layout-test [URL]            # default: $LAYOUT_URL or http://localhost:4000
+
+Needs the "Layout check" format (priv/repo/layout_fixture.exs: `mix run
+priv/repo/layout_fixture.exs`, or `Release.seed_layout_fixture()` in a release)
+and Playwright with Chromium:
+
+    python3 -m venv .venv-layout && .venv-layout/bin/pip install playwright
+    .venv-layout/bin/playwright install chromium
+    .venv-layout/bin/python bin/layout-test
+
+It plays one game of that format, creating a game on the site it is pointed at
+(so not for the live site), and resizes the window through the viewports.
+Checks the question view (docs/plans/tablet-phone-layout.md):
+  - no horizontal overflow, on the board and in the question
+  - cards per row: 4 on a portrait tablet, 3 on a landscape one, 2 on a phone
+  - the score line is on the board and gone in the question
+  - the site's top bar is gone in the question when the screen is at most 920px
+    high, and stays on a tall tablet
+  - the pass-the-device bar shrinks by itself, for the first player and again
+    for the next
+  - how far the question must scroll stays under a limit per viewport
+Exit code: 0 all passed, 1 at least one check failed.
+"""
+import os
+import sys
+
+from playwright.sync_api import sync_playwright
+
+base = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("LAYOUT_URL", "http://localhost:4000")).rstrip("/")
+
+# name, width, height, cards per row (at least), most scrolling allowed in px.
+# The question has 4 cards, the worst case: on a phone they take two rows. The
+# limits are the measured values plus a margin, to catch a regression, not a goal.
+VIEWPORTS = [
+    ("tablet 768x1024", 768, 1024, 4, 0),
+    ("tablet 810x1080", 810, 1080, 4, 0),
+    ("tablet 820x1180", 820, 1180, 4, 0),
+    ("tablet 834x1194", 834, 1194, 4, 0),
+    ("tablet 912x1368", 912, 1368, 4, 0),
+    ("tablet landscape 1024x768", 1024, 768, 3, 100),
+    ("tablet landscape 1180x820", 1180, 820, 3, 100),
+    ("phone 412x915", 412, 915, 2, 170),
+    ("phone 390x844", 390, 844, 2, 280),
+    ("phone 360x740", 360, 740, 2, 450),
+    ("phone landscape 844x390", 844, 390, 2, 450),
+]
+
+passed = 0
+failed = 0
+
+
+def check(label, ok, detail=""):
+    global passed, failed
+    if ok:
+        passed += 1
+        print(f"  ok    {label}")
+    else:
+        failed += 1
+        print(f"  FAIL  {label}" + (f" ({detail})" if detail else ""))
+
+
+def metrics(page):
+    return page.evaluate(
+        """() => {
+          const cards = [...document.querySelectorAll('#question-cards article')]
+          const firstTop = cards.length ? Math.round(cards[0].getBoundingClientRect().top) : null
+          const header = document.querySelector('#site-header')
+          return {
+            overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            overY: document.documentElement.scrollHeight - innerHeight,
+            perRow: cards.filter(c => Math.round(c.getBoundingClientRect().top) === firstTop).length,
+            header: header ? getComputedStyle(header).display : 'missing',
+            score: !!document.querySelector('#scoreboard'),
+          }
+        }"""
+    )
+
+
+def pass_bar_height(page):
+    return page.evaluate("() => Math.round(document.querySelector('.mq-passbar').getBoundingClientRect().height)")
+
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
+
+    page.goto(base + "/")
+    page.locator("a:has-text('Layout check')").first.click()
+    page.wait_for_selector("#start-game")
+    for i in range(2):
+        # real key events: the field debounces, and the form reads it on blur
+        page.click(f"#player-name-{i}")
+        page.keyboard.type(f"Player {i + 1}", delay=20)
+        page.keyboard.press("Tab")
+    page.wait_for_timeout(600)
+    page.click("#start-game")
+    page.wait_for_selector("button[phx-click='choose']")
+
+    print("Board")
+    for name, w, h, _, _ in VIEWPORTS:
+        page.set_viewport_size({"width": w, "height": h})
+        page.wait_for_timeout(150)
+        m = metrics(page)
+        check(f"{name}: no horizontal overflow, score line shown",
+              m["overX"] <= 0 and m["score"], f"overflow {m['overX']}px, score line {m['score']}")
+
+    # the first question of the board has 4 cards
+    page.set_viewport_size({"width": 768, "height": 1024})
+    page.locator("button[phx-click='choose']:not([disabled])").first.click()
+    page.wait_for_selector("#question-cards article")
+
+    print("Pass the device (first player)")
+    check("the bar is full size when the question comes up", pass_bar_height(page) >= 60,
+          f"{pass_bar_height(page)}px")
+    page.wait_for_timeout(5000)
+    check("it shrinks by itself after a few seconds", pass_bar_height(page) <= 50,
+          f"{pass_bar_height(page)}px")
+
+    print("Question view")
+    for name, w, h, per_row, max_scroll in VIEWPORTS:
+        page.set_viewport_size({"width": w, "height": h})
+        page.wait_for_timeout(200)
+        m = metrics(page)
+        check(f"{name}: no horizontal overflow", m["overX"] <= 0, f"{m['overX']}px")
+        check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
+        check(f"{name}: no score line", not m["score"])
+        expected = "none" if h <= 920 else "block"
+        check(f"{name}: top bar {'hidden' if h <= 920 else 'shown'}", m["header"] == expected,
+              f"display {m['header']}")
+        check(f"{name}: scrolls at most {max_scroll}px (now {m['overY']}px)", m["overY"] <= max_scroll)
+
+    print("Pass the device (next player)")
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.click("#choice-0")
+    page.wait_for_selector("#answer-progress:has-text('2/2')")
+    check("the bar is full size again for the next player", pass_bar_height(page) >= 60,
+          f"{pass_bar_height(page)}px")
+    page.wait_for_timeout(5000)
+    check("and shrinks by itself again", pass_bar_height(page) <= 50, f"{pass_bar_height(page)}px")
+
+    browser.close()
+
+print()
+print(f"{passed} passed, {failed} failed")
+sys.exit(1 if failed else 0)

@@ -36,6 +36,13 @@ defmodule MillenniumQuiz.Release do
     with_repo(fn -> Code.eval_file(Application.app_dir(@app, "priv/repo/seeds.exs")) end)
   end
 
+  @doc "Content for `bin/layout-test`: a format with questions of 4, 3 and 1 cards."
+  def seed_layout_fixture do
+    with_repo(fn ->
+      Code.eval_file(Application.app_dir(@app, "priv/repo/layout_fixture.exs"))
+    end)
+  end
+
   @doc "Fetches every card in the card pool again (new errata, stats, artworks)."
   def refresh_cards do
     {:ok, _} = Application.ensure_all_started(:req)

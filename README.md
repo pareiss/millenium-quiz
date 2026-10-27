@@ -451,6 +451,16 @@ redirect; and that the LiveView websocket upgrades for the site's own origin and
 one. With admin credentials it also logs in and reads the admin pages and the backup (one login, and it logs out again; the
 password is never printed). The exit code is 1 when a check fails, so it can also run in a script or CI.
 
+**Layout: `bin/layout-test`.** `bin/smoke-test` is curl-only and cannot see a layout. `bin/layout-test`
+plays one game of the fixture format "Layout check" (`priv/repo/layout_fixture.exs`: questions with 4, 3
+and 1 cards, no network needed) in headless Chromium and resizes the window through tablet and phone
+viewports. It checks that nothing overflows sideways, 4 cards fit a row on a portrait tablet (3 on a
+landscape one, 2 on a phone), the score line and the site's top bar make room in the question view, the
+pass-the-device bar shrinks by itself, and that the question does not scroll further than a limit per
+viewport. It creates a game on the site, so run it against a local server or CI, not the live site
+(setup in the script's header; the Smoke workflow runs it). Every new feature should add a tablet and a
+phone check there.
+
 **Before a merge, on GitHub:** two workflows run on every pull request and on `master`.
 `CI` (`.github/workflows/ci.yml`) compiles with warnings as errors, checks the formatting and unused
 deps, and runs the tests. `Smoke` (`.github/workflows/smoke.yml`) builds the production release the
