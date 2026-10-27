@@ -145,12 +145,12 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert has_element?(view, "#board.mq-board[style*='--cols: 2']")
   end
 
-  test "the score line and the site's top bar make room while a question is up",
+  test "while a question is up the score line is gone and the page says so",
        %{conn: conn, format: format} do
     {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :free)
     {:ok, view, _html} = live(conn, ~p"/games/#{id}")
 
-    # the board: the score is there; the css hides the top bar only in a question
+    # the board: the score is there (the css hides the top bar only in a question)
     assert has_element?(view, "#game[data-phase=choosing]")
     assert has_element?(view, "#scoreboard")
 
@@ -158,8 +158,25 @@ defmodule MillenniumQuizWeb.GameLiveTest do
 
     assert has_element?(view, "#game[data-phase=answering]")
     refute has_element?(view, "#scoreboard")
-    # the "pass the device" bar shrinks by itself (css animation, no hook)
+    # the "pass the device" bar goes by itself (css animation, no hook)
     assert has_element?(view, ".mq-passbar #current-player")
+    assert has_element?(view, ".mq-choices #choice-0")
+  end
+
+  test "pausing during a question brings the score line and the page header back",
+       %{conn: conn, format: format} do
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :free)
+    {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+    render_click(view, "choose", %{"question" => "1"})
+    refute has_element?(view, "#scoreboard")
+
+    view |> element("#pause-game") |> render_click()
+
+    # the css hides the site's top bar for data-phase=answering only
+    assert has_element?(view, "#paused")
+    assert has_element?(view, "#game[data-phase=paused]")
+    refute has_element?(view, "#game[data-phase=answering]")
+    assert has_element?(view, "#scoreboard")
   end
 
   test "a running game keeps the screen awake and has a reconnecting banner",
