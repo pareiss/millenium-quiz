@@ -6,6 +6,7 @@ defmodule MillenniumQuiz.Release do
       bin/millennium_quiz eval 'MillenniumQuiz.Release.create_admin("name", "a long password")'
       bin/millennium_quiz eval "MillenniumQuiz.Release.seed()"
       bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_cards()"
+      bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_card_names()"
       bin/millennium_quiz eval 'MillenniumQuiz.Release.export_quiz("quiz-backup.json")'
       bin/millennium_quiz eval 'MillenniumQuiz.Release.import_quiz("quiz-backup.json")'
   """
@@ -54,30 +55,37 @@ defmodule MillenniumQuiz.Release do
 
   @doc """
   Fills the list of all TCG card names (`MillenniumQuiz.Cards.CardNames`) from
-  YGOPRODeck: about 27 requests, one per release year, paced by the gate. Run
-  it after a deploy that has the table, and now and then for new cards.
+  YGOPRODeck: about 27 requests, one per release year, paced by a gate. The
+  running application refreshes the list by itself (`CardNames.Refresher`);
+  this is for a host where it cannot, or to fill the list at once.
+
+  This VM is not the application, so it has a gate of its own, and the
+  application's gate does not know its requests. To stay under the API's cap
+  (20 a second) together, the gate here gets half of the default budget
+  (4 a second): 8 in the application plus 4 here.
   """
   def refresh_card_names do
     {:ok, _} = Application.ensure_all_started(:req)
 
     with_repo(fn ->
-      # this VM does not run the application, so it has no gate of its own yet
-      case MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate.start_link() do
-        {:ok, _} -> :ok
-        {:error, {:already_started, _}} -> :ok
-      end
-
-      case MillenniumQuiz.Cards.CardNames.refresh() do
-        {:ok, count} ->
-          IO.puts(
-            "Card names: #{count} written, #{MillenniumQuiz.Cards.CardNames.count()} in the list"
-          )
-
-        {:error, reason, count} ->
-          IO.puts("Card names: stopped after #{count} written: #{inspect(reason)}. Run it again.")
-      end
+      :ok = start_gate()
+      IO.puts(card_names_report(MillenniumQuiz.Cards.CardNames.refresh()))
     end)
   end
+
+  @doc false
+  def start_gate do
+    case MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate.start_link(rate: 4, burst: 4) do
+      {:ok, _} -> :ok
+      {:error, {:already_started, _}} -> :ok
+    end
+  end
+
+  @doc "The line that says how `CardNames.refresh/1` went."
+  def card_names_report({:ok, count}), do: "Card names: #{count} written"
+
+  def card_names_report({:error, reason, count}),
+    do: "Card names: stopped after #{count} written: #{inspect(reason)}. Run it again."
 
   @doc "Fetches every card in the card pool again (new errata, stats, artworks)."
   def refresh_cards do

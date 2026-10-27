@@ -75,6 +75,57 @@ defmodule MillenniumQuiz.Cards.CardNamesTest do
     end
   end
 
+  describe "stale?/2" do
+    test "is true for an empty list and for one older than the limit" do
+      assert CardNames.stale?(7)
+
+      add("Some Card", 1, ~D[2010-01-01])
+      refute CardNames.stale?(7)
+      assert CardNames.stale?(7, DateTime.add(DateTime.utc_now(), 8, :day))
+      refute CardNames.stale?(7, DateTime.add(DateTime.utc_now(), 6, :day))
+    end
+  end
+
+  describe "refresh/1 pruning" do
+    test "deletes rows the refresh did not see (a card listed under another id now)" do
+      long_ago = DateTime.add(DateTime.utc_now(:second), -8, :day)
+
+      add("Monster Reborn", 99, ~D[2002-03-08], %{
+        konami_id: 4842,
+        inserted_at: long_ago,
+        updated_at: long_ago
+      })
+
+      add("Plain Card", 11_111_111, ~D[2015-05-05], %{inserted_at: long_ago, updated_at: long_ago})
+
+      assert {:ok, 2} = CardNames.refresh(today: @today)
+
+      assert Enum.sort(Enum.map(Repo.all(CardName), & &1.password)) ==
+               [11_111_111, 83_764_719]
+    end
+
+    test "keeps everything when the refresh wrote far fewer names than the list held" do
+      for n <- 1..10, do: add("Old Card #{n}", 500 + n, ~D[2010-01-01])
+
+      assert {:ok, 2} = CardNames.refresh(today: @today)
+
+      assert CardNames.count() == 12
+    end
+
+    test "keeps everything when a request failed" do
+      add("Old Card", 500, ~D[2010-01-01])
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        if conn.query_string =~ "startdate=2003",
+          do: Plug.Conn.send_resp(conn, 500, "no"),
+          else: CardSourcesStub.handle(conn)
+      end)
+
+      assert {:error, {:http, 500}, 1} = CardNames.refresh(today: @today)
+      assert Repo.get_by(CardName, password: 500)
+    end
+  end
+
   describe "search/2" do
     test "ranks like the pool's suggestions" do
       add("Dark Hole Dragon", 1, ~D[2010-01-01])

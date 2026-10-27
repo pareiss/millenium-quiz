@@ -64,11 +64,16 @@ table of every card released in the TCG (`card_names`, about 14,000 rows: name, 
 before it asks YGOPRODeck, so typing a name costs no request. Only when the table finds nothing (a card
 newer than the list, a typo, or the table not filled yet) the search asks YGOPRODeck as before, through
 the gate, for admins and players alike. The list is not the card pool: a row has no text and no
-artwork, and a card is only copied into the pool when an admin picks it. It is filled by
-`bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_card_names()"` (about 27 requests, one per
-release year, since the whole list in one answer is 25 MB; about 15 seconds). Run it once after the
-deploy that adds the table and now and then for new cards; running it again only updates.
-Locally: `mix run -e "MillenniumQuiz.Release.refresh_card_names()"`.
+artwork, and a card is only copied into the pool when an admin picks it. The application fills
+and refreshes it by itself (`Cards.CardNames.Refresher`): a minute after start it refreshes an empty or
+week-old list, and checks again every 6 hours. A refresh is about 27 requests, one per release year (the
+whole list in one answer is 25 MB), through the node's own gate, in about 15 seconds; it updates what
+changed and deletes the rows it did not see again (unless it wrote less than 90% as many names as the
+list held, then it keeps everything). A card announced after the last refresh can be missing from a
+search that also matches older cards for up to a week; a search that matches nothing asks YGOPRODeck.
+`bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_card_names()"` does the same from outside the
+application (its gate gets half the budget, 4 requests/s, because it is a second one); locally:
+`mix run -e "MillenniumQuiz.Release.refresh_card_names()"`.
 
 `MillenniumQuiz.Cards.text_on/3` picks the text for a date: the newest printed
 version released by then. Reprints that bring back an older wording (e.g.

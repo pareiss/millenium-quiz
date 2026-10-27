@@ -6,10 +6,14 @@ defmodule MillenniumQuiz.Cards.CardNames do
 
   `refresh/1` fills it from YGOPRODeck, one request per release year: the
   whole list in one answer is 25 MB, a year about 1 to 2 MB, so a small server
-  can parse it. Every request goes through the gate. Run it after a deploy and
-  now and then for new cards: `bin/millennium_quiz eval
-  "MillenniumQuiz.Release.refresh_card_names()"`. Rows are upserted by
-  password, never deleted.
+  can parse it. Every request goes through the gate.
+
+  `CardNames.Refresher` runs it inside the application: when the list is empty
+  (first start after the table was added) and then every week. Rows are
+  upserted by password; after a refresh that went through, the rows it did not
+  see again (a card whose listed id changed, a card taken off the list) are
+  deleted. `Release.refresh_card_names/0` does the same from a release `eval`,
+  for a host where the application cannot do it.
   """
   import Ecto.Query
 
@@ -60,20 +64,43 @@ defmodule MillenniumQuiz.Cards.CardNames do
   end
 
   @doc """
+  Whether the list is empty or was last written more than `max_age_days` ago.
+  """
+  def stale?(max_age_days, now \\ DateTime.utc_now()) do
+    case refreshed_at() do
+      nil -> true
+      at -> DateTime.diff(now, at, :day) >= max_age_days
+    end
+  end
+
+  @doc """
   Fetches the names and stores them. Options: `:today` (a `Date`, for tests)
   and `:gate`. Returns `{:ok, count}`, the number of names written, or
   `{:error, reason, count}` when a request failed (what was fetched before is
   kept; run it again).
+
+  After a refresh that went through, rows it did not write are deleted, but
+  only when it wrote at least 90% as many names as the list held: an answer
+  that came back empty by mistake must not empty the list.
   """
   def refresh(opts \\ []) do
     today = Keyword.get(opts, :today, Date.utc_today())
+    started = DateTime.utc_now(:second)
+    before_count = count()
 
-    Enum.reduce_while(windows(today), {:ok, 0}, fn {first, last}, {:ok, count} ->
-      case YGOPRODeck.released_between(first, last, Keyword.take(opts, [:gate])) do
-        {:ok, results} -> {:cont, {:ok, count + store(results)}}
-        {:error, reason} -> {:halt, {:error, reason, count}}
-      end
-    end)
+    result =
+      Enum.reduce_while(windows(today), {:ok, 0}, fn {first, last}, {:ok, count} ->
+        case YGOPRODeck.released_between(first, last, Keyword.take(opts, [:gate])) do
+          {:ok, results} -> {:cont, {:ok, count + store(results)}}
+          {:error, reason} -> {:halt, {:error, reason, count}}
+        end
+      end)
+
+    with {:ok, written} <- result, true <- written >= before_count * 0.9 do
+      Repo.delete_all(from c in CardName, where: c.updated_at < ^started)
+    end
+
+    result
   end
 
   defp store(results) do

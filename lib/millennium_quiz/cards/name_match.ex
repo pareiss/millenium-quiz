@@ -1,7 +1,7 @@
 defmodule MillenniumQuiz.Cards.NameMatch do
   @moduledoc """
   Matching a typed query against card names, for the pool (`Cards.suggest/2`)
-  and the list of all names (`CardNames.search/3`): case-insensitive
+  and the list of all names (`CardNames.search/2`): case-insensitive
   "contains", with `%`, `_` and `\\` in the query taken literally, ranked exact
   match, name starts with the query, a word starts with the query, anything
   else; then alphabetically. Works on any query whose first binding has a

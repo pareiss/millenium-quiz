@@ -41,8 +41,11 @@ defmodule MillenniumQuiz.Cards do
   Each result has `:in_pool` set when the card is already stored locally.
 
   Looks in the local list of all card names first (`CardNames`, no request).
-  Only when that finds nothing (a card newer than the list, a misspelling, or
-  a list not filled yet) it asks YGOPRODeck. `priority: :player` (default
+  Only when that finds nothing (a misspelling, a card announced after the
+  list's last refresh whose name matches no older card, or a list not filled
+  yet) it asks YGOPRODeck. The list refreshes itself every week
+  (`CardNames.Refresher`), so a new card can be missing from a search that also
+  matches older cards for up to a week. `priority: :player` (default
   `:admin`) says whose request that is at the gate; `before_request:` is a
   function checked only when the answer is not cached (see
   `YGOPRODeck.search/2`).

@@ -38,15 +38,33 @@ defmodule MillenniumQuiz.CardsTest do
       refute_received :asked_the_remote
     end
 
-    test "asks YGOPRODeck only when the list finds nothing" do
+    test "asks YGOPRODeck when the list finds nothing for the date" do
+      # Plain Card is in the list (released 2015) but not by 2004 for the list;
+      # the remote is asked, and answers nothing for 2004 either
       {:ok, _} = CardNames.refresh(today: ~D[2026-10-27])
-      add_new_card = fn conn -> CardSourcesStub.handle(conn) end
-      Req.Test.stub(MillenniumQuiz.Cards, add_new_card)
+      test = self()
 
-      # not in the list, but in the stub's remote answer
-      Repo.delete_all(MillenniumQuiz.Cards.CardName)
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        send(test, {:asked_the_remote, conn.query_string})
+        CardSourcesStub.handle(conn)
+      end)
 
+      assert {:ok, []} = Cards.search("plain", %{date: ~D[2004-01-01]})
+      assert_received {:asked_the_remote, query}
+      assert query =~ "fname=plain"
+    end
+
+    test "asks YGOPRODeck for a card the list does not have" do
+      test = self()
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        send(test, :asked_the_remote)
+        CardSourcesStub.handle(conn)
+      end)
+
+      # the list is empty
       assert {:ok, [%{name: "Plain Card"}]} = Cards.search("plain", %{date: ~D[2016-01-01]})
+      assert_received :asked_the_remote
     end
 
     test "marks cards that are already in the pool" do
