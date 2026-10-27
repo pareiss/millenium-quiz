@@ -54,24 +54,24 @@ defmodule MillenniumQuizWeb.SuggestLiveTest do
     assert has_element?(view, "#card-markup-help", "Monster Reborn")
   end
 
-  test "the answer fields suggest card names too, as bare names", %{conn: conn} do
+  test "the answer fields have no card autocomplete (a suggestion has no cards)", %{conn: conn} do
     {:ok, view, _} = live(conn, ~p"/suggest")
 
     for i <- 0..3 do
       assert has_element?(
                view,
-               "input#submission_choices_#{i}_text[phx-hook=CardLinkInput][data-mode=plain][data-suggestions='choice-suggestions-#{i}']"
+               "input#submission_choices_#{i}_text[aria-describedby=choice-hint]:not([phx-hook])"
              )
 
-      assert has_element?(
-               view,
-               "ul#choice-suggestions-#{i}[role=listbox][phx-update=ignore][hidden]"
-             )
+      refute has_element?(view, "#choice-suggestions-#{i}")
     end
 
-    refute has_element?(view, "#submission_text[data-mode]")
     assert has_element?(view, "#choice-hint", "{P1}")
+    refute has_element?(view, "#choice-hint", "[")
     assert has_element?(view, "#card-markup-help", "{P2}")
+    refute has_element?(view, "#card-markup-help", "suggestion list only inserts")
+    # the question text keeps its list
+    assert has_element?(view, "#submission_text[phx-hook=CardLinkInput]")
   end
 
   test "{P1} and {P2} show as badges on the status page", %{conn: conn, format: f, topic: t} do

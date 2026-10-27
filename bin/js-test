@@ -425,6 +425,19 @@ with sync_playwright() as p:
 
     run("answer field: a pick writes the bare name and attaches nothing", test_plain_tab_writes_bare_name)
 
+    def test_plain_asks_for_attached_cards_only():
+        mount(plain=True)
+        type_query("[Monster Re", [REBORN, NEW_CARD])
+        check(pushed("suggest_cards")[-1]["payload"] == {"query": "Monster Re", "scope": "attached"},
+              str(pushed("suggest_cards")[-1]))
+        check("import" not in " ".join(options()), f"no import tag in an answer field: {options()}")
+        mount()
+        type_query("[Monster Re", [NEW_CARD])
+        check(pushed("suggest_cards")[-1]["payload"] == {"query": "Monster Re"}, "the question text asks as before")
+        check("import" in " ".join(options()), "the question text still tags imports")
+
+    run("answer field: asks for the question's own cards and shows no import tag", test_plain_asks_for_attached_cards_only)
+
     def test_plain_close_bracket_and_click():
         mount(plain=True)
         type_query("[Monster Reborn", [REBORN])

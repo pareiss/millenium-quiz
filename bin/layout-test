@@ -20,7 +20,7 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - the score line is on the board and gone in the question
   - the site's top bar is gone in the question when the screen is at most 920px
     high, and stays on a tall tablet
-  - the answer fields of /suggest list card names inside the screen and a pick writes the bare name
+  - the answer fields of /suggest have no card list (a suggestion has no cards), only the hint
   - the pass-the-device bar folds away by itself, for the first player and again
     for the next
   - how far the question must scroll stays under a limit per viewport
@@ -162,19 +162,20 @@ with sync_playwright() as p:
         page.fill("#submission_choices_0_text", "")
         page.click("#submission_choices_0_text")
         page.keyboard.type("[Layout Ca", delay=15)
-        page.wait_for_selector("#choice-suggestions-0 [role=option]", timeout=5000)
-        box = page.evaluate(
+        page.wait_for_timeout(500)  # longer than the hook's pause: a list would be open by now
+        m = page.evaluate(
             """() => {
-              const r = document.getElementById('choice-suggestions-0').getBoundingClientRect()
               const d = document.documentElement
-              return {left: r.left, right: r.right, overX: d.scrollWidth - d.clientWidth, width: innerWidth}
+              return {
+                overX: d.scrollWidth - d.clientWidth,
+                lists: document.querySelectorAll('[id^=choice-suggestions]').length,
+                hooked: document.querySelectorAll('#suggest-form input[phx-hook]').length,
+                hint: !!document.getElementById('choice-hint'),
+              }
             }"""
         )
-        check(f"{name}: the answer's card list opens inside the screen, no horizontal overflow",
-              box["left"] >= 0 and box["right"] <= box["width"] and box["overX"] <= 0, str(box))
-        page.keyboard.press("Tab")
-        value = page.input_value("#submission_choices_0_text")
-        check(f"{name}: a pick writes the bare name", value == "Layout Card 1", value)
+        check(f"{name}: answers have no card list, the hint shows, no horizontal overflow",
+              m["overX"] <= 0 and m["lists"] == 0 and m["hooked"] == 0 and m["hint"], str(m))
 
     browser.close()
 

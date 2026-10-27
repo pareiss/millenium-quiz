@@ -33,8 +33,8 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
             do: "From #{@submission.submitter_name}",
             else: "No name given"} · what they wrote is kept as it is; the form below is yours to edit. Saving adds it to this topic and marks the suggestion approved.
         </p>
-        <p class="font-semibold whitespace-pre-line">{@submission.text}</p>
-        <ol class="list-[upper-alpha] pl-6 text-sm">
+        <p class="font-semibold whitespace-pre-line" id="original-text">{@submission.text}</p>
+        <ol class="list-[upper-alpha] pl-6 text-sm" id="original-choices">
           <li :for={c <- @submission.choices} class={c.correct && "font-semibold"}>{c.text}</li>
         </ol>
       </section>
@@ -220,6 +220,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
                   autocomplete="off"
                   phx-hook="CardLinkInput"
                   data-mode="plain"
+                  aria-describedby="choice-hint"
                   data-suggestions={"choice-suggestions-#{choice.index}"}
                   role="combobox"
                   aria-autocomplete="list"
@@ -372,6 +373,10 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     assign(socket, :unlinked_names, unlinked)
   end
 
+  # name starts with the query first, then alphabetical
+  defp answer_rank(name, wanted),
+    do: {not String.starts_with?(name_key(name), wanted), name_key(name)}
+
   defp name_key(name), do: name |> String.trim() |> String.downcase()
 
   defp cards_of(%Question{question_cards: question_cards}) when is_list(question_cards),
@@ -460,6 +465,24 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     else
       _ -> {:noreply, socket}
     end
+  end
+
+  # An answer field: only the cards already attached to this question, matched
+  # in memory. No pool search, no card source request, nothing to import.
+  def handle_event("suggest_cards", %{"query" => query, "scope" => "attached"}, socket)
+      when is_binary(query) do
+    wanted = name_key(query)
+
+    suggestions =
+      if String.length(wanted) < Cards.suggest_min_length() do
+        []
+      else
+        for card <- socket.assigns.cards,
+            String.contains?(name_key(card.name), wanted),
+            do: %{id: card.id, name: card.name, source: "pool"}
+      end
+
+    {:reply, %{suggestions: Enum.sort_by(suggestions, &answer_rank(&1.name, wanted))}, socket}
   end
 
   # Called by the textarea hook while the admin types `[Card Name`.

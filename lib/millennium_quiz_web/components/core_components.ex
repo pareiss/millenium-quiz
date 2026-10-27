@@ -371,7 +371,7 @@ defmodule MillenniumQuizWeb.CoreComponents do
             To turn a link back into plain text, remove its brackets or remove the card from the question.
           </li>
           <li :if={@audience == :player}>
-            Mention a card only when the question needs it. In an answer the suggestion list only inserts the name: answers are plain text, and brackets in answers are not turned into links.
+            Mention a card only when the question needs it. Answers are plain text; brackets in answers are not turned into links.
           </li>
         </ul>
       </div>
@@ -543,12 +543,21 @@ defmodule MillenniumQuizWeb.CoreComponents do
     """
   end
 
-  @doc "The hint under the answer fields of the question and the suggestion form."
+  @doc """
+  The hint under the answer fields of the question form (with the list of the
+  question's cards) and of the suggestion form (`autocomplete={false}`: a
+  suggestion has no cards).
+  """
+  attr :autocomplete, :boolean, default: true
+
   def answer_markup_hint(assigns) do
     ~H"""
     <p class="-mt-1 text-xs text-base-content/60" id="choice-hint">
-      Type <kbd class="kbd kbd-xs">[</kbd>
-      and a card name to insert the name; <kbd class="kbd kbd-xs">{"{P1}"}</kbd>
+      <span :if={@autocomplete}>
+        Type <kbd class="kbd kbd-xs">[</kbd>
+        to pick one of this question's cards by name (inserts the name only).
+      </span>
+      <kbd class="kbd kbd-xs">{"{P1}"}</kbd>
       and <kbd class="kbd kbd-xs">{"{P2}"}</kbd>
       show as the blue and red badge.
     </p>

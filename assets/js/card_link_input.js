@@ -16,7 +16,7 @@
 //
 // With `data-mode="plain"` (the answer fields) a pick writes the bare name, no
 // brackets, and no card is attached to the question: the `[` only opens the
-// list. Such a field also ignores `card_links:set_text`, which is meant for the
+// list, and it asks for the question's own cards only (`scope: "attached"`). Such a field also ignores `card_links:set_text`, which is meant for the
 // question text.
 const DEBOUNCE_MS = 250
 const MIN_QUERY = 2
@@ -107,7 +107,9 @@ export const CardLinkInput = {
 
     const seq = this.seq
     this.timer = setTimeout(() => {
-      this.pushEvent("suggest_cards", {query}, reply => {
+      // an answer field asks for the question's own cards only (no search, no import)
+      const params = this.plain ? {query, scope: "attached"} : {query}
+      this.pushEvent("suggest_cards", params, reply => {
         if (seq !== this.seq) return
         this.suggestions = (reply && reply.suggestions) || []
         this.suggestionsFor = query
@@ -225,7 +227,7 @@ export const CardLinkInput = {
         hint.textContent = "tap to insert"
         li.append(hint)
       }
-      if (s.source === "remote") {
+      if (s.source === "remote" && !this.plain) {
         const tag = document.createElement("span")
         tag.className = "mq-suggestion-tag"
         tag.textContent = "import"

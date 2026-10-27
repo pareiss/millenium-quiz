@@ -109,35 +109,20 @@ defmodule MillenniumQuizWeb.SuggestLive do
                 ({Question.min_choices()}–{Question.max_choices()}, tick the correct one)
               </span>
             </legend>
-            <.answer_markup_hint />
+            <.answer_markup_hint autocomplete={false} />
             <.inputs_for :let={choice} field={@form[:choices]}>
               <div class="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
                 <input type="hidden" name="submission[choices_sort][]" value={choice.index} />
                 <span class="mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-base-200 text-sm font-semibold">
                   {<<?A + choice.index>>}
                 </span>
-                <div class="relative">
+                <div>
                   <.input
                     field={choice[:text]}
                     placeholder="Answer"
                     maxlength={Choice.max_text_length()}
-                    autocomplete="off"
-                    phx-hook="CardLinkInput"
-                    data-mode="plain"
-                    data-suggestions={"choice-suggestions-#{choice.index}"}
-                    role="combobox"
-                    aria-autocomplete="list"
-                    aria-controls={"choice-suggestions-#{choice.index}"}
+                    aria-describedby="choice-hint"
                   />
-                  <ul
-                    id={"choice-suggestions-#{choice.index}"}
-                    class="mq-suggestions"
-                    role="listbox"
-                    aria-label="Card suggestions"
-                    phx-update="ignore"
-                    hidden
-                  >
-                  </ul>
                 </div>
                 <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:mt-2">
                   <.input
