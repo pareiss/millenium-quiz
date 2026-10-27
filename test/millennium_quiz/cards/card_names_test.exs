@@ -63,15 +63,20 @@ defmodule MillenniumQuiz.Cards.CardNamesTest do
       assert Repo.get_by!(CardName, password: 83_764_719).name == "Monster Reborn"
     end
 
-    test "keeps what it has and says so when a request fails" do
+    test "writes nothing and stays stale when a request fails halfway" do
       Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
         if conn.query_string =~ "startdate=2003",
           do: Plug.Conn.send_resp(conn, 500, "no"),
           else: CardSourcesStub.handle(conn)
       end)
 
+      # the first window (up to 2002) was fetched, the second failed: 1 name fetched
       assert {:error, {:http, 500}, 1} = CardNames.refresh(today: @today)
-      assert CardNames.count() == 1
+
+      # nothing was written, so the list is still empty and still due: a half
+      # filled list would count as fresh for a week and hide newer cards
+      assert CardNames.count() == 0
+      assert CardNames.stale?(7)
     end
   end
 
@@ -112,6 +117,25 @@ defmodule MillenniumQuiz.Cards.CardNamesTest do
       assert CardNames.count() == 12
     end
 
+    test "an old list stays old and due when a request fails halfway" do
+      long_ago = DateTime.add(DateTime.utc_now(:second), -8, :day)
+      add("Old Card", 500, ~D[2010-01-01], %{inserted_at: long_ago, updated_at: long_ago})
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        if conn.query_string =~ "startdate=2003",
+          do: Plug.Conn.send_resp(conn, 500, "no"),
+          else: CardSourcesStub.handle(conn)
+      end)
+
+      assert {:error, {:http, 500}, 1} = CardNames.refresh(today: @today)
+
+      # the first window was fetched, but not written: without that, its fresh
+      # timestamps would make the list look fresh for a week
+      assert CardNames.stale?(7)
+      assert Repo.get_by!(CardName, password: 500).updated_at == long_ago
+      assert CardNames.count() == 1
+    end
+
     test "keeps everything when a request failed" do
       add("Old Card", 500, ~D[2010-01-01])
 
@@ -123,6 +147,7 @@ defmodule MillenniumQuiz.Cards.CardNamesTest do
 
       assert {:error, {:http, 500}, 1} = CardNames.refresh(today: @today)
       assert Repo.get_by(CardName, password: 500)
+      assert CardNames.count() == 1
     end
   end
 

@@ -85,7 +85,9 @@ defmodule MillenniumQuiz.Release do
   def card_names_report({:ok, count}), do: "Card names: #{count} written"
 
   def card_names_report({:error, reason, count}),
-    do: "Card names: stopped after #{count} written: #{inspect(reason)}. Run it again."
+    do:
+      "Card names: stopped after #{count} names fetched: #{inspect(reason)}. " <>
+        "Nothing was written. Run it again."
 
   @doc "Fetches every card in the card pool again (new errata, stats, artworks)."
   def refresh_cards do
