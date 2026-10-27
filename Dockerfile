@@ -69,8 +69,10 @@ RUN mix compile
 
 COPY assets assets
 
-# compile assets
-RUN mix assets.deploy
+# build and digest the assets with the script Gigalixir and CI run as well
+# (mix assets.setup, a no-op here after the step above, and mix assets.deploy)
+COPY bin/build-assets bin/build-assets
+RUN bin/build-assets
 
 # Changes to config/runtime.exs don't require recompiling the code
 COPY config/runtime.exs config/
