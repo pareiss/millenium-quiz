@@ -101,10 +101,8 @@ defmodule MillenniumQuiz.Cards.CardNames do
         end
       end)
 
-    with {:ok, windows} <- fetched do
-      {:ok, written} = Repo.transaction(fn -> replace(windows) end, timeout: :timer.minutes(2))
-      {:ok, written}
-    end
+    with {:ok, windows} <- fetched,
+         do: Repo.transaction(fn -> replace(windows) end, timeout: :timer.minutes(2))
   end
 
   defp replace(windows) do

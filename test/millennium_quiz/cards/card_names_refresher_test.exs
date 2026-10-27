@@ -1,6 +1,8 @@
 defmodule MillenniumQuiz.Cards.CardNames.RefresherTest do
   use MillenniumQuiz.DataCase, async: false
 
+  import Req.Test, only: [set_req_test_to_shared: 0]
+
   @moduletag :capture_log
 
   alias MillenniumQuiz.Cards.CardName
@@ -68,19 +70,33 @@ defmodule MillenniumQuiz.Cards.CardNames.RefresherTest do
     refute_receive :refreshed, 300
   end
 
-  test "a refresh that failed leaves the list due, so the next check tries again" do
+  test "after a refresh that failed halfway the old list is still due: the next check tries again" do
+    set_req_test_to_shared()
+    long_ago = DateTime.add(DateTime.utc_now(:second), -8, :day)
+    add_name(long_ago)
+
+    # the real refresh, with a YGOPRODeck that fails from the 2003 window on
+    Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+      if conn.query_string =~ "startdate=2003",
+        do: Plug.Conn.send_resp(conn, 500, "no"),
+        else: MillenniumQuiz.CardSourcesStub.handle(conn)
+    end)
+
     test = self()
 
     start_refresher(
-      interval_ms: 50,
+      interval_ms: 100,
       refresh: fn ->
         send(test, :tried)
-        {:error, {:http, 500}, 1}
+        MillenniumQuiz.Cards.CardNames.refresh()
       end
     )
 
-    assert_receive :tried, 1_000
-    assert_receive :tried, 1_000
+    # a refresh that wrote its first window would leave a fresh timestamp behind,
+    # and the second check would find the list fresh
+    assert_receive :tried, 2_000
+    assert_receive :tried, 2_000
+    assert MillenniumQuiz.Cards.CardNames.stale?(7)
   end
 
   test "survives a refresh that raises and tries again at the next check" do
