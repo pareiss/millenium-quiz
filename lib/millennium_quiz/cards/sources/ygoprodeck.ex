@@ -61,6 +61,24 @@ defmodule MillenniumQuiz.Cards.Sources.YGOPRODeck do
     end
   end
 
+  @doc """
+  Every card first released in the TCG from `first` to `last` (dates, both
+  included), one request, not cached: the building block of the list of all
+  card names (`MillenniumQuiz.Cards.CardNames`). A year holds a few hundred
+  cards; the whole list is too big for one answer (25 MB).
+  """
+  @spec released_between(Date.t(), Date.t(), keyword()) :: {:ok, [result()]} | {:error, term()}
+  def released_between(%Date{} = first, %Date{} = last, opts \\ []) do
+    params = [
+      misc: "yes",
+      dateregion: "tcg",
+      startdate: Date.to_iso8601(first),
+      enddate: Date.to_iso8601(last)
+    ]
+
+    get(params, Keyword.get(opts, :priority, :admin), Keyword.get(opts, :gate, default_gate()))
+  end
+
   # `before_request: fun` is asked (once) only when the answer is not cached,
   # so a limit of the caller's own can count real requests only.
   defp before_request(nil), do: :ok

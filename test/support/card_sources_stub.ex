@@ -38,6 +38,16 @@ defmodule MillenniumQuiz.CardSourcesStub do
 
     cards =
       cond do
+        # the windows of CardNames.refresh: every card released from startdate to enddate
+        params["startdate"] ->
+          first = Date.from_iso8601!(params["startdate"])
+          last = Date.from_iso8601!(params["enddate"])
+
+          for card <- [ygoprodeck(:reborn, :all), ygoprodeck(:plain, :all)],
+              date = Date.from_iso8601!(tcg_date(card)),
+              Date.compare(date, first) != :lt and Date.compare(date, last) != :gt,
+              do: card
+
         params["fname"] ->
           before = params["enddate"] && Date.from_iso8601!(params["enddate"])
           query = String.downcase(params["fname"])

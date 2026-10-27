@@ -24,8 +24,10 @@ defmodule MillenniumQuiz.Cards do
     ArtworkImage,
     Card,
     CardArtwork,
+    CardNames,
     CardText,
-    ErrataParser
+    ErrataParser,
+    NameMatch
   }
 
   alias MillenniumQuiz.Cards.Sources.{YamlYugi, YGOPRODeck, Yugipedia}
@@ -37,9 +39,13 @@ defmodule MillenniumQuiz.Cards do
   @doc """
   Searches cards by name that were released in the TCG by the format's date.
   Each result has `:in_pool` set when the card is already stored locally.
-  `priority: :player` (default `:admin`) says whose request it is at the
-  YGOPRODeck gate; `before_request:` is a function checked only when the answer
-  is not cached (see `YGOPRODeck.search/2`).
+
+  Looks in the local list of all card names first (`CardNames`, no request).
+  Only when that finds nothing (a card newer than the list, a misspelling, or
+  a list not filled yet) it asks YGOPRODeck. `priority: :player` (default
+  `:admin`) says whose request that is at the gate; `before_request:` is a
+  function checked only when the answer is not cached (see
+  `YGOPRODeck.search/2`).
   """
   def search(query, %{date: date}, opts \\ []) do
     query = String.trim(query)
@@ -47,11 +53,7 @@ defmodule MillenniumQuiz.Cards do
     if String.length(query) < @min_query_length do
       {:ok, []}
     else
-      with {:ok, results} <-
-             YGOPRODeck.search(
-               query,
-               [before: date] ++ Keyword.take(opts, [:priority, :before_request])
-             ) do
+      with {:ok, results} <- find(query, date, opts) do
         konami_ids = for %{konami_id: id} when is_integer(id) <- results, do: id
 
         in_pool =
@@ -60,6 +62,19 @@ defmodule MillenniumQuiz.Cards do
 
         {:ok, Enum.map(results, &Map.put(&1, :in_pool, MapSet.member?(in_pool, &1.konami_id)))}
       end
+    end
+  end
+
+  defp find(query, date, opts) do
+    case CardNames.search(query, date) do
+      [] ->
+        YGOPRODeck.search(
+          query,
+          [before: date] ++ Keyword.take(opts, [:priority, :before_request])
+        )
+
+      results ->
+        {:ok, results}
     end
   end
 
@@ -96,31 +111,8 @@ defmodule MillenniumQuiz.Cards do
     if String.length(query) < @suggest_min_length do
       []
     else
-      like = escape_like(query)
-      lower = String.downcase(query)
-
       Repo.all(
-        from c in released_by(Card, before),
-          where: fragment("lower(?) LIKE lower(?)", c.name, ^"%#{like}%"),
-          order_by: [
-            asc:
-              fragment(
-                """
-                CASE WHEN lower(?) = lower(?) THEN 0
-                     WHEN lower(?) LIKE lower(?) THEN 1
-                     WHEN lower(?) LIKE lower(?) THEN 2
-                     ELSE 3 END
-                """,
-                c.name,
-                ^lower,
-                c.name,
-                ^"#{like}%",
-                c.name,
-                ^"% #{like}%"
-              ),
-            asc: fragment("lower(?)", c.name),
-            asc: c.id
-          ],
+        from c in NameMatch.matching(released_by(Card, before), query),
           limit: ^limit,
           select: %{
             id: c.id,
@@ -139,8 +131,6 @@ defmodule MillenniumQuiz.Cards do
 
   defp released_by(queryable, %Date{} = date),
     do: from(c in queryable, where: is_nil(c.tcg_release_date) or c.tcg_release_date <= ^date)
-
-  defp escape_like(string), do: String.replace(string, ["\\", "%", "_"], &"\\#{&1}")
 
   def get_card!(id), do: Card |> Repo.get!(id) |> Repo.preload(:card_texts)
 

@@ -5,7 +5,7 @@ defmodule MillenniumQuiz.CardsTest do
   @moduletag :capture_log
 
   alias MillenniumQuiz.{Cards, CardSourcesStub}
-  alias MillenniumQuiz.Cards.{Card, CardText}
+  alias MillenniumQuiz.Cards.{Card, CardNames, CardText}
 
   setup do
     CardSourcesStub.stub!()
@@ -20,6 +20,32 @@ defmodule MillenniumQuiz.CardsTest do
                Cards.search("reborn", %{date: ~D[2004-01-01]})
 
       assert {:ok, []} = Cards.search("plain", %{date: ~D[2004-01-01]})
+      assert {:ok, [%{name: "Plain Card"}]} = Cards.search("plain", %{date: ~D[2016-01-01]})
+    end
+
+    test "looks in the list of card names first and does not ask YGOPRODeck" do
+      {:ok, _} = CardNames.refresh(today: ~D[2026-10-27])
+      test = self()
+
+      Req.Test.stub(MillenniumQuiz.Cards, fn conn ->
+        send(test, :asked_the_remote)
+        Plug.Conn.send_resp(conn, 500, "must not be asked")
+      end)
+
+      assert {:ok, [%{name: "Monster Reborn", in_pool: false}]} =
+               Cards.search("reborn", %{date: ~D[2004-01-01]})
+
+      refute_received :asked_the_remote
+    end
+
+    test "asks YGOPRODeck only when the list finds nothing" do
+      {:ok, _} = CardNames.refresh(today: ~D[2026-10-27])
+      add_new_card = fn conn -> CardSourcesStub.handle(conn) end
+      Req.Test.stub(MillenniumQuiz.Cards, add_new_card)
+
+      # not in the list, but in the stub's remote answer
+      Repo.delete_all(MillenniumQuiz.Cards.CardName)
+
       assert {:ok, [%{name: "Plain Card"}]} = Cards.search("plain", %{date: ~D[2016-01-01]})
     end
 

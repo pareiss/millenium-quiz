@@ -5,7 +5,7 @@ State on 2026-10-26: player-submitted questions, the YGOPRODeck request gate, re
 In order:
 
 1. Tablet and phone layout, see [tablet-phone-layout.md](tablet-phone-layout.md).
-2. A local list of all card names, to cut YGOPRODeck traffic.
+2. A local list of all card names, to cut YGOPRODeck traffic (built: `card_names`, `Cards.CardNames`; run `Release.refresh_card_names()` after the deploy).
 3. JS tests for `assets/js/card_link_input.js`.
 4. Features: player 1 / player 2 colours in questions, per-format profile pictures, a visual redesign, board states.
 

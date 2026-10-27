@@ -59,6 +59,17 @@ The card-name suggestions on `/suggest` use it at player priority (only when the
 card pool has no match, 3+ characters, at most 30 a minute per client); when the
 gate is busy or blocked the list is simply empty.
 
+**The list of all card names.** The card search (admin question form, `/suggest`) looks in a local
+table of every card released in the TCG (`card_names`, about 14,000 rows: name, ids, release date)
+before it asks YGOPRODeck, so typing a name costs no request. Only when the table finds nothing (a card
+newer than the list, a typo, or the table not filled yet) the search asks YGOPRODeck as before, through
+the gate, for admins and players alike. The list is not the card pool: a row has no text and no
+artwork, and a card is only copied into the pool when an admin picks it. It is filled by
+`bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_card_names()"` (about 27 requests, one per
+release year, since the whole list in one answer is 25 MB; about 15 seconds). Run it once after the
+deploy that adds the table and now and then for new cards; running it again only updates.
+Locally: `mix run -e "MillenniumQuiz.Release.refresh_card_names()"`.
+
 `MillenniumQuiz.Cards.text_on/3` picks the text for a date: the newest printed
 version released by then. Reprints that bring back an older wording (e.g.
 *Legendary Collection* reproductions) don't count as errata. English follows

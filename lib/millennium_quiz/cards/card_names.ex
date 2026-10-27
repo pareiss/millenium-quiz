@@ -1,0 +1,111 @@
+defmodule MillenniumQuiz.Cards.CardNames do
+  @moduledoc """
+  The list of all card names released in the TCG, kept in the `card_names`
+  table so that the card search does not ask YGOPRODeck for every name that is
+  typed (`Cards.search/3` looks here first and only asks when nothing matches).
+
+  `refresh/1` fills it from YGOPRODeck, one request per release year: the
+  whole list in one answer is 25 MB, a year about 1 to 2 MB, so a small server
+  can parse it. Every request goes through the gate. Run it after a deploy and
+  now and then for new cards: `bin/millennium_quiz eval
+  "MillenniumQuiz.Release.refresh_card_names()"`. Rows are upserted by
+  password, never deleted.
+  """
+  import Ecto.Query
+
+  alias MillenniumQuiz.Cards.{CardName, NameMatch}
+  alias MillenniumQuiz.Cards.Sources.YGOPRODeck
+  alias MillenniumQuiz.Repo
+
+  @limit 20
+  @chunk 500
+
+  @doc """
+  Cards of the list whose name contains `query`, released by `before` (a
+  `Date`; a card without a release date does not count as released). The maps
+  look like the answers of `YGOPRODeck.search/2`. At most #{@limit}; the
+  caller makes sure the query is long enough.
+  """
+  def search(query, %Date{} = before) when is_binary(query) do
+    Repo.all(
+      from c in NameMatch.matching(CardName, query),
+        where: c.tcg_release_date <= ^before,
+        limit: @limit,
+        select: %{
+          password: c.password,
+          passwords: c.passwords,
+          konami_id: c.konami_id,
+          name: c.name,
+          card_type: c.card_type,
+          frame_type: c.frame_type,
+          tcg_release_date: c.tcg_release_date
+        }
+    )
+  end
+
+  @doc "How many names the list holds."
+  def count, do: Repo.aggregate(CardName, :count)
+
+  @doc "When the list was last written to, or `nil` while it is empty."
+  def refreshed_at, do: Repo.aggregate(CardName, :max, :updated_at)
+
+  @doc """
+  The windows `refresh/1` asks for: everything up to the end of 2002, then one
+  per year, the last one open-ended (cards announced for later).
+  """
+  def windows(%Date{year: this_year}) do
+    [{~D[1990-01-01], ~D[2002-12-31]}] ++
+      for(year <- 2003..this_year, do: {Date.new!(year, 1, 1), Date.new!(year, 12, 31)}) ++
+      [{Date.new!(this_year + 1, 1, 1), ~D[2099-12-31]}]
+  end
+
+  @doc """
+  Fetches the names and stores them. Options: `:today` (a `Date`, for tests)
+  and `:gate`. Returns `{:ok, count}`, the number of names written, or
+  `{:error, reason, count}` when a request failed (what was fetched before is
+  kept; run it again).
+  """
+  def refresh(opts \\ []) do
+    today = Keyword.get(opts, :today, Date.utc_today())
+
+    Enum.reduce_while(windows(today), {:ok, 0}, fn {first, last}, {:ok, count} ->
+      case YGOPRODeck.released_between(first, last, Keyword.take(opts, [:gate])) do
+        {:ok, results} -> {:cont, {:ok, count + store(results)}}
+        {:error, reason} -> {:halt, {:error, reason, count}}
+      end
+    end)
+  end
+
+  defp store(results) do
+    now = DateTime.utc_now(:second)
+
+    results
+    |> Enum.uniq_by(& &1.password)
+    |> Enum.chunk_every(@chunk)
+    |> Enum.map(fn chunk ->
+      rows =
+        Enum.map(chunk, fn r ->
+          r
+          |> Map.take([
+            :password,
+            :passwords,
+            :konami_id,
+            :name,
+            :card_type,
+            :frame_type,
+            :tcg_release_date
+          ])
+          |> Map.merge(%{inserted_at: now, updated_at: now})
+        end)
+
+      {n, _} =
+        Repo.insert_all(CardName, rows,
+          on_conflict: {:replace_all_except, [:id, :inserted_at]},
+          conflict_target: :password
+        )
+
+      n
+    end)
+    |> Enum.sum()
+  end
+end

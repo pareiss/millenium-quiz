@@ -52,6 +52,33 @@ defmodule MillenniumQuiz.Release do
     end
   end
 
+  @doc """
+  Fills the list of all TCG card names (`MillenniumQuiz.Cards.CardNames`) from
+  YGOPRODeck: about 27 requests, one per release year, paced by the gate. Run
+  it after a deploy that has the table, and now and then for new cards.
+  """
+  def refresh_card_names do
+    {:ok, _} = Application.ensure_all_started(:req)
+
+    with_repo(fn ->
+      # this VM does not run the application, so it has no gate of its own yet
+      case MillenniumQuiz.Cards.Sources.YGOPRODeck.Gate.start_link() do
+        {:ok, _} -> :ok
+        {:error, {:already_started, _}} -> :ok
+      end
+
+      case MillenniumQuiz.Cards.CardNames.refresh() do
+        {:ok, count} ->
+          IO.puts(
+            "Card names: #{count} written, #{MillenniumQuiz.Cards.CardNames.count()} in the list"
+          )
+
+        {:error, reason, count} ->
+          IO.puts("Card names: stopped after #{count} written: #{inspect(reason)}. Run it again.")
+      end
+    end)
+  end
+
   @doc "Fetches every card in the card pool again (new errata, stats, artworks)."
   def refresh_cards do
     {:ok, _} = Application.ensure_all_started(:req)
