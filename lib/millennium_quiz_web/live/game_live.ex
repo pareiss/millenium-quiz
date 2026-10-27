@@ -622,11 +622,14 @@ defmodule MillenniumQuizWeb.GameLive do
         <span class="[@media(hover:hover)]:hidden">Tap a card to enlarge it.</span>
         <span class="hidden [@media(hover:hover)]:inline">Click a card to enlarge it.</span>
       </p>
+      <%!-- A card is a quarter of the row, between 8.5 and 11 rem wide: 4 fit a
+           portrait tablet (a row of about 650 px), 3 the half column of a
+           landscape one, 2 a phone --%>
       <div class="flex flex-wrap gap-3" id="question-cards">
         <article
           :for={{card, i} <- Enum.with_index(@cards)}
           id={"question-card-#{i}"}
-          class="w-[calc(50%-0.375rem)] sm:w-44"
+          class="w-[clamp(8.5rem,calc((100%_-_2.25rem)/4),11rem)]"
         >
           <div
             class="mq-nosel relative cursor-zoom-in transition motion-safe:hover:-translate-y-1 hover:drop-shadow-lg"
