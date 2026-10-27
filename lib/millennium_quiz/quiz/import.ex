@@ -168,10 +168,14 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   defp card(%{"password" => password} = c) when is_integer(password) and password > 0 do
     with :ok <- optional_text(c["name"], "name"),
-         do: {:ok, %{password: password, name: c["name"]}}
+         :ok <- owner(c["owner"]),
+         do: {:ok, %{password: password, name: c["name"], owner: c["owner"]}}
   end
 
   defp card(_), do: {:error, "needs a positive integer \"password\"."}
+
+  defp owner(owner) when owner in [nil, 1, 2], do: :ok
+  defp owner(_), do: {:error, "\"owner\" must be 1, 2 or null."}
 
   defp points(nil), do: :ok
   defp points(p) when is_integer(p), do: :ok
@@ -412,7 +416,7 @@ defmodule MillenniumQuiz.Quiz.Import do
     data.questions
     |> Enum.with_index(1)
     |> Enum.reduce(acc, fn {q, i}, acc ->
-      {ids, text, warnings, missing} = link_cards(q, pool, format_name, data.name, i)
+      {entries, text, warnings, missing} = link_cards(q, pool, format_name, data.name, i)
 
       attrs = %{
         "text" => text,
@@ -421,12 +425,12 @@ defmodule MillenniumQuiz.Quiz.Import do
         "choices" => q.choices
       }
 
-      case Quiz.create_question(topic, attrs, ids) do
+      case Quiz.create_question(topic, attrs, entries) do
         {:ok, _} ->
           %{
             acc
             | questions: acc.questions + 1,
-              linked: acc.linked + length(Enum.uniq(ids)),
+              linked: acc.linked + length(Enum.uniq_by(entries, &elem(&1, 0))),
               missing: acc.missing + missing,
               warnings: Enum.reverse(warnings, acc.warnings)
           }
@@ -440,7 +444,7 @@ defmodule MillenniumQuiz.Quiz.Import do
   defp link_cards(q, pool, format_name, topic_name, i) do
     where = "#{format_name} / #{topic_name} / question #{i}"
 
-    Enum.reduce(q.cards, {[], q.text, [], 0}, fn card, {ids, text, warnings, missing} ->
+    Enum.reduce(q.cards, {[], q.text, [], 0}, fn card, {entries, text, warnings, missing} ->
       case Map.get(pool, card.password) do
         {:ok, id, current} ->
           if card.name && not same_name?(card.name, current) do
@@ -449,10 +453,10 @@ defmodule MillenniumQuiz.Quiz.Import do
               "#{where}: card #{card.name} (#{card.password}) is called #{current} now; " <>
                 "the link in the text was changed to match."
 
-            {ids ++ [id], CardLinks.rename(text, card.name, current), warnings ++ [warning],
-             missing}
+            {entries ++ [{id, card.owner}], CardLinks.rename(text, card.name, current),
+             warnings ++ [warning], missing}
           else
-            {ids ++ [id], text, warnings, missing}
+            {entries ++ [{id, card.owner}], text, warnings, missing}
           end
 
         _missing ->
@@ -462,7 +466,7 @@ defmodule MillenniumQuiz.Quiz.Import do
             "#{where}: card #{name} (#{card.password}) could not be fetched and is not linked."
 
           text = if card.name, do: CardLinks.unlink(text, card.name), else: text
-          {ids, text, warnings ++ [warning], missing + 1}
+          {entries, text, warnings ++ [warning], missing + 1}
       end
     end)
   end

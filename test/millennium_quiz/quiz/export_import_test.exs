@@ -88,6 +88,123 @@ defmodule MillenniumQuiz.Quiz.ExportImportTest do
     assert strip(Export.build()) == strip(before)
   end
 
+  describe "card owners" do
+    defp owned_quiz(owner) do
+      {:ok, reborn} = Cards.import(CardSourcesStub.reborn().password)
+      {:ok, plain} = Cards.import(CardSourcesStub.plain().password)
+      [topic, _] = format_fixture(%{"name" => "Owners", "date" => "2020-01-01"}).topics
+
+      {:ok, q} =
+        Quiz.create_question(
+          topic,
+          %{"text" => "[Monster Reborn] vs [Plain Card]", "choices" => choices_params()},
+          [{reborn.id, owner}, {plain.id, nil}]
+        )
+
+      {q, reborn, plain}
+    end
+
+    defp exported_cards do
+      export = Export.build()
+      [format] = Enum.filter(export["formats"], &(&1["name"] == "Owners"))
+
+      format["topics"]
+      |> hd()
+      |> Map.fetch!("questions")
+      |> Enum.find(&(&1["cards"] != []))
+      |> Map.fetch!("cards")
+    end
+
+    test "are exported only when a player owns the card, and survive a round trip" do
+      owned_quiz(1)
+
+      assert exported_cards() == [
+               %{"password" => 83_764_718, "name" => "Monster Reborn", "owner" => 1},
+               %{"password" => 11_111_111, "name" => "Plain Card"}
+             ]
+
+      before = Export.build()
+      json = Export.to_json()
+      clear_quiz()
+      assert {:ok, %{cards_linked: 2, warnings: []}} = Import.run(json)
+      assert strip(Export.build()) == strip(before)
+      assert [%{"owner" => 1}, second] = exported_cards()
+      refute Map.has_key?(second, "owner")
+    end
+
+    test "a backup from before owners imports with no card owned" do
+      owned_quiz(2)
+
+      old =
+        Export.build()
+        |> update_in(["formats"], fn fs ->
+          for f <- fs,
+              do:
+                update_in(f, ["topics"], fn ts ->
+                  for t <- ts,
+                      do:
+                        update_in(t, ["questions"], fn qs ->
+                          for q <- qs,
+                              do:
+                                update_in(q, ["cards"], fn cs ->
+                                  Enum.map(cs, &Map.delete(&1, "owner"))
+                                end)
+                        end)
+                end)
+        end)
+
+      clear_quiz()
+      assert {:ok, %{questions: 1, cards_linked: 2}} = Import.run(old)
+      assert Enum.all?(exported_cards(), &(not Map.has_key?(&1, "owner")))
+    end
+
+    test "an owner other than 1, 2 or null rejects the file and creates nothing" do
+      owned_quiz(1)
+      good = Export.build()
+      clear_quiz()
+
+      for bad <- [0, 3, "1", true, 1.5] do
+        file =
+          update_in(good, ["formats"], fn fs ->
+            for f <- fs,
+                do:
+                  update_in(f, ["topics"], fn ts ->
+                    for t <- ts,
+                        do:
+                          update_in(t, ["questions"], fn qs ->
+                            for q <- qs,
+                                do:
+                                  update_in(q, ["cards"], fn cs ->
+                                    Enum.map(cs, &Map.put(&1, "owner", bad))
+                                  end)
+                          end)
+                  end)
+          end)
+
+        assert_rejected(file, "owner")
+      end
+
+      assert {:ok, _} =
+               Import.run(
+                 put_in(
+                   good,
+                   [
+                     "formats",
+                     Access.all(),
+                     "topics",
+                     Access.all(),
+                     "questions",
+                     Access.all(),
+                     "cards",
+                     Access.all(),
+                     "owner"
+                   ],
+                   nil
+                 )
+               )
+    end
+  end
+
   test "importing the same file again skips everything" do
     build_quiz()
     json = Export.to_json()

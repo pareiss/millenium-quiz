@@ -418,6 +418,103 @@ defmodule MillenniumQuizWeb.GameLiveTest do
       assert has_element?(view, "#reveal #question-text [data-card-index=\"1\"]", "Plain Card")
     end
 
+    test "a card of a player has an outline and badge in its colour, and its link too",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {:ok, plain} = Cards.import(11_111_111)
+
+      {view, _id, _qs} =
+        start_with_text(conn, "[Monster Reborn] and [Plain Card]", [{reborn.id, 1}, {plain.id, 2}])
+
+      assert [%{owner: 1}, %{owner: 2}] = snapshot_question(view).cards
+
+      for phase <- [:answering, :reveal] do
+        if phase == :reveal do
+          view |> element("#choice-0") |> render_click()
+          view |> element("#choice-0") |> render_click()
+        end
+
+        scope = if phase == :reveal, do: "#reveal ", else: ""
+
+        assert has_element?(
+                 view,
+                 scope <> "#question-card-0 .mq-owned[data-owner=\"1\"]"
+               )
+
+        assert has_element?(view, scope <> "#question-card-0 .mq-owner-badge", "P1")
+
+        assert has_element?(
+                 view,
+                 scope <> "#question-card-1 .mq-owned[data-owner=\"2\"]"
+               )
+
+        assert has_element?(view, scope <> "#question-card-1 .mq-owner-badge", "P2")
+
+        assert has_element?(
+                 view,
+                 scope <>
+                   "#question-link-0[data-owner=\"1\"][aria-label=\"Show card: Monster Reborn (Player 1's card)\"].decoration-\\[\\#2563eb\\]"
+               )
+
+        assert has_element?(
+                 view,
+                 scope <> "#question-link-1[data-owner=\"2\"].decoration-\\[\\#dc2626\\]"
+               )
+      end
+    end
+
+    test "cards nobody owns look as before, also in a snapshot without owners", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      {view, _id, _qs} = start_with_text(conn, "[Monster Reborn]", [reborn.id])
+
+      refute has_element?(view, "[data-owner]")
+      refute has_element?(view, ".mq-owner-badge")
+
+      assert has_element?(
+               view,
+               "#question-link-0[aria-label=\"Show card: Monster Reborn\"].decoration-\\[\\#c39a55\\]"
+             )
+    end
+
+    test "a game saved before owners existed still opens and shows no outline", %{conn: conn} do
+      CardSourcesStub.stub!()
+      {:ok, reborn} = Cards.import(83_764_719)
+      format = format_fixture(%{"date" => "2020-01-01"})
+
+      for topic <- format.topics do
+        {:ok, _} =
+          Quiz.create_question(
+            topic,
+            %{"text" => "[Monster Reborn]", "choices" => choices_params()},
+            [{reborn.id, 1}]
+          )
+      end
+
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+
+      # the stored snapshot as an older version wrote it: no "owner" in the cards
+      record = MillenniumQuiz.Repo.get!(MillenniumQuiz.Games.GameRecord, id)
+
+      state =
+        Map.update!(record.state, "questions", fn qs ->
+          Enum.map(qs, fn q ->
+            Map.update!(q, "cards", fn cards -> Enum.map(cards, &Map.delete(&1, "owner")) end)
+          end)
+        end)
+
+      record
+      |> Ecto.Changeset.change(state: state)
+      |> MillenniumQuiz.Repo.update!()
+
+      {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+      view |> element("#question-0") |> render_click()
+      assert has_element?(view, "#question-card-0")
+      refute has_element?(view, "[data-owner]")
+      refute has_element?(view, ".mq-owner-badge")
+    end
+
     test "{P1} and {P2} are blue and red badges, while answering and on reveal", %{conn: conn} do
       CardSourcesStub.stub!()
       {:ok, reborn} = Cards.import(83_764_719)
