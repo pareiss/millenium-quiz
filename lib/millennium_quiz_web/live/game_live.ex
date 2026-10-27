@@ -39,7 +39,7 @@ defmodule MillenniumQuizWeb.GameLive do
         data-game-id={@game_id}
         data-finished={to_string(@status == :finished)}
         data-turn-key={turn_key_attr(@turn_key)}
-        data-phase={@game.phase}
+        data-phase={if @status == :paused, do: :paused, else: @game.phase}
         class="space-y-5 transition-opacity phx-offline:pointer-events-none phx-offline:opacity-50 phx-offline:delay-700"
       >
         <.game_header game={@game} status={@status} />
@@ -157,7 +157,7 @@ defmodule MillenniumQuizWeb.GameLive do
       <%!-- not while a question is up: it needs the room, and the score is
            on the board before and in the reveal after --%>
       <ul
-        :if={not @finished? and @game.phase != :answering}
+        :if={not @finished? and not (@status == :active and @game.phase == :answering)}
         class="mq-nosel grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2"
         id="scoreboard"
       >
@@ -305,13 +305,13 @@ defmodule MillenniumQuizWeb.GameLive do
       data-turn-panel
       class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden reveal-pop"
     >
-      <%!-- shrinks by itself after a few seconds (app.css), when a question
-           comes up and again for each next player --%>
+      <%!-- goes by itself after a few seconds (app.css), when a question comes up
+           and again for each next player; the choices below cannot be tapped
+           until it has gone, so nobody hits the wrong one as the page moves --%>
       <div class="mq-passbar bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
-        <.avatar slug={@player.avatar} class="mq-passbar__avatar size-14" />
+        <.avatar slug={@player.avatar} class="size-14" />
         <p class="min-w-0">
-          <span class="mq-passbar__lead">Pass the device to </span>
-          <strong class="text-lg" id="current-player">{@player.name}</strong>
+          Pass the device to <strong class="text-lg" id="current-player">{@player.name}</strong>
         </p>
         <span class="ml-auto text-sm opacity-80" id="answer-progress">
           {@game.answered + 1}/{length(@game.players)}
@@ -332,7 +332,7 @@ defmodule MillenniumQuizWeb.GameLive do
           <.question_cards cards={@question.cards} />
         </div>
         <div class="space-y-3 sm:space-y-5">
-          <div class="grid gap-2 sm:gap-3 sm:grid-cols-2 md:landscape:grid-cols-1 lg:grid-cols-1">
+          <div class="mq-choices grid gap-2 sm:gap-3 sm:grid-cols-2 md:landscape:grid-cols-1 lg:grid-cols-1">
             <button
               :for={{choice, i} <- Enum.with_index(@question.choices)}
               id={"choice-#{i}"}
