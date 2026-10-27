@@ -17,7 +17,9 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - no horizontal overflow, on the board and in the question
   - cards per row: 4 on a portrait tablet, 3 on a landscape one, 2 on a phone
   - the {P1} / {P2} badges of the question text are shown, blue and red
-  - the score line is on the board and gone in the question
+  - the score line is on the board and gone in the question, except on a large screen
+    (1600x1000 and up), where the player list stays with the question and the
+    pass-the-device bar does not fold; the page grows with the screen above 1920px wide
   - the site's top bar is gone in the question when the screen is at most 920px
     high, and stays on a tall tablet
   - the answer fields of /suggest have no card list (a suggestion has no cards), only the hint
@@ -49,7 +51,15 @@ VIEWPORTS = [
     ("phone 360x740", 360, 740, 2, 430),
     ("phone 320x568", 320, 568, 2, 560),
     ("phone landscape 844x390", 844, 390, 2, 450),
+    # large screens: a monitor, a 4K one at 100% (1600x1000 and up, see app.css)
+    ("desktop 1920x1080", 1920, 1080, 4, 0),
+    ("monitor 2560x1440", 2560, 1440, 4, 0),
+    ("4K 3840x2160", 3840, 2160, 4, 0),
 ]
+
+
+def is_large(w, h):
+    return w >= 1600 and h >= 1000
 
 passed = 0
 failed = 0
@@ -76,7 +86,9 @@ def metrics(page):
             overY: document.documentElement.scrollHeight - innerHeight,
             perRow: cards.filter(c => Math.round(c.getBoundingClientRect().top) === firstTop).length,
             header: header ? getComputedStyle(header).display : 'missing',
-            score: !!document.querySelector('#scoreboard'),
+            // the list is in the page during a question, hidden by css below 1600x1000
+            score: (() => { const e = document.querySelector('#scoreboard'); return !!e && getComputedStyle(e).display !== 'none' })(),
+            rootFont: parseFloat(getComputedStyle(document.documentElement).fontSize),
             answerBadges: document.querySelectorAll('.mq-choices .mq-player-badge').length,
             badges: [...document.querySelectorAll('#question-text .mq-player-badge')]
               .map(b => [b.textContent.trim(), getComputedStyle(b).backgroundColor, b.getBoundingClientRect().width > 0]),
@@ -132,7 +144,13 @@ with sync_playwright() as p:
         m = metrics(page)
         check(f"{name}: no horizontal overflow", m["overX"] <= 0, f"{m['overX']}px")
         check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
-        check(f"{name}: no score line", not m["score"])
+        large = is_large(w, h)
+        check(f"{name}: {'player list with the question' if large else 'no score line'}", m["score"] == large,
+              f"shown {m['score']}")
+        check(f"{name}: the page grows with the screen (root font {m['rootFont']:.1f}px)",
+              abs(m["rootFont"] - max(16, w * 0.008333)) < 0.5)
+        if large:
+            check(f"{name}: the pass-the-device bar stays", pass_bar_height(page) >= 60, f"{pass_bar_height(page)}px")
         check(f"{name}: the answer has its P2 badge", m["answerBadges"] == 1, str(m["answerBadges"]))
         check(f"{name}: P1 blue and P2 red badges shown",
               m["badges"] == [["P1", "rgb(37, 99, 235)", True], ["P2", "rgb(220, 38, 38)", True]],
