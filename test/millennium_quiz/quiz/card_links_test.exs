@@ -124,6 +124,11 @@ defmodule MillenniumQuiz.Quiz.CardLinksTest do
                CardLinks.plain("{P1} beats [Dark Magician]", keep_players: true)
     end
 
+    test "plain/1 reads the text like parse/2: a marker in brackets is no marker" do
+      assert "{P1} and P2" = CardLinks.plain("[{P1}] and {P2}")
+      assert "[] [ ] {P3}" = CardLinks.plain("[] [ ] {P3}")
+    end
+
     test "plain/1 writes P1 and P2" do
       assert "P1 beats P2 with Dark Magician" =
                CardLinks.plain("{P1} beats {p2} with [Dark Magician]")
