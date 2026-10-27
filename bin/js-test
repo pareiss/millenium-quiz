@@ -1,0 +1,440 @@
+#!/usr/bin/env python3
+"""Tests of assets/js/card_link_input.js in a headless browser.
+
+    bin/js-test
+
+The project has no Node (esbuild runs without node_modules), so the module is
+loaded as an ES module into headless Chromium and driven with real key events,
+a real textarea and a real caret. Same setup as bin/layout-test (Playwright,
+see that script's header; no server needed):
+
+    python3 -m venv .venv-layout && .venv-layout/bin/pip install -r bin/layout-test-requirements.txt
+    .venv-layout/bin/playwright install chromium
+    .venv-layout/bin/python bin/js-test
+
+The hook's LiveView side is a stand-in: `pushEvent` records what the page would
+send to the server (and keeps the reply callback), `handleEvent` records the
+handlers the server's events would call. What the hook does with them is real.
+Exit code: 0 all passed, 1 at least one test failed.
+"""
+import json
+import pathlib
+import sys
+
+from playwright.sync_api import sync_playwright
+
+SOURCE = (pathlib.Path(__file__).resolve().parent.parent / "assets/js/card_link_input.js").read_text()
+
+PAGE = """<!doctype html><meta charset="utf-8">
+<body>
+<script type="module">
+  import {openBracket, CardLinkInput} from "/card_link_input.js"
+  window.openBracket = openBracket
+  window.mount = (maxlength) => {
+    if (window.hook) window.hook.destroyed() // as LiveView does: no timer of the last test fires into this one
+    document.body.innerHTML =
+      `<textarea id="t" ${maxlength ? `maxlength="${maxlength}"` : ""}></textarea><ul id="list" hidden></ul>`
+    const el = document.getElementById("t")
+    el.dataset.suggestions = "list"
+    const hook = Object.create(CardLinkInput)
+    hook.el = el
+    window.pushed = []
+    window.handlers = {}
+    window.inputs = 0
+    hook.pushEvent = (event, payload, cb) => window.pushed.push({event, payload, cb})
+    hook.handleEvent = (name, cb) => { window.handlers[name] = cb }
+    el.addEventListener("input", () => window.inputs++)
+    hook.mounted()
+    window.hook = hook
+    el.focus()
+  }
+  window.ready = true
+</script>
+"""
+
+REBORN = {"id": 1, "name": "Monster Reborn"}
+REINCARNATION = {"id": 2, "name": "Monster Reincarnation"}
+NEW_CARD = {"password": 777, "name": "Brand New Card", "source": "remote"}
+
+passed = 0
+failed = 0
+
+
+def check(cond, message="check failed"):
+    if not cond:
+        raise AssertionError(message)
+
+
+def run(name, fn):
+    global passed, failed
+    try:
+        fn()
+        passed += 1
+        print(f"  ok    {name}")
+    except Exception as error:  # a failed check or a Playwright timeout
+        failed += 1
+        print(f"  FAIL  {name} ({str(error).splitlines()[0] if str(error) else type(error).__name__})")
+
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    page = browser.new_page()
+
+    def route(r):
+        url = r.request.url
+        if url.endswith("/card_link_input.js"):
+            r.fulfill(body=SOURCE, content_type="text/javascript")
+        else:
+            r.fulfill(body=PAGE, content_type="text/html")
+
+    page.route("**/*", route)
+    page.goto("http://test.local/")
+    page.wait_for_function("window.ready === true")
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+
+    # ---- helpers on the page
+
+    def mount(maxlength=None):
+        page.evaluate("m => mount(m)", maxlength)
+
+    def text():
+        return page.evaluate("document.getElementById('t').value")
+
+    def caret():
+        return page.evaluate("document.getElementById('t').selectionStart")
+
+    def set_text(value, pos=None):
+        page.evaluate(
+            "([v, p]) => { const t = document.getElementById('t'); t.value = v; t.focus(); t.setSelectionRange(p, p) }",
+            [value, len(value) if pos is None else pos],
+        )
+
+    def pushed(event=None):
+        calls = page.evaluate("pushed.map(p => ({event: p.event, payload: p.payload}))")
+        return [c for c in calls if event is None or c["event"] == event]
+
+    def wait_for_suggest(count=1):
+        page.wait_for_function(f"pushed.filter(p => p.event === 'suggest_cards').length >= {count}", timeout=2000)
+
+    def reply(suggestions, index=None, **extra):
+        """Answers the latest (or the `index`th) suggest_cards request."""
+        page.evaluate(
+            """([s, i, extra]) => {
+                 const asks = pushed.filter(p => p.event === 'suggest_cards')
+                 asks[i === null ? asks.length - 1 : i].cb({suggestions: s, ...extra})
+               }""",
+            [suggestions, index, extra],
+        )
+
+    def list_open():
+        return page.evaluate("!document.getElementById('list').hidden")
+
+    def options():
+        return page.evaluate("[...document.querySelectorAll('#list [role=option]')].map(li => li.textContent)")
+
+    def active():
+        return page.evaluate("document.getElementById('t').getAttribute('aria-activedescendant')")
+
+    def type_query(query, suggestions=None):
+        """Types the text, waits for the debounced request and answers it."""
+        before = len(pushed("suggest_cards"))
+        page.keyboard.type(query)
+        wait_for_suggest(before + 1)
+        if suggestions is not None:
+            reply(suggestions)
+
+    def keydown(key, **init):
+        """A cancelable keydown; True when the hook left it alone."""
+        return page.evaluate(
+            """([key, init]) => document.getElementById('t').dispatchEvent(
+                 new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true, ...init}))""",
+            [key, init],
+        )
+
+    # ---- openBracket (pure)
+
+    def open_bracket(t, c):
+        return page.evaluate("([t, c]) => openBracket(t, c)", [t, c])
+
+    def test_open_bracket():
+        check(open_bracket("no links here", 13) is None, "no bracket")
+        check(open_bracket("Which [Monster Re", 17) == {"start": 6, "query": "Monster Re"}, "open bracket")
+        check(open_bracket("Which [Monster Reborn] is", 25) is None, "closed bracket")
+        check(open_bracket("Which [Monster Reborn] and [Dark", 32) == {"start": 27, "query": "Dark"}, "the last [ wins")
+        check(open_bracket("Which [Monster\nRe", 17) is None, "a line break closes it")
+        check(open_bracket("[Dark Magician] text", 5) == {"start": 0, "query": "Dark"}, "caret inside the name")
+        check(open_bracket("text [", 6) == {"start": 5, "query": ""}, "just opened")
+
+    run("openBracket finds the open bracket before the caret", test_open_bracket)
+
+    # ---- asking the server
+
+    def test_asks_after_two_characters():
+        mount()
+        page.keyboard.type("[M")
+        page.wait_for_timeout(450)
+        check(pushed("suggest_cards") == [], "one character is too short")
+        page.keyboard.type("o")
+        wait_for_suggest()
+        check(pushed("suggest_cards") == [{"event": "suggest_cards", "payload": {"query": "Mo"}}])
+
+    run("asks the server from two characters on, debounced", test_asks_after_two_characters)
+
+    def test_no_request_outside_a_bracket():
+        mount()
+        page.keyboard.type("Monster Reborn")
+        page.wait_for_timeout(450)
+        check(pushed() == [] and not list_open())
+
+    run("asks nothing outside an open bracket", test_no_request_outside_a_bracket)
+
+    def test_one_request_per_pause():
+        mount()
+        page.keyboard.type("[Monster", delay=30)
+        wait_for_suggest()
+        page.wait_for_timeout(450)
+        check(len(pushed("suggest_cards")) == 1, "typing in one go is one request")
+        check(pushed("suggest_cards")[0]["payload"] == {"query": "Monster"})
+
+    run("typing in one go makes one request", test_one_request_per_pause)
+
+    # ---- the list
+
+    def test_list_shows():
+        mount()
+        type_query("[Monster", [REBORN, REINCARNATION])
+        check(list_open())
+        check(options() == ["Monster Reborn", "Monster Reincarnation"], options())
+        check(page.evaluate("document.getElementById('t').getAttribute('aria-expanded')") == "true")
+        check(active().endswith("-option-0"))
+        check(page.evaluate("document.querySelector('#list li').getAttribute('aria-selected')") == "true")
+
+    run("shows the answers as options and marks the first", test_list_shows)
+
+    def test_remote_tag():
+        mount()
+        type_query("[Brand", [NEW_CARD])
+        check(page.evaluate("document.querySelector('#list .mq-suggestion-tag').textContent") == "import")
+
+    run("a card that has to be imported says so", test_remote_tag)
+
+    def test_empty_answer_hides():
+        mount()
+        type_query("[Zzz", [])
+        check(not list_open())
+
+    run("an empty answer shows no list", test_empty_answer_hides)
+
+    def test_stale_answer_dropped():
+        mount()
+        page.keyboard.type("[Mon")
+        wait_for_suggest(1)
+        page.keyboard.type("s")  # the query changed before the answer came
+        reply([REBORN], index=0)
+        check(not list_open(), "the answer for 'Mon' must not be shown for 'Mons'")
+        wait_for_suggest(2)
+        reply([REBORN], index=1)
+        check(list_open())
+
+    run("an answer for an older query is dropped", test_stale_answer_dropped)
+
+    def test_list_closes_when_query_changes():
+        mount()
+        type_query("[Mon", [REBORN])
+        check(list_open())
+        page.keyboard.type("s")
+        check(not list_open(), "the old list must not be acted on")
+        check(keydown("Tab") is True, "Tab is left alone while no list is shown")
+
+    run("the list is hidden as soon as the query changes", test_list_closes_when_query_changes)
+
+    # ---- accepting
+
+    def test_tab_accepts():
+        mount()
+        set_text("Which [", None)
+        type_query("Monster Re", [REBORN, REINCARNATION])
+        page.keyboard.press("Tab")
+        check(text() == "Which [Monster Reborn]", text())
+        check(caret() == len("Which [Monster Reborn]"), "caret behind the link")
+        check(pushed("link_card") == [{"event": "link_card", "payload": {"id": "1"}}])
+        check(not list_open())
+        check(page.evaluate("inputs") >= 1, "an input event is sent for phx-change")
+
+    run("Tab writes [Full Name] and links the card", test_tab_accepts)
+
+    def test_enter_accepts_only_while_open():
+        mount()
+        type_query("[Monster", [REBORN])
+        check(keydown("Enter") is False, "Enter is taken while the list is open")
+        check(text() == "[Monster Reborn]", text())
+        mount()
+        page.keyboard.type("line one")
+        check(keydown("Enter") is True, "Enter is a line break while no list is open")
+
+    run("Enter accepts only while the list is open", test_enter_accepts_only_while_open)
+
+    def test_modified_keys_left_alone():
+        mount()
+        type_query("[Monster", [REBORN])
+        check(keydown("Enter", shiftKey=True) is True, "Shift+Enter")
+        check(keydown("Enter", ctrlKey=True) is True, "Ctrl+Enter")
+        check(keydown("Enter", isComposing=True) is True, "Enter that ends an IME composition")
+        check(keydown("Tab", shiftKey=True) is True, "Shift+Tab")
+        check(text() == "[Monster", "nothing was accepted")
+
+    run("Shift/Ctrl+Enter, composing Enter and Shift+Tab are left alone", test_modified_keys_left_alone)
+
+    def test_remote_link():
+        mount()
+        type_query("[Brand", [NEW_CARD])
+        page.keyboard.press("Tab")
+        check(text() == "[Brand New Card]")
+        check(pushed("link_card") == [{"event": "link_card", "payload": {"password": "777"}}])
+
+    run("a remote card is linked by its password (to be imported)", test_remote_link)
+
+    def test_arrows_wrap():
+        mount()
+        type_query("[Monster", [REBORN, REINCARNATION])
+        keydown("ArrowDown")
+        check(active().endswith("-option-1"), "down")
+        keydown("ArrowDown")
+        check(active().endswith("-option-0"), "down wraps to the first")
+        keydown("ArrowUp")
+        check(active().endswith("-option-1"), "up wraps to the last")
+        page.keyboard.press("Tab")
+        check(text() == "[Monster Reincarnation]", text())
+        check(pushed("link_card")[0]["payload"] == {"id": "2"})
+
+    run("the arrow keys move through the list and wrap", test_arrows_wrap)
+
+    def test_escape():
+        mount()
+        type_query("[Monster", [REBORN])
+        check(keydown("Escape") is False)
+        check(not list_open())
+        check(keydown("Enter") is True, "Enter is a line break again")
+        page.keyboard.type("s")  # a new query lifts the dismissal
+        wait_for_suggest(2)
+        reply([REBORN])
+        check(list_open(), "a new query opens the list again")
+
+    run("Escape closes the list until the query changes", test_escape)
+
+    def test_close_bracket_accepts_exact_name():
+        mount()
+        type_query("[monster reborn", [REBORN, REINCARNATION])
+        check(keydown("]") is False, "typing ] on an exact name accepts it")
+        check(text() == "[Monster Reborn]", text())
+        mount()
+        type_query("[Monster Re", [REBORN])
+        check(keydown("]") is True, "] on a partial name is just a character")
+
+    run("typing ] after an exact name accepts it (any case)", test_close_bracket_accepts_exact_name)
+
+    def test_existing_bracket_reused():
+        mount()
+        set_text("see [Monster Re] now", len("see [Monster Re"))
+        # a value set from script fires no input event: a caret move (keyup) makes
+        # the hook look at the caret
+        page.keyboard.press("ArrowLeft")
+        page.keyboard.press("ArrowRight")
+        wait_for_suggest()
+        reply([REBORN])
+        page.keyboard.press("Tab")
+        check(text() == "see [Monster Reborn] now", text())
+
+    run("a ] already behind the caret is reused, not doubled", test_existing_bracket_reused)
+
+    def test_maxlength():
+        mount(15)
+        type_query("[Monster", [REBORN])
+        page.keyboard.press("Tab")
+        check(text() == "[Monster", "no room for the full name: the text stays")
+        check(pushed("link_card") == [], "and nothing is linked")
+        check(not list_open())
+
+    run("leaves the text alone when the full name would not fit maxlength", test_maxlength)
+
+    def test_click_accepts():
+        mount()
+        type_query("[Monster", [REBORN, REINCARNATION])
+        page.locator("#list li").nth(1).click()
+        check(text() == "[Monster Reincarnation]", text())
+        check(pushed("link_card")[0]["payload"] == {"id": "2"})
+
+    run("a click on an option accepts it", test_click_accepts)
+
+    def test_blur_hides():
+        mount()
+        type_query("[Monster", [REBORN])
+        page.evaluate("document.getElementById('t').blur()")
+        check(not list_open())
+
+    run("leaving the textarea hides the list", test_blur_hides)
+
+    # ---- events from the server
+
+    def test_late_suggestions():
+        mount()
+        page.keyboard.type("[Brand")
+        wait_for_suggest()
+        reply([], pending=True)
+        check(not list_open(), "pending: nothing yet")
+        page.evaluate("handlers['card_links:suggestions']({query: 'Brand', suggestions: [{id: 5, name: 'Brand Card'}]})")
+        check(list_open() and options() == ["Brand Card"])
+
+    run("names that come later (pending) show when they arrive", test_late_suggestions)
+
+    def test_late_suggestions_for_old_query():
+        mount()
+        page.keyboard.type("[Brand")
+        wait_for_suggest()
+        page.keyboard.type("s")
+        page.evaluate("handlers['card_links:suggestions']({query: 'Brand', suggestions: [{id: 5, name: 'Brand Card'}]})")
+        check(not list_open(), "the player has typed on")
+
+    run("late names for an older query are ignored", test_late_suggestions_for_old_query)
+
+    def test_set_text():
+        mount()
+        # the caret is behind "[Mon", 3 characters from the end
+        set_text("abc [Mon] x", len("abc [Mon"))
+        page.evaluate("handlers['card_links:set_text']({text: 'abc [Monster Reborn] x'})")
+        check(text() == "abc [Monster Reborn] x")
+        check(caret() == len("abc [Monster Reborn"), f"the caret keeps its distance from the end: {caret()}")
+        check(not list_open())
+
+    run("the server can replace the text", test_set_text)
+
+    # ---- tidy up
+
+    def test_destroyed():
+        mount()
+        page.keyboard.type("[Mon")
+        page.evaluate("hook.destroyed()")
+        page.wait_for_timeout(450)
+        check(pushed("suggest_cards") == [], "the pending request is cancelled")
+        # a caret move to another query ("Mo" instead of "Mon") re-evaluates through
+        # the keyup listener: it must be gone too
+        page.keyboard.press("ArrowLeft")
+        page.wait_for_timeout(450)
+        check(pushed("suggest_cards") == [], "a caret move no longer triggers a request")
+        page.keyboard.type("n")
+        page.wait_for_timeout(450)
+        check(pushed("suggest_cards") == [], "and neither does typing")
+
+    run("destroyed() cancels the pending request and the listeners", test_destroyed)
+
+    def test_no_page_errors():
+        check(errors == [], "; ".join(errors))
+
+    run("no script errors in the page", test_no_page_errors)
+
+    browser.close()
+
+print()
+print(f"{passed} passed, {failed} failed")
+sys.exit(1 if failed else 0)
