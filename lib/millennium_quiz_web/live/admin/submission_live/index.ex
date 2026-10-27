@@ -62,9 +62,11 @@ defmodule MillenniumQuizWeb.Admin.SubmissionLive.Index do
               )}
             </span>
           </div>
-          <p class="font-semibold whitespace-pre-line">{s.text}</p>
+          <p class="font-semibold whitespace-pre-line"><.answer_text text={s.text} /></p>
           <ol class="list-[upper-alpha] pl-6 text-sm">
-            <li :for={c <- s.choices} class={c.correct && "font-semibold"}>{c.text}</li>
+            <li :for={c <- s.choices} class={c.correct && "font-semibold"}>
+              <.answer_text text={c.text} />
+            </li>
           </ol>
           <div class="flex flex-wrap gap-2 pt-1">
             <.button

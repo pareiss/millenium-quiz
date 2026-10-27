@@ -109,6 +109,7 @@ defmodule MillenniumQuizWeb.SuggestLive do
                 ({Question.min_choices()}–{Question.max_choices()}, tick the correct one)
               </span>
             </legend>
+            <.answer_markup_hint autocomplete={false} />
             <.inputs_for :let={choice} field={@form[:choices]}>
               <div class="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
                 <input type="hidden" name="submission[choices_sort][]" value={choice.index} />
@@ -120,6 +121,7 @@ defmodule MillenniumQuizWeb.SuggestLive do
                     field={choice[:text]}
                     placeholder="Answer"
                     maxlength={Choice.max_text_length()}
+                    aria-describedby="choice-hint"
                   />
                 </div>
                 <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:mt-2">

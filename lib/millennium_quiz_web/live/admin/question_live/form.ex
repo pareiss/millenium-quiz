@@ -33,8 +33,8 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
             do: "From #{@submission.submitter_name}",
             else: "No name given"} · what they wrote is kept as it is; the form below is yours to edit. Saving adds it to this topic and marks the suggestion approved.
         </p>
-        <p class="font-semibold whitespace-pre-line">{@submission.text}</p>
-        <ol class="list-[upper-alpha] pl-6 text-sm">
+        <p class="font-semibold whitespace-pre-line" id="original-text">{@submission.text}</p>
+        <ol class="list-[upper-alpha] pl-6 text-sm" id="original-choices">
           <li :for={c <- @submission.choices} class={c.correct && "font-semibold"}>{c.text}</li>
         </ol>
       </section>
@@ -203,6 +203,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
           <legend class="font-medium mb-1">
             Answers <span class="text-sm text-base-content/60">(2–6, tick the correct one)</span>
           </legend>
+          <.answer_markup_hint />
           <.inputs_for :let={choice} field={@form[:choices]}>
             <%!-- letter, answer, remove; "Correct" sits under the answer on a
                  phone and in the row from sm up --%>
@@ -211,8 +212,29 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
               <span class="mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-base-200 text-sm font-semibold">
                 {<<?A + choice.index>>}
               </span>
-              <div>
-                <.input field={choice[:text]} placeholder="Answer" maxlength="200" />
+              <div class="relative">
+                <.input
+                  field={choice[:text]}
+                  placeholder="Answer"
+                  maxlength="200"
+                  autocomplete="off"
+                  phx-hook="CardLinkInput"
+                  data-mode="plain"
+                  aria-describedby="choice-hint"
+                  data-suggestions={"choice-suggestions-#{choice.index}"}
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-controls={"choice-suggestions-#{choice.index}"}
+                />
+                <ul
+                  id={"choice-suggestions-#{choice.index}"}
+                  class="mq-suggestions"
+                  role="listbox"
+                  aria-label="Card suggestions"
+                  phx-update="ignore"
+                  hidden
+                >
+                </ul>
               </div>
               <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:mt-2">
                 <.input
@@ -351,6 +373,10 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     assign(socket, :unlinked_names, unlinked)
   end
 
+  # name starts with the query first, then alphabetical
+  defp answer_rank(name, wanted),
+    do: {not String.starts_with?(name_key(name), wanted), name_key(name)}
+
   defp name_key(name), do: name |> String.trim() |> String.downcase()
 
   defp cards_of(%Question{question_cards: question_cards}) when is_list(question_cards),
@@ -439,6 +465,24 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     else
       _ -> {:noreply, socket}
     end
+  end
+
+  # An answer field: only the cards already attached to this question, matched
+  # in memory. No pool search, no card source request, nothing to import.
+  def handle_event("suggest_cards", %{"query" => query, "scope" => "attached"}, socket)
+      when is_binary(query) do
+    wanted = name_key(query)
+
+    suggestions =
+      if String.length(wanted) < Cards.suggest_min_length() do
+        []
+      else
+        for card <- socket.assigns.cards,
+            String.contains?(name_key(card.name), wanted),
+            do: %{id: card.id, name: card.name, source: "pool"}
+      end
+
+    {:reply, %{suggestions: Enum.sort_by(suggestions, &answer_rank(&1.name, wanted))}, socket}
   end
 
   # Called by the textarea hook while the admin types `[Card Name`.

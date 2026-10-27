@@ -25,10 +25,12 @@ defmodule MillenniumQuizWeb.SuggestStatusLive do
             <p class="text-sm text-base-content/60">
               {@submission.topic.format.name} · {@submission.topic.name}
             </p>
-            <p class="font-semibold">{CardLinks.plain(@submission.text)}</p>
+            <p class="font-semibold">
+              <.answer_text text={CardLinks.plain(@submission.text, keep_players: true)} />
+            </p>
             <ol class="list-[upper-alpha] pl-6 text-sm">
               <li :for={c <- @submission.choices} class={c.correct && "font-semibold"}>
-                {c.text}
+                <.answer_text text={c.text} />
               </li>
             </ol>
           </div>
