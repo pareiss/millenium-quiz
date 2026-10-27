@@ -1052,18 +1052,21 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
   #game[data-phase="answering"] .mq-qhide { display: none; }
 }
 
-/* Large screens (a monitor, a 4K one at 100%): at least 1600 x 1000 CSS px, which
-   no tablet or phone reaches. There is room for everything, so the player list
+/* Large screens (a monitor, a 4K one at 100%): at least 1600 x 900 CSS px (a browser
+   window on a 1080p monitor is about 1920 x 950), which no tablet or phone reaches. There is room for everything, so the player list
    stays with the question, and the "pass the device" bar stays instead of
    folding away; with the bar not moving, the choices need no tap lock. */
-@media (min-width: 1600px) and (min-height: 1000px) {
+@media (min-width: 1600px) and (min-height: 900px) {
   #game[data-phase="answering"] #scoreboard { display: grid; }
   .mq-passbar { animation: none; }
   .mq-choices { animation: none; }
 }
 
-/* Past 1920px the page grows with the screen: the root font size, which everything
-   in rem follows (text, spacing, the page's width), is 0.8333vw, so a 3840px
-   screen shows the page at twice the size of a 1920px one. Never below the
-   reader's own setting (100%), so nothing changes up to 1920px. */
-html { font-size: max(100%, 0.8333vw); }
+/* Past 1920 x 1080 the page grows with the screen: the root font size, which
+   everything in rem (text, spacing, the page's width) follows, is 0.8333vw, so a
+   3840px wide screen shows the page at twice the size of a 1920px one. The height
+   limits it too (1.4815vh is 16px at 1080px high): the page is as tall as it is
+   wide in rem, so an ultrawide or a short, wide window must not grow past what
+   fits. Never below the reader's own setting (100%), so nothing changes up to
+   1920 x 1080. */
+html { font-size: max(100%, min(0.8333vw, 1.4815vh)); }
