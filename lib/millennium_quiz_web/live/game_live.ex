@@ -39,6 +39,7 @@ defmodule MillenniumQuizWeb.GameLive do
         data-game-id={@game_id}
         data-finished={to_string(@status == :finished)}
         data-turn-key={turn_key_attr(@turn_key)}
+        data-phase={if @status == :paused, do: :paused, else: @game.phase}
         class="space-y-5 transition-opacity phx-offline:pointer-events-none phx-offline:opacity-50 phx-offline:delay-700"
       >
         <.game_header game={@game} status={@status} />
@@ -153,8 +154,10 @@ defmodule MillenniumQuizWeb.GameLive do
         value={Enum.count(@game.questions, & &1.result)}
         max={Game.total_rounds(@game)}
       />
+      <%!-- not while a question is up: it needs the room, and the score is
+           on the board before and in the reveal after --%>
       <ul
-        :if={not @finished?}
+        :if={not @finished? and not (@status == :active and @game.phase == :answering)}
         class="mq-nosel grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2"
         id="scoreboard"
       >
@@ -302,9 +305,12 @@ defmodule MillenniumQuizWeb.GameLive do
       data-turn-panel
       class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden reveal-pop"
     >
-      <div class="bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
+      <%!-- goes by itself after a few seconds (app.css), when a question comes up
+           and again for each next player; the choices below cannot be tapped
+           until it has gone, so nobody hits the wrong one as the page moves --%>
+      <div class="mq-passbar bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
         <.avatar slug={@player.avatar} class="size-14" />
-        <p>
+        <p class="min-w-0">
           Pass the device to <strong class="text-lg" id="current-player">{@player.name}</strong>
         </p>
         <span class="ml-auto text-sm opacity-80" id="answer-progress">
@@ -313,17 +319,20 @@ defmodule MillenniumQuizWeb.GameLive do
       </div>
       <%!-- one column; question and choices side by side on a wide screen
            (a tablet, a phone on its side) --%>
-      <div class="p-4 sm:p-6 grid gap-5 md:landscape:grid-cols-2 lg:grid-cols-2 lg:gap-8 items-start">
-        <div class="space-y-5">
+      <div class="p-3 sm:p-6 grid gap-3 sm:gap-5 md:landscape:grid-cols-2 lg:grid-cols-2 lg:gap-8 items-start">
+        <div class="space-y-3 sm:space-y-5">
           <.question_meta question={@question} />
-          <p class="text-xl sm:text-2xl font-semibold leading-snug" id="question-text">
+          <p
+            class="text-lg sm:text-2xl [@media(max-height:32rem)]:sm:text-lg font-semibold leading-snug"
+            id="question-text"
+          >
             <.question_text question={@question} />
           </p>
           <.question_link_popovers question={@question} />
           <.question_cards cards={@question.cards} />
         </div>
-        <div class="space-y-5">
-          <div class="grid gap-3 sm:grid-cols-2 md:landscape:grid-cols-1 lg:grid-cols-1">
+        <div class="space-y-3 sm:space-y-5">
+          <div class="mq-choices grid gap-2 sm:gap-3 sm:grid-cols-2 md:landscape:grid-cols-1 lg:grid-cols-1">
             <button
               :for={{choice, i} <- Enum.with_index(@question.choices)}
               id={"choice-#{i}"}
