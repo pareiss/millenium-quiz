@@ -44,3 +44,5 @@ npm-debug.log
 
 # Python bytecode from the review helper tests
 __pycache__/
+
+gigalixir_free_db.json
