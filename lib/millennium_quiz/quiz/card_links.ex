@@ -26,7 +26,6 @@ defmodule MillenniumQuiz.Quiz.CardLinks do
 
   @link ~r/\[([^\[\]]+)\]/u
   @player ~r/^\{P([12])\}$/iu
-  @player_anywhere ~r/\{P([12])\}/iu
   @token ~r/\[[^\[\]]+\]|\{P[12]\}/iu
 
   @type card :: %{required(:name) => String.t(), optional(any) => any}
@@ -102,20 +101,26 @@ defmodule MillenniumQuiz.Quiz.CardLinks do
 
   @doc """
   The text with every link replaced by its name and every `{P1}`/`{P2}` by
-  "P1"/"P2". Used where the cards are not
-  at hand (truncated texts in admin lists and delete dialogs), so there any
-  `[non-empty text without brackets]` is treated as a link, whether or not a
-  card of that name exists.
+  "P1"/"P2". Used where the cards are not at hand (truncated texts in admin
+  lists and delete dialogs), so there any `[non-empty text without brackets]`
+  is treated as a link, whether or not a card of that name exists. One pass
+  with the tokens of `parse/2`, so a marker inside brackets is no marker here
+  either: `[{P1}]` becomes `{P1}`.
   """
   @spec plain(String.t() | nil) :: String.t()
   def plain(nil), do: ""
 
   def plain(text) when is_binary(text) do
-    @link
-    |> Regex.replace(text, fn _whole, inner ->
-      if String.trim(inner) == "", do: "[" <> inner <> "]", else: String.trim(inner)
+    Regex.replace(@token, text, fn whole ->
+      case Regex.run(@player, whole) do
+        [_, n] ->
+          "P" <> n
+
+        nil ->
+          inner = String.slice(whole, 1..-2//1)
+          if String.trim(inner) == "", do: whole, else: String.trim(inner)
+      end
     end)
-    |> then(&Regex.replace(@player_anywhere, &1, "P\\1"))
   end
 
   @doc """

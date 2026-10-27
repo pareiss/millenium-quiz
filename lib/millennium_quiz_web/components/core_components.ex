@@ -539,6 +539,26 @@ defmodule MillenniumQuizWeb.CoreComponents do
   end
 
   @doc """
+  An answer text: plain, with `{P1}` / `{P2}` shown as `player_badge/1`.
+  """
+  attr :text, :string, required: true
+
+  def answer_text(assigns) do
+    assigns = assign(assigns, :segments, MillenniumQuiz.Quiz.CardLinks.parse(assigns.text, []))
+
+    ~H"""
+    <%= for seg <- @segments do %>
+      <%= case seg do %>
+        <% {:player, player} -> %>
+          <.player_badge player={player} />
+        <% {:text, text} -> %>
+          {text}
+      <% end %>
+    <% end %>
+    """
+  end
+
+  @doc """
   A player's picture, a round crop of a monster's artwork. Nothing is drawn
   for a player without one (a game saved before the avatars) or an unknown
   slug.
