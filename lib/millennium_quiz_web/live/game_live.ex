@@ -378,15 +378,25 @@ defmodule MillenniumQuizWeb.GameLive do
         <% {:player, player} -> %>
           <.player_badge player={player} />
         <% {:card, name, index} -> %>
+          <% owner = card_owner(@question.cards, index) %>
           <button
             type="button"
             id={"question-link-#{n}"}
             phx-click="zoom_card"
             phx-value-card={index}
             data-card-index={index}
-            aria-label={"Show card: #{name}"}
-            title={"Show card: #{name}"}
-            class="cursor-zoom-in rounded-sm font-semibold underline decoration-dotted decoration-2 decoration-[#c39a55] underline-offset-4 hover:bg-[#c39a55]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c39a55]"
+            data-owner={owner}
+            aria-label={"Show card: #{name}" <> owner_note(owner)}
+            title={"Show card: #{name}" <> owner_note(owner)}
+            class={[
+              "cursor-zoom-in rounded-sm font-semibold underline decoration-dotted decoration-2 underline-offset-4",
+              owner == nil &&
+                "decoration-[#c39a55] hover:bg-[#c39a55]/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c39a55]",
+              owner == 1 &&
+                "decoration-[#2563eb] hover:bg-[#2563eb]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb]",
+              owner == 2 &&
+                "decoration-[#dc2626] hover:bg-[#dc2626]/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#dc2626]"
+            ]}
           >
             {name}
           </button>
@@ -394,6 +404,18 @@ defmodule MillenniumQuizWeb.GameLive do
     <% end %>
     """
   end
+
+  # The player (1 or 2) a card of the question belongs to, nil for nobody (and
+  # for snapshots from before owners).
+  defp card_owner(cards, index) do
+    case Enum.at(cards, index) do
+      %{owner: owner} when owner in [1, 2] -> owner
+      _ -> nil
+    end
+  end
+
+  defp owner_note(nil), do: ""
+  defp owner_note(owner), do: " (Player #{owner}'s card)"
 
   # Segments with a running number for the card links (their DOM ids).
   defp numbered_segments(question) do
@@ -622,6 +644,12 @@ defmodule MillenniumQuizWeb.GameLive do
     """
   end
 
+  # The outline around a card a player owns, in the player's colour. It sits
+  # outside the drawn card, which is not changed.
+  defp owner_outline(1), do: "rounded-md outline outline-4 outline-offset-2 outline-[#2563eb]"
+  defp owner_outline(2), do: "rounded-md outline outline-4 outline-offset-2 outline-[#dc2626]"
+  defp owner_outline(nil), do: nil
+
   attr :cards, :list, required: true
 
   # The cards a question is about, drawn with their text as of the format's
@@ -644,10 +672,19 @@ defmodule MillenniumQuizWeb.GameLive do
           class="w-[calc(50%-0.375rem)] sm:w-[clamp(8.5rem,calc((100%_-_2.25rem)/4),11rem)]"
         >
           <div
-            class="mq-nosel relative cursor-zoom-in transition motion-safe:hover:-translate-y-1 hover:drop-shadow-lg"
+            class={[
+              "mq-nosel relative cursor-zoom-in transition motion-safe:hover:-translate-y-1 hover:drop-shadow-lg",
+              owner_outline(card_owner(@cards, i))
+            ]}
+            data-owner={card_owner(@cards, i)}
             phx-click="zoom_card"
             phx-value-card={i}
           >
+            <.player_badge
+              :if={card_owner(@cards, i)}
+              player={card_owner(@cards, i)}
+              class="mq-owner-badge absolute -top-3 left-2 z-10 !mx-0 shadow"
+            />
             <.card card={card} on_text="read_card" text_value={i} />
             <%!-- For keyboards; mice can click anywhere on the card --%>
             <button

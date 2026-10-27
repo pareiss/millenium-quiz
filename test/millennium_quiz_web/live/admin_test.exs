@@ -375,6 +375,72 @@ defmodule MillenniumQuizWeb.AdminTest do
       refute html =~ "[Monster Reborn]"
     end
 
+    test "a card gets an owner in the form; it is saved, loaded again and dropped with the card",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2020-01-01"})
+      topic = hd(format.topics)
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+      {:ok, plain} = MillenniumQuiz.Cards.import(CardSourcesStub.plain().password)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+      render_hook(view, "link_card", %{"id" => to_string(plain.id)})
+
+      # nobody owns a card at first
+      assert has_element?(view, "#owner-#{reborn.id}-none[aria-checked=true]")
+      assert has_element?(view, "#owner-#{reborn.id}-1[aria-checked=false]")
+
+      view |> element("#owner-#{reborn.id}-1") |> render_click()
+      view |> element("#owner-#{plain.id}-2") |> render_click()
+      assert has_element?(view, "#owner-#{reborn.id}-1[aria-checked=true]")
+      assert has_element?(view, "#owner-#{reborn.id}-none[aria-checked=false]")
+      assert has_element?(view, "#owner-#{plain.id}-2[aria-checked=true]")
+
+      # a card that is not attached, and odd values, change nothing
+      render_hook(view, "set_owner", %{"id" => "999999", "owner" => "1"})
+      render_hook(view, "set_owner", %{"id" => to_string(plain.id), "owner" => "3"})
+      render_hook(view, "set_owner", %{"id" => "x", "owner" => "1"})
+      assert has_element?(view, "#owner-#{plain.id}-2[aria-checked=true]")
+
+      params = %{
+        text: "[Monster Reborn] against [Plain Card]",
+        points: "10",
+        choices: %{
+          "0" => %{text: "Yes", correct: "true"},
+          "1" => %{text: "No", correct: "false"},
+          "2" => %{text: "Maybe", correct: "false"},
+          "3" => %{text: "Never", correct: "false"}
+        }
+      }
+
+      view |> form("#question-form", question: params) |> render_submit()
+      [question] = Quiz.get_format!(format.id).topics |> hd() |> Map.fetch!(:questions)
+
+      owners = fn q ->
+        for qc <- Quiz.get_question!(q.id).question_cards, do: {qc.card.name, qc.owner}
+      end
+
+      assert owners.(question) == [{"Monster Reborn", 1}, {"Plain Card", 2}]
+
+      # editing loads the owners; changing one and removing the other card
+      {:ok, edit, _html} = live(conn, ~p"/admin/questions/#{question.id}/edit")
+      assert has_element?(edit, "#owner-#{reborn.id}-1[aria-checked=true]")
+      assert has_element?(edit, "#owner-#{plain.id}-2[aria-checked=true]")
+
+      edit |> element("#owner-#{reborn.id}-none") |> render_click()
+      edit |> element("#remove-card-#{plain.id}") |> render_click()
+      edit |> form("#question-form", question: params) |> render_submit()
+      assert owners.(question) == [{"Monster Reborn", nil}]
+
+      # a card that comes back after being removed starts with nobody
+      {:ok, edit, _html} = live(conn, ~p"/admin/questions/#{question.id}/edit")
+      edit |> element("#owner-#{reborn.id}-2") |> render_click()
+      edit |> element("#remove-card-#{reborn.id}") |> render_click()
+      render_hook(edit, "link_card", %{"id" => to_string(reborn.id)})
+      assert has_element?(edit, "#owner-#{reborn.id}-none[aria-checked=true]")
+    end
+
     test "link_card is idempotent for ids and passwords and doesn't re-import",
          %{conn: conn} do
       CardSourcesStub.stub!()

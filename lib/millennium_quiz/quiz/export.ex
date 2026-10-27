@@ -39,6 +39,10 @@ defmodule MillenniumQuiz.Quiz.Export do
           }
         ]
       }
+
+  A card has an `"owner"` (1 or 2, the player it belongs to in the question)
+  only when a player owns it. The format stays version 1: a backup without
+  owners imports as before, with no card owned.
   """
   import Ecto.Query
 
@@ -92,8 +96,14 @@ defmodule MillenniumQuiz.Quiz.Export do
       "points" => q.points,
       "submitted_by" => q.submitted_by,
       "choices" => Enum.map(q.choices, &%{"text" => &1.text, "correct" => &1.correct}),
-      "cards" =>
-        Enum.map(q.question_cards, &%{"password" => &1.card.password, "name" => &1.card.name})
+      "cards" => Enum.map(q.question_cards, &card/1)
     }
+  end
+
+  # "owner" only when a player owns the card, so a backup without owners is
+  # the same as before they existed
+  defp card(%{card: card, owner: owner}) do
+    %{"password" => card.password, "name" => card.name}
+    |> then(&if(owner, do: Map.put(&1, "owner", owner), else: &1))
   end
 end

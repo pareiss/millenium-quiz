@@ -80,6 +80,30 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
                 <.icon name="hero-x-mark" class="size-4" />
               </button>
             </div>
+            <div
+              class="flex flex-wrap items-center gap-2 text-sm"
+              role="radiogroup"
+              aria-label={"Whose card is #{card.name}?"}
+              id={"owner-#{card.id}"}
+            >
+              <span class="text-base-content/60">Belongs to</span>
+              <button
+                :for={{value, label} <- [{"none", "Nobody"}, {"1", "Player 1"}, {"2", "Player 2"}]}
+                type="button"
+                role="radio"
+                aria-checked={to_string(owner_value(@owners, card.id) == value)}
+                phx-click="set_owner"
+                phx-value-id={card.id}
+                phx-value-owner={value}
+                id={"owner-#{card.id}-#{value}"}
+                class={[
+                  "btn btn-sm",
+                  owner_value(@owners, card.id) == value && owner_active(value)
+                ]}
+              >
+                {label}
+              </button>
+            </div>
             <p class="text-sm whitespace-pre-line">{text.text}</p>
           </li>
         </ol>
@@ -353,12 +377,21 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     |> assign(:return_to, ~p"/admin/formats/#{topic.format_id}")
     |> assign(:form, to_form(Quiz.change_question(question)))
     |> assign(:cards, cards_of(question))
+    |> assign(:owners, owners_of(question))
     |> assign(:search_form, to_form(%{"query" => ""}, as: :card_search))
     |> assign(:results, [])
     |> assign(:search_error, nil)
     |> assign(:importing, nil)
     |> assign_unlinked_names()
   end
+
+  defp owner_value(owners, card_id), do: owners |> Map.get(card_id) |> to_string_or_none()
+  defp to_string_or_none(nil), do: "none"
+  defp to_string_or_none(n), do: Integer.to_string(n)
+
+  defp owner_active("none"), do: "btn-neutral"
+  defp owner_active("1"), do: "border-[#2563eb] bg-[#2563eb] text-white hover:bg-[#1d4ed8]"
+  defp owner_active("2"), do: "border-[#dc2626] bg-[#dc2626] text-white hover:bg-[#b91c1c]"
 
   defp importing_password({password, _origin}), do: password
   defp importing_password(nil), do: nil
@@ -384,6 +417,16 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
 
   defp cards_of(_question), do: []
 
+  # card id => 1 or 2, for the cards a player owns
+  defp owners_of(%Question{question_cards: question_cards}) when is_list(question_cards),
+    do: for(%{owner: owner} = qc <- question_cards, owner, into: %{}, do: {qc.card_id, owner})
+
+  defp owners_of(_question), do: %{}
+
+  # the cards in order, each with its owner: what Quiz.create_question/3 takes
+  defp card_entries(socket),
+    do: Enum.map(socket.assigns.cards, &{&1.id, Map.get(socket.assigns.owners, &1.id)})
+
   @impl true
   def handle_event("validate", %{"question" => params}, socket) do
     changeset = Quiz.change_question(socket.assigns.question, params)
@@ -393,7 +436,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   end
 
   def handle_event("save", %{"question" => params}, socket) do
-    card_ids = Enum.map(socket.assigns.cards, & &1.id)
+    card_ids = card_entries(socket)
 
     result =
       case {socket.assigns.live_action, socket.assigns.submission} do
@@ -460,6 +503,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
       {:noreply,
        socket
        |> assign(:cards, Enum.reject(socket.assigns.cards, &(&1.id == id)))
+       |> assign(:owners, Map.delete(socket.assigns.owners, id))
        |> unlink_in_text(card)
        |> assign_unlinked_names()}
     else
@@ -484,6 +528,25 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
 
     {:reply, %{suggestions: Enum.sort_by(suggestions, &answer_rank(&1.name, wanted))}, socket}
   end
+
+  # Whose card it is: "1", "2" or "none". Only for a card attached to the question.
+  def handle_event("set_owner", %{"id" => id, "owner" => owner}, socket)
+      when is_binary(id) and owner in ["none", "1", "2"] do
+    with {id, ""} <- Integer.parse(id),
+         true <- Enum.any?(socket.assigns.cards, &(&1.id == id)) do
+      owners =
+        case owner do
+          "none" -> Map.delete(socket.assigns.owners, id)
+          n -> Map.put(socket.assigns.owners, id, String.to_integer(n))
+        end
+
+      {:noreply, assign(socket, :owners, owners)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("set_owner", _params, socket), do: {:noreply, socket}
 
   # Called by the textarea hook while the admin types `[Card Name`.
   def handle_event("suggest_cards", %{"query" => query}, socket) when is_binary(query) do

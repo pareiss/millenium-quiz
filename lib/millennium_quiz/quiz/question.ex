@@ -58,14 +58,26 @@ defmodule MillenniumQuiz.Quiz.Question do
     |> validate_choices()
   end
 
-  @doc "Sets the question's cards, in order, from card pool ids."
-  def put_cards(changeset, card_ids) do
+  @doc """
+  Sets the question's cards, in order. An entry is a card pool id, or
+  `{id, owner}` with the owner 1, 2 or nil (a bare id has no owner). A card
+  listed twice counts once, the first entry wins.
+  """
+  def put_cards(changeset, entries) do
     question_cards =
-      card_ids
-      |> Enum.uniq()
+      entries
+      |> Enum.map(fn
+        {card_id, owner} -> {card_id, owner}
+        card_id -> {card_id, nil}
+      end)
+      |> Enum.uniq_by(&elem(&1, 0))
       |> Enum.with_index()
-      |> Enum.map(fn {card_id, position} ->
-        QuestionCard.changeset(%QuestionCard{}, %{card_id: card_id, position: position})
+      |> Enum.map(fn {{card_id, owner}, position} ->
+        QuestionCard.changeset(%QuestionCard{}, %{
+          card_id: card_id,
+          owner: owner,
+          position: position
+        })
       end)
 
     put_assoc(changeset, :question_cards, question_cards)

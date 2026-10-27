@@ -16,6 +16,8 @@ It plays one game of that format, creating a game on the site it is pointed at
 Checks the question view (docs/plans/tablet-phone-layout.md):
   - no horizontal overflow, on the board and in the question
   - cards per row: 4 on a portrait tablet, 3 on a landscape one, 2 on a phone
+  - the cards of player 1 and 2 have a blue / red outline and a badge, their links in the
+    text are blue / red (and none of it breaks the cards-per-row or overflow checks)
   - the {P1} / {P2} badges of the question text are shown, blue and red
   - the score line is on the board and gone in the question
   - the site's top bar is gone in the question when the screen is at most 920px
@@ -44,7 +46,7 @@ VIEWPORTS = [
     ("tablet 912x1368", 912, 1368, 4, 0),
     ("tablet landscape 1024x768", 1024, 768, 3, 100),
     ("tablet landscape 1180x820", 1180, 820, 3, 100),
-    ("phone 412x915", 412, 915, 2, 220),
+    ("phone 412x915", 412, 915, 2, 250),
     ("phone 390x844", 390, 844, 2, 290),
     ("phone 360x740", 360, 740, 2, 430),
     ("phone 320x568", 320, 568, 2, 560),
@@ -77,6 +79,13 @@ def metrics(page):
             perRow: cards.filter(c => Math.round(c.getBoundingClientRect().top) === firstTop).length,
             header: header ? getComputedStyle(header).display : 'missing',
             score: !!document.querySelector('#scoreboard'),
+            owned: [...document.querySelectorAll('#question-cards [data-owner]')].map(e => {
+              const st = getComputedStyle(e), b = e.querySelector('.mq-owner-badge').getBoundingClientRect()
+              return [e.dataset.owner, st.outlineColor, st.outlineStyle, st.outlineWidth,
+                      b.left >= 0 && b.right <= innerWidth && b.width > 0]
+            }),
+            ownedLinks: [...document.querySelectorAll('#question-text button[data-owner]')]
+              .map(b => [b.dataset.owner, getComputedStyle(b).textDecorationColor]),
             answerBadges: document.querySelectorAll('.mq-choices .mq-player-badge').length,
             badges: [...document.querySelectorAll('#question-text .mq-player-badge')]
               .map(b => [b.textContent.trim(), getComputedStyle(b).backgroundColor, b.getBoundingClientRect().width > 0]),
@@ -133,6 +142,11 @@ with sync_playwright() as p:
         check(f"{name}: no horizontal overflow", m["overX"] <= 0, f"{m['overX']}px")
         check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
         check(f"{name}: no score line", not m["score"])
+        check(f"{name}: cards of P1 and P2 have a blue and a red outline and a badge inside the screen",
+              m["owned"] == [["1", "rgb(37, 99, 235)", "solid", "4px", True],
+                             ["2", "rgb(220, 38, 38)", "solid", "4px", True]], str(m["owned"]))
+        check(f"{name}: their links in the text are blue and red",
+              m["ownedLinks"] == [["1", "rgb(37, 99, 235)"], ["2", "rgb(220, 38, 38)"]], str(m["ownedLinks"]))
         check(f"{name}: the answer has its P2 badge", m["answerBadges"] == 1, str(m["answerBadges"]))
         check(f"{name}: P1 blue and P2 red badges shown",
               m["badges"] == [["P1", "rgb(37, 99, 235)", True], ["P2", "rgb(220, 38, 38)", True]],
