@@ -19,7 +19,9 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - the cards of player 1 and 2 have a blue / red ring with a fading glow and a badge, their links in the
     text are blue / red (and none of it breaks the cards-per-row or overflow checks)
   - the {P1} / {P2} badges of the question text are shown, blue and red
-  - the score line is on the board and gone in the question
+  - the score line is on the board and gone in the question, except on a large screen
+    (1600x900 and up), where the player list stays with the question and the
+    pass-the-device bar does not fold; the page grows with the screen above 1920x1080 (limited by the height too)
   - the site's top bar is gone in the question when the screen is at most 920px
     high, and stays on a tall tablet
   - the answer fields of /suggest have no card list (a suggestion has no cards), only the hint
@@ -51,7 +53,26 @@ VIEWPORTS = [
     ("phone 360x740", 360, 740, 2, 430),
     ("phone 320x568", 320, 568, 2, 560),
     ("phone landscape 844x390", 844, 390, 2, 450),
+    # large screens: a monitor, a 4K one at 100% (1600x900 and up, see app.css); the
+    # sizes are browser windows: the 1080p monitor's is about 1920x950
+    ("desktop window 1920x950", 1920, 950, 4, 0),
+    ("desktop 1920x1080", 1920, 1080, 4, 0),
+    ("small monitor 1600x900", 1600, 900, 4, 0),
+    ("monitor 2560x1440", 2560, 1440, 4, 0),
+    ("ultrawide 3440x1440", 3440, 1440, 4, 0),
+    ("4K 3840x2160", 3840, 2160, 4, 0),
+    # wide but short: not a large screen, and the page must not grow with the width
+    ("short and wide 2560x800", 2560, 800, 4, 0),
 ]
+
+
+def is_large(w, h):
+    return w >= 1600 and h >= 900
+
+
+def root_font(w, h):
+    """The root font size of app.css: max(16px, min(0.8333vw, 1.4815vh))."""
+    return max(16, min(w * 0.008333, h * 0.014815))
 
 passed = 0
 failed = 0
@@ -78,7 +99,9 @@ def metrics(page):
             overY: document.documentElement.scrollHeight - innerHeight,
             perRow: cards.filter(c => Math.round(c.getBoundingClientRect().top) === firstTop).length,
             header: header ? getComputedStyle(header).display : 'missing',
-            score: !!document.querySelector('#scoreboard'),
+            // the list is in the page during a question, hidden by css below 1600x1000
+            score: (() => { const e = document.querySelector('#scoreboard'); return !!e && getComputedStyle(e).display !== 'none' })(),
+            rootFont: parseFloat(getComputedStyle(document.documentElement).fontSize),
             // the ring and glow of an owned card are shadows of its face: ring colour and
             // width, glow colour, the badge inside the screen, and the clear space between
             // the rings of two owned cards side by side (their gap less both rings)
@@ -109,6 +132,20 @@ def metrics(page):
           }
         }"""
     )
+
+
+def start_game(page):
+    """Opens the Layout check format, names two players and starts; the board is up."""
+    page.goto(base + "/")
+    page.locator("a:has-text('Layout check')").first.click()
+    page.wait_for_selector("#start-game")
+    for i in range(2):
+        page.click(f"#player-name-{i}")
+        page.keyboard.type(f"Player {i + 1}", delay=20)
+        page.keyboard.press("Tab")
+    page.wait_for_timeout(600)
+    page.click("#start-game")
+    page.wait_for_selector("button[phx-click='choose']")
 
 
 def pass_bar_height(page):
@@ -158,7 +195,13 @@ with sync_playwright() as p:
         m = metrics(page)
         check(f"{name}: no horizontal overflow", m["overX"] <= 0, f"{m['overX']}px")
         check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
-        check(f"{name}: no score line", not m["score"])
+        large = is_large(w, h)
+        check(f"{name}: {'player list with the question' if large else 'no score line'}", m["score"] == large,
+              f"shown {m['score']}")
+        check(f"{name}: the page grows with the screen (root font {m['rootFont']:.1f}px)",
+              abs(m["rootFont"] - root_font(w, h)) < 0.5)
+        if large:
+            check(f"{name}: the pass-the-device bar stays", pass_bar_height(page) >= 60, f"{pass_bar_height(page)}px")
         check(f"{name}: cards of P1 and P2 have a blue and a red ring with a glow, and a badge inside the screen",
               m["owned"]["cards"] == [["1", "rgb(37, 99, 235)", "37, 99, 235", True, True, True],
                                       ["2", "rgb(220, 38, 38)", "220, 38, 38", True, True, True]], str(m["owned"]["cards"]))
@@ -209,6 +252,23 @@ with sync_playwright() as p:
         )
         check(f"{name}: answers have no card list, the hint shows, no horizontal overflow",
               m["overX"] <= 0 and m["lists"] == 0 and m["hooked"] == 0 and m["hint"], str(m))
+
+    print("Pass the device (large screen, a new game)")
+    # a fresh turn at the size of a browser window on a 1080p monitor: the bar and the
+    # player list are there after 5 seconds, for the first player and for the next
+    page.set_viewport_size({"width": 1920, "height": 950})
+    start_game(page)
+    page.locator("button[phx-click='choose']:not([disabled])").first.click()
+    page.wait_for_selector("#question-cards article")
+    page.wait_for_timeout(5000)
+    check("first player: the bar has not folded away", pass_bar_height(page) >= 60, f"{pass_bar_height(page)}px")
+    check("first player: the player list is with the question",
+          page.evaluate("getComputedStyle(document.querySelector('#scoreboard')).display") != "none")
+    page.click("#choice-0")
+    page.wait_for_selector("#answer-progress:has-text('2/2')")
+    page.wait_for_timeout(5000)
+    check("next player: the bar has not folded away either", pass_bar_height(page) >= 60,
+          f"{pass_bar_height(page)}px")
 
     browser.close()
 

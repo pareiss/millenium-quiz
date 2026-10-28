@@ -43,7 +43,7 @@ defmodule MillenniumQuizWeb.Layouts do
       id="site-header"
       class="border-b border-base-300 bg-base-100 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] [@media(min-width:40rem)_and_(min-height:32rem)]:sticky [@media(min-width:40rem)_and_(min-height:32rem)]:top-0 z-40"
     >
-      <nav class="mx-auto max-w-5xl px-4 sm:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-3">
+      <nav class="mx-auto max-w-5xl min-[1600px]:max-w-[96rem] px-4 sm:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-3">
         <.link
           navigate={~p"/"}
           class="flex items-center gap-2 group"
@@ -132,7 +132,10 @@ defmodule MillenniumQuizWeb.Layouts do
     </header>
 
     <main class="px-4 py-6 sm:px-6 sm:py-10 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))]">
-      <div class={["mx-auto space-y-6", if(@width == "lg", do: "max-w-5xl", else: "max-w-2xl")]}>
+      <div class={[
+        "mx-auto space-y-6",
+        if(@width == "lg", do: "max-w-5xl min-[1600px]:max-w-[96rem]", else: "max-w-2xl")
+      ]}>
         {render_slot(@inner_block)}
       </div>
     </main>
