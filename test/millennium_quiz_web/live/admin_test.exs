@@ -375,6 +375,67 @@ defmodule MillenniumQuizWeb.AdminTest do
       refute html =~ "[Monster Reborn]"
     end
 
+    test "the cards of a question can be moved up and down; the order is saved and loaded again",
+         %{conn: conn} do
+      CardSourcesStub.stub!()
+      format = format_fixture(%{"date" => "2020-01-01"})
+      topic = hd(format.topics)
+      {:ok, reborn} = MillenniumQuiz.Cards.import(CardSourcesStub.reborn().password)
+      {:ok, plain} = MillenniumQuiz.Cards.import(CardSourcesStub.plain().password)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
+
+      # one card has nothing to move past
+      render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
+      refute has_element?(view, "#move-card-#{reborn.id}-up")
+
+      render_hook(view, "link_card", %{"id" => to_string(plain.id)})
+      order = fn v -> card_ids(render(v)) end
+
+      assert order.(view) == [reborn.id, plain.id]
+
+      # the ends cannot go further
+      assert has_element?(view, "#move-card-#{reborn.id}-up[disabled]")
+      assert has_element?(view, "#move-card-#{plain.id}-down[disabled]")
+      refute has_element?(view, "#move-card-#{reborn.id}-down[disabled]")
+
+      # an owner goes with its card
+      view |> element("#owner-#{reborn.id}-1") |> render_click()
+      view |> element("#move-card-#{reborn.id}-down") |> render_click()
+      assert order.(view) == [plain.id, reborn.id]
+      assert has_element?(view, "#owner-#{reborn.id}-1[aria-pressed=true]")
+
+      # odd values change nothing
+      render_hook(view, "move_card", %{"id" => to_string(plain.id), "dir" => "up"})
+      render_hook(view, "move_card", %{"id" => "999999", "dir" => "up"})
+      render_hook(view, "move_card", %{"id" => to_string(reborn.id), "dir" => "sideways"})
+      render_hook(view, "move_card", %{})
+      assert order.(view) == [plain.id, reborn.id]
+
+      view
+      |> form("#question-form",
+        question: %{
+          text: "Which is first?",
+          points: "40",
+          choices: %{
+            "0" => %{text: "Yes", correct: "true"},
+            "1" => %{text: "No", correct: "false"},
+            "2" => %{text: "Maybe", correct: "false"},
+            "3" => %{text: "Never", correct: "false"}
+          }
+        }
+      )
+      |> render_submit()
+
+      [question] = Quiz.get_format!(format.id).topics |> hd() |> Map.fetch!(:questions)
+      question = Quiz.get_question!(question.id)
+      assert Enum.map(question.question_cards, & &1.card_id) == [plain.id, reborn.id]
+
+      {:ok, edit, _html} = live(conn, ~p"/admin/questions/#{question.id}/edit")
+
+      assert order.(edit) == [plain.id, reborn.id]
+    end
+
     test "a card gets an owner in the form; it is saved, loaded again and dropped with the card",
          %{conn: conn} do
       CardSourcesStub.stub!()
@@ -796,5 +857,12 @@ defmodule MillenniumQuizWeb.AdminTest do
                "another password"
              )
     end
+  end
+
+  # the ids of the cards attached in the form, in the order shown
+  defp card_ids(html) do
+    ~r/id="selected-card-(\d+)"/
+    |> Regex.scan(html)
+    |> Enum.map(fn [_, id] -> String.to_integer(id) end)
   end
 end

@@ -30,6 +30,8 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
     a not-allowed pointer, a running line); on a large screen it fades where it is, nothing
     moves and nothing is locked
   - how far the question must scroll stays under a limit per viewport
+  - with SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD: the admin question form has up and down buttons
+    for the cards, on screen at every viewport, and they move a card (nothing is saved)
 Exit code: 0 all passed, 1 at least one check failed.
 """
 import os
@@ -313,6 +315,63 @@ with sync_playwright() as p:
     page.wait_for_timeout(5000)
     check("next player: the bar has not folded away either", pass_bar_height(page) >= 60,
           f"{pass_bar_height(page)}px")
+
+    # The admin form: the attached cards can be moved up and down. Needs an admin login (CI has
+    # one from the release's ADMIN_*: SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD), else it is skipped.
+    if os.environ.get("SMOKE_ADMIN_USER") and os.environ.get("SMOKE_ADMIN_PASSWORD"):
+        print("Admin form (the order of a question's cards)")
+        page.set_viewport_size({"width": 1280, "height": 900})
+        page.goto(base + "/admin/login")
+        page.fill("#login-form input[name='user[username]']", os.environ["SMOKE_ADMIN_USER"])
+        page.fill("#login-form input[name='user[password]']", os.environ["SMOKE_ADMIN_PASSWORD"])
+        page.click("#login-submit")
+        page.wait_for_url("**/admin/formats")
+        page.locator("a:has-text('Layout check')").first.click()
+        # the first question of the first topic is the one with 4 cards
+        page.locator("a[id^='edit-question-']").first.click()
+        page.wait_for_selector("#selected-cards li")
+
+        def card_order():
+            return page.evaluate("() => [...document.querySelectorAll('#selected-cards > li')].map(li => li.id)")
+
+        def move_state():
+            return page.evaluate(
+                """() => {
+                  const btns = [...document.querySelectorAll('#selected-cards [id^=move-card-]')]
+                  const names = [...document.querySelectorAll('#selected-cards li p.font-semibold')]
+                  return {
+                    n: btns.length,
+                    inside: btns.every(b => { const r = b.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth }),
+                    overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                    nameWidth: Math.round(Math.min(...names.map(n => n.getBoundingClientRect().width))),
+                  }
+                }"""
+            )
+
+        for name, w, h, _, _ in VIEWPORTS:
+            page.set_viewport_size({"width": w, "height": h})
+            page.wait_for_timeout(150)
+            m = move_state()
+            check(f"{name}: 4 cards have up and down buttons (8), all on screen, no horizontal overflow, "
+                  f"the names keep room (>= 60px)",
+                  m["n"] == 8 and m["inside"] and m["overX"] <= 0 and m["nameWidth"] >= 60, str(m))
+
+        before = card_order()
+        check("the first card cannot go up, the last cannot go down",
+              page.locator(f"#move-card-{before[0].split('-')[-1]}-up").is_disabled()
+              and page.locator(f"#move-card-{before[-1].split('-')[-1]}-down").is_disabled())
+        for w, h in [(768, 1024), (390, 844)]:  # a tablet, a phone
+            page.set_viewport_size({"width": w, "height": h})
+            first = card_order()[0].split("-")[-1]
+            page.click(f"#move-card-{first}-down")
+            page.wait_for_function("(id) => document.querySelector('#selected-cards > li').id !== 'selected-card-' + id", arg=first)
+            after = card_order()
+            check(f"{w}x{h}: moving the first card down puts it second", after[1] == f"selected-card-{first}", str(after))
+            page.click(f"#move-card-{first}-up")
+            page.wait_for_function("(id) => document.querySelector('#selected-cards > li').id === 'selected-card-' + id", arg=first)
+            check(f"{w}x{h}: and up again restores the order", card_order() == before, str(card_order()))
+    else:
+        print("Admin form: skipped (set SMOKE_ADMIN_USER and SMOKE_ADMIN_PASSWORD to run it)")
 
     browser.close()
 

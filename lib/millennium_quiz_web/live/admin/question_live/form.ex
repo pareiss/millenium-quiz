@@ -69,6 +69,34 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
                   </span>
                 </p>
               </div>
+              <div
+                :if={length(@cards) > 1}
+                class="flex shrink-0"
+                role="group"
+                aria-label={"Move #{card.name}"}
+              >
+                <button
+                  :for={
+                    {dir, icon, label} <- [
+                      {"up", "hero-chevron-up", "up"},
+                      {"down", "hero-chevron-down", "down"}
+                    ]
+                  }
+                  type="button"
+                  class="btn btn-ghost btn-square btn-sm"
+                  phx-click="move_card"
+                  phx-value-id={card.id}
+                  phx-value-dir={dir}
+                  id={"move-card-#{card.id}-#{dir}"}
+                  aria-label={"Move #{card.name} #{label}"}
+                  disabled={
+                    (dir == "up" && card.id == hd(@cards).id) ||
+                      (dir == "down" && card.id == List.last(@cards).id)
+                  }
+                >
+                  <.icon name={icon} class="size-4" />
+                </button>
+              </div>
               <button
                 type="button"
                 class="btn btn-ghost btn-square btn-sm"
@@ -527,6 +555,26 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
 
     {:reply, %{suggestions: Enum.sort_by(suggestions, &answer_rank(&1.name, wanted))}, socket}
   end
+
+  # One place up or down in the list; the order is the order players see the
+  # cards in (saved with the question). The first cannot go up, the last not down.
+  def handle_event("move_card", %{"id" => id, "dir" => dir}, socket) when dir in ["up", "down"] do
+    with {id, ""} <- Integer.parse(id),
+         i when is_integer(i) <- Enum.find_index(socket.assigns.cards, &(&1.id == id)),
+         j = if(dir == "up", do: i - 1, else: i + 1),
+         true <- j >= 0 and j < length(socket.assigns.cards) do
+      cards = socket.assigns.cards
+
+      moved =
+        cards |> List.replace_at(i, Enum.at(cards, j)) |> List.replace_at(j, Enum.at(cards, i))
+
+      {:noreply, assign(socket, :cards, moved)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("move_card", _params, socket), do: {:noreply, socket}
 
   # Whose card it is: "1", "2" or "none". Only for a card attached to the question.
   def handle_event("set_owner", %{"id" => id, "owner" => owner}, socket)

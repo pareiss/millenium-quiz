@@ -102,6 +102,8 @@ jobs:
 
       # tablet and phone viewports in a headless browser (docs/plans/tablet-phone-layout.md)
       - name: Layout test
+        env:
+          SMOKE_ADMIN_USER: smoke
         run: |
           python3 -m venv .venv-layout
           .venv-layout/bin/pip install --quiet -r bin/layout-test-requirements.txt
