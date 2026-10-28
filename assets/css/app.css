@@ -1027,8 +1027,8 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
    page moves up while it does: a tap then would hit the wrong choice (and an
    answer hands the device on), so the choices cannot be tapped until it has gone.
    They show that meanwhile: dimmed, a "not yet" pointer for a mouse, and a line
-   along the bar that runs out. On a large screen (below) nothing moves, so
-   nothing is locked. */
+   along the bar that runs out. On a large screen (further down) nothing moves,
+   so nothing is locked. */
 @keyframes mq-pass-bar { to { max-height: 0; padding-block: 0; opacity: 0; } }
 @keyframes mq-pass-fade { to { opacity: 0; } }
 @keyframes mq-pass-timer { to { transform: scaleX(0); } }
@@ -1053,17 +1053,10 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
    the pointer on to it) */
 .mq-choices { animation: mq-choices-wait 3050ms linear; }
 .mq-choices > * { animation: mq-choices-lock 3050ms linear; }
-@media (prefers-reduced-motion: reduce) {
-  .mq-passbar { animation-duration: 1ms; }
-  .mq-passbar__timer { display: none; }
-}
-/* A large screen (the size of the large-screen layout): the bar fades where it is,
-   the question does not move, the choices can be used at once. */
-@media (min-width: 1600px) and (min-height: 1000px) {
-  .mq-passbar { animation: mq-pass-fade 500ms ease 2500ms forwards; }
-  .mq-passbar__timer { display: none; }
-  .mq-choices, .mq-choices > * { animation: none; }
-}
+
+/* While a question is up the player list gives its room to the question (a phone,
+   a tablet), see GameLive's scoreboard: hidden here, shown again on a large screen. */
+#game[data-phase="answering"] #scoreboard { display: none; }
 
 /* The site's top bar steps aside in the question view of a low screen (a phone,
    a phone on its side, a tablet on its side): the Pause and End buttons are in
@@ -1075,3 +1068,30 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
      and End stays */
   #game[data-phase="answering"] .mq-qhide { display: none; }
 }
+
+/* Large screens (a monitor, a 4K one at 100%): at least 1600 x 900 CSS px (a browser
+   window on a 1080p monitor is about 1920 x 950), which no tablet or phone reaches. There is room for everything, so the player list
+   stays with the question, and the "pass the device" bar stays instead of
+   folding away; with the bar not moving, the choices need no tap lock. The bar
+   still goes after 3 seconds, but it fades where it is (the page does not move);
+   the line along it is for the phone and tablet wait. */
+@media (min-width: 1600px) and (min-height: 900px) {
+  #game[data-phase="answering"] #scoreboard { display: grid; }
+  .mq-passbar { animation: mq-pass-fade 500ms ease 2500ms forwards; }
+  .mq-passbar__timer { display: none; }
+  .mq-choices, .mq-choices > * { animation: none; }
+}
+/* Reduced motion comes last, so it wins over the large-screen rule: no animation. */
+@media (prefers-reduced-motion: reduce) {
+  .mq-passbar { animation-duration: 1ms; }
+  .mq-passbar__timer { display: none; }
+}
+
+/* Past 1920 x 1080 the page grows with the screen: the root font size, which
+   everything in rem (text, spacing, the page's width) follows, is 0.8333vw, so a
+   3840px wide screen shows the page at twice the size of a 1920px one. The height
+   limits it too (1.4815vh is 16px at 1080px high): the page is as tall as it is
+   wide in rem, so an ultrawide or a short, wide window must not grow past what
+   fits. Never below the reader's own setting (100%), so nothing changes up to
+   1920 x 1080. */
+html { font-size: max(100%, min(0.8333vw, 1.4815vh)); }

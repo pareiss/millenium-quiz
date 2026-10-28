@@ -154,10 +154,11 @@ defmodule MillenniumQuizWeb.GameLive do
         value={Enum.count(@game.questions, & &1.result)}
         max={Game.total_rounds(@game)}
       />
-      <%!-- not while a question is up: it needs the room, and the score is
-           on the board before and in the reveal after --%>
+      <%!-- while a question is up the css hides it (app.css): a phone or tablet
+           needs the room, and the score is on the board before and in the
+           reveal after. A large screen has the room and keeps it --%>
       <ul
-        :if={not @finished? and not (@status == :active and @game.phase == :answering)}
+        :if={not @finished?}
         class="mq-nosel grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2"
         id="scoreboard"
       >
