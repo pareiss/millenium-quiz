@@ -1,0 +1,861 @@
+{
+  "exported_at": "2026-10-28T18:45:19Z",
+  "formats": [
+    {
+      "date": "2010-04-24",
+      "description": "Named after the Shonen Jump Championship in Edison, New Jersey. It’s late Synchro era, before Xyz monsters, with decks like Blackwings, Lightsworn, Quickdraw Plants, and Zombies.",
+      "name": "Edison",
+      "topics": [
+        {
+          "name": "Floodgates",
+          "questions": [
+            {
+              "text": "You control a face-up [Consecrated Light]. Which of the following options can you do?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "Tribute summon Caius the Shadow Monarch by Tributing Consecrated Light.",
+                  "correct": true
+                },
+                {
+                  "text": "Synchro summons “Ally of Justice Catastor” by using Consecrated Light and “Flamvell Magician” as materials.",
+                  "correct": false
+                },
+                {
+                  "text": "Ritual summon Relinquished by Tributing Consecrated Light.",
+                  "correct": false
+                },
+                {
+                  "text": "None of the above.",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Consecrated Light",
+                  "password": 2980764
+                }
+              ]
+            },
+            {
+              "text": "Your opponent controls a face-up [Dimensional Fissure]. You tribute [Wulf, Lightsworn Beast] to tribute summon [Celestia, Lightsworn Angel]. Which of the following is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "Celestia, Lightsworn Angel's effect can be activated and send 4 cards to the GY from the top of your deck. All monsters you mill will be banished.",
+                  "correct": false
+                },
+                {
+                  "text": "Celestia, Lightsworn Angel's effect can be activated and if she destroys Dimensional Fissure, all cards you mill end up in GY.",
+                  "correct": false
+                },
+                {
+                  "text": "Celestia, Lightsworn Angel's effect cannot be activated",
+                  "correct": true
+                },
+                {
+                  "text": "Celestia, Lightsworn Angel's effect can only be activated but she can only destroy cards if you only mill spells/traps.",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Dimensional Fissure",
+                  "password": 81674782
+                },
+                {
+                  "name": "Wulf, Lightsworn Beast",
+                  "password": 58996430
+                },
+                {
+                  "name": "Celestia, Lightsworn Angel",
+                  "password": 94381039
+                }
+              ]
+            },
+            {
+              "text": "You control a face-up [Skill Drain]. Which of the following options is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "“Blackwing - Vayu the emblem of honor” can be used as material, on the field, for a synchro summon.",
+                  "correct": false
+                },
+                {
+                  "text": "“Elemental Hero Neos Alius” can be targeted by “Fiendish Chain”.",
+                  "correct": false
+                },
+                {
+                  "text": "A “Beast king Barbaros” that was Normal Summoned without Tribute remains at 3000 ATK after Skill Drain leaves the field.",
+                  "correct": false
+                },
+                {
+                  "text": "All statements are true.",
+                  "correct": true
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Skill Drain",
+                  "password": 82732705
+                }
+              ]
+            },
+            {
+              "text": "Your opponent controls [Imperial Iron Wall]. Which of the following card/card effects can be activated?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "“Allure of darkness”",
+                  "correct": false
+                },
+                {
+                  "text": "Bottomless Trap Hole",
+                  "correct": false
+                },
+                {
+                  "text": "\"Fiend Comedian\"",
+                  "correct": false
+                },
+                {
+                  "text": "“Volcanic Counter”",
+                  "correct": true
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Imperial Iron Wall",
+                  "password": 30459350
+                }
+              ]
+            },
+            {
+              "text": "You control a [Light and Darkness Dragon] with 800 ATK and 400 DEF. Your opponent flip summons [Morphing Jar]. Which of the following statements is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "You can activate “Divine wrath” to negate the effect of Morphing Jar.",
+                  "correct": false
+                },
+                {
+                  "text": "You can activate “The reliable Guardian”, and target Light and Darkness Dragon, which in turn will negate the effect of Morphing Jar.",
+                  "correct": true
+                },
+                {
+                  "text": "Light and Darkness Dragon will negate Morphing Jar's effect. Light and Darkness Dragon will now have 300 ATK and 0 DEF.",
+                  "correct": false
+                },
+                {
+                  "text": "None of the above.",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Light and Darkness Dragon",
+                  "password": 47297616
+                },
+                {
+                  "name": "Morphing Jar",
+                  "password": 33508719
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Damage Step",
+          "questions": [
+            {
+              "cards": [
+                {
+                  "name": "Honest",
+                  "password": 37742478
+                }
+              ],
+              "choices": [
+                {
+                  "correct": true,
+                  "text": "Turn Player"
+                },
+                {
+                  "correct": false,
+                  "text": "Non-Turn Player"
+                },
+                {
+                  "correct": false,
+                  "text": "Turn Player has to pass prio until the last step of damage step"
+                },
+                {
+                  "correct": false,
+                  "text": "This is some dumb bullshit"
+                }
+              ],
+              "points": null,
+              "submitted_by": null,
+              "text": "Who wins if both players have [Honest] and how does it have to be used"
+            },
+            {
+              "text": "Your opponent attacks you directly with [Beaver Warrior]. After taking 1200 lp damage, you activate the effect of [Gorz the Emissary of Darkness] to summon himself and a token. In a new chain, your opponent activates [Shrink] and targets your token. On resolution of [Shrink], how much attack does your token have?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "0",
+                  "correct": true
+                },
+                {
+                  "text": "600",
+                  "correct": false
+                },
+                {
+                  "text": "1200",
+                  "correct": false
+                },
+                {
+                  "text": "Shrink cannot target your token",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Beaver Warrior",
+                  "password": 32452818
+                },
+                {
+                  "name": "Gorz the Emissary of Darkness",
+                  "password": 44330098
+                },
+                {
+                  "name": "Shrink",
+                  "password": 55713623
+                }
+              ]
+            },
+            {
+              "text": "You control the [Messenger of Peace]. Your opponent controls a [Drill Warrior]. Your opponent uses [Drill Warrior]'s effect to halve their attack and be able to attack directly. Drill warrior attacks directly and in damage step your opponent activates [Forbidden Chalice] and targets their own [Drill Warrior]. What happens?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "The attack is canceled because Drill Warrior now has more than 1500 ATK.",
+                  "correct": false
+                },
+                {
+                  "text": "Forbidden Chalice raises ATK to 1400 because otherwise Drill Warrior cannot attack.",
+                  "correct": false
+                },
+                {
+                  "text": "Drill attacks directly for 1600lp damage.",
+                  "correct": false
+                },
+                {
+                  "text": "Drill attacks directly for 2800lp damage",
+                  "correct": true
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Messenger of Peace",
+                  "password": 44656491
+                },
+                {
+                  "name": "Drill Warrior",
+                  "password": 3429238
+                },
+                {
+                  "name": "Forbidden Chalice",
+                  "password": 25789292
+                }
+              ]
+            },
+            {
+              "text": "Your [Gladiator Beast Darius] attacks and destories a “Fluff Token” (Summoned by [Dandylion]). Then your [Gladiator Beast Laquari] attacks directly. Your opponent activates [Battle Fader]. What happens now?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "It is now Main Phase 2,",
+                  "correct": false
+                },
+                {
+                  "text": "Only Gladiator Beast Darius can activate its effect and return to the deck.",
+                  "correct": true
+                },
+                {
+                  "text": "Only Gladiator Beast Darius can activate its effect and return to the deck, but if “Gladiator beast Retiari” is summoned, it misses timing.",
+                  "correct": false
+                },
+                {
+                  "text": "Both of your Gladiator beast monsters can activate their effect and return to the deck.",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Gladiator Beast Darius",
+                  "password": 25924653
+                },
+                {
+                  "name": "Dandylion",
+                  "password": 15341821
+                },
+                {
+                  "name": "Gladiator Beast Laquari",
+                  "password": 78868776
+                },
+                {
+                  "name": "Battle Fader",
+                  "password": 19665973
+                }
+              ]
+            },
+            {
+              "text": "Your [Black Rose Dragon] is equipped with [Armory Arm]. [Black Rose Dragon] uses its effect and targets your opponent's [Spined Gillman]. When [Black Rose Dragon] destroys [Spined Gillman] in battle, how much damage does your opponent take from [Armory Arm]'s effect?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "0",
+                  "correct": true
+                },
+                {
+                  "text": "400",
+                  "correct": false
+                },
+                {
+                  "text": "1300",
+                  "correct": false
+                },
+                {
+                  "text": "1700",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Black Rose Dragon",
+                  "password": 73580471
+                },
+                {
+                  "name": "Armory Arm",
+                  "password": 29071332
+                },
+                {
+                  "name": "Spined Gillman",
+                  "password": 42463414
+                }
+              ]
+            },
+            {
+              "text": "[Red Dragon Archfiend] attacks a face-up defense position [Doomcaliber Knight]. Which of the following is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "Doomcaliber Knight is “destroyed by battle” and sent to GY.",
+                  "correct": false
+                },
+                {
+                  "text": "Doomcaliber Knight is \"marked as destroyed\", and is then destroyed by \"Red dragon archfiend's\" effect and sent to GY.",
+                  "correct": false
+                },
+                {
+                  "text": "Doomcaliber Knight is \"marked as destroyed\". Red Dragon Archfiend activates its effect, Doomcaliber Knight chains its negate effect, but cannot tribute itself to negate Red Dragon Archfiend.",
+                  "correct": false
+                },
+                {
+                  "text": "Doomcaliber Knight is \"marked as destroyed\". Red Dragon Archfiend activates its effect, Doomcaliber Knight chains its negate effect, tributes itself to negate Red Dragon Archfiend and destroys it.",
+                  "correct": true
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Red Dragon Archfiend",
+                  "password": 70902743
+                },
+                {
+                  "name": "Doomcaliber Knight",
+                  "password": 78700060
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Weird Interactions",
+          "questions": [
+            {
+              "cards": [
+                {
+                  "name": "Gladiator Beast Darius",
+                  "owner": 1,
+                  "password": 25924653
+                },
+                {
+                  "name": "Gladiator Beast Gyzarus",
+                  "owner": 1,
+                  "password": 48156348
+                },
+                {
+                  "name": "Book of Moon",
+                  "owner": 1,
+                  "password": 14087893
+                },
+                {
+                  "name": "Starlight Road",
+                  "owner": 2,
+                  "password": 58120309
+                }
+              ],
+              "choices": [
+                {
+                  "correct": false,
+                  "text": "{P1} summons Gladiator Beast Gyzarus and declares the targets. {P2} can not activate Starlight Road if 2 targets are selected, since the Gladiator Beast Gyzarus is negated."
+                },
+                {
+                  "correct": true,
+                  "text": "{P1} summons Gladiator Beast Gyzarus and declares its targets. If Book of Moon is used on Gladiator Beast Darius the effect of Gladiator Beast Gyzarus is no longer negated and will resolve."
+                },
+                {
+                  "correct": false,
+                  "text": "Since Gladiator Beast Gyzarus is negated no targets are declared."
+                },
+                {
+                  "correct": false,
+                  "text": "{P1} summons Gladiator Beast Gyzarus and declares its targets. Only if Gladiator Beast Gyzarus is placed face down with Book of Moon will its effect resolve."
+                }
+              ],
+              "points": 50,
+              "submitted_by": null,
+              "text": "{P1} summons [Gladiator Beast Darius] with another GB's effect and uses it to target and revive [Gladiator Beast Gyzarus]. {P1} also has a [Book of Moon] in hand. {P2} has [Starlight Road] face-down.\n\nWhich of the following Scenarios is the correct one."
+            },
+            {
+              "text": "Your opponent controls a face-up [Royal Oppression] and a face-down spell/trap. You Normal Summon [Lyla, Lightsworn Sorceress]. On successful normal summon, you choose to use priority and activate [Lyla, Lightsworn Sorceress]'s effect, and target [Royal Oppression]. Your opponent activates [Bottomless Trap Hole] as chain link 2. Which of the following is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "On resolution, Lyla, Lightsworn Sorceress is destroyed and banished and Royal Oppression is destroyed.",
+                  "correct": false
+                },
+                {
+                  "text": "On resolution, Lyla, Lightsworn Sorceress is destroyed and banished and Royal Oppression is NOT destroyed.",
+                  "correct": true
+                },
+                {
+                  "text": "Your opponent cannot activate Bottomless Trap Hole because you used priority.",
+                  "correct": false
+                },
+                {
+                  "text": "Lyla, Lightsworn Sorceress is immune to trap cards because Lightsworn is the best archetype.",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Royal Oppression",
+                  "password": 93016201
+                },
+                {
+                  "name": "Lyla, Lightsworn Sorceress",
+                  "password": 22624373
+                },
+                {
+                  "name": "Bottomless Trap Hole",
+                  "password": 29401950
+                }
+              ]
+            },
+            {
+              "text": "You control a [Plaguespreader Zombie] that is Summoned from GY by its own effect. You activate [Book of Moon] to set your [Plaguespreader Zombie] to face-down defense position. On the next turn, your opponent flip summons [Fossil Dyna Pachycephalo]. Which of the following is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "Fossil Dyna Pachycephalo activates its effect, but Plaguespreader Zombie is not destroyed.",
+                  "correct": false
+                },
+                {
+                  "text": "Fossil Dyna Pachycephalo activates its effect. Plaguespreader Zombie is destroyed and sent to GY.",
+                  "correct": true
+                },
+                {
+                  "text": "Fossil Dyna Pachycephalo activates its effect. “Plaguespreader Zombie is destroyed and then banished.",
+                  "correct": false
+                },
+                {
+                  "text": "Fossil Dyna Pachycephalo's effect does not activate because there are no Special Summoned monsters on the field.",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Plaguespreader Zombie",
+                  "password": 33420078
+                },
+                {
+                  "name": "Book of Moon",
+                  "password": 14087893
+                },
+                {
+                  "name": "Fossil Dyna Pachycephalo",
+                  "password": 42009836
+                }
+              ]
+            },
+            {
+              "text": "You have a face-up [Tragoedia] and 4 cards in your hand. Your opponent Normal Summons [Blackwing - Gale the Whirlwind] and activates its effect, targeting your [Tragoedia]. She then takes her turn. After you draw in your draw phase, how much attack does [Tragoedia] have?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "1200",
+                  "correct": true
+                },
+                {
+                  "text": "1800",
+                  "correct": false
+                },
+                {
+                  "text": "2400",
+                  "correct": false
+                },
+                {
+                  "text": "3000",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Tragoedia",
+                  "password": 98777036
+                },
+                {
+                  "name": "Blackwing - Gale the Whirlwind",
+                  "password": 2009101
+                }
+              ]
+            },
+            {
+              "text": "Your opponent controls [Soul of Purity and Light]. You control [Black Garden] and [Mystic Tomato]. [Mystic Tomato] dies in battle and uses its effect to summon [Exodia the Forbidden One]. How much ATK will [Exodia the Forbidden One] have when it is summoned and how much will it have when you enter Main phase 2?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "Battle phase: 50 ATK. Main phase 2: 350 ATK.",
+                  "correct": false
+                },
+                {
+                  "text": "Battle phase: 350 ATK. Main phase 2: 350 ATK.",
+                  "correct": true
+                },
+                {
+                  "text": "Battle phase: 350 ATK. Main phase 2: 650 ATK.",
+                  "correct": false
+                },
+                {
+                  "text": "Exodia has ∞ ATK",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Soul of Purity and Light",
+                  "password": 77527210
+                },
+                {
+                  "name": "Black Garden",
+                  "password": 71645242
+                },
+                {
+                  "name": "Mystic Tomato",
+                  "password": 83011278
+                },
+                {
+                  "name": "Exodia the Forbidden One",
+                  "password": 33396948
+                }
+              ]
+            },
+            {
+              "text": "You control [Relinquished] which is equipped with your opponent's [Elemental HERO Absolute Zero]. You also control one more monster and a face-down [Starlight Road]. Your opponent activates [Phoenix Wing Wind Blast] and returns [Elemental HERO Absolute Zero] to their Extra Deck. Which of the following is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "Elemental HERO Absolute Zero's effect will not activate because it was sent to the extra deck.",
+                  "correct": false
+                },
+                {
+                  "text": "Elemental HERO Absolute Zero's will not activate because it left the field as a spell card.",
+                  "correct": false
+                },
+                {
+                  "text": "You can activate Starlight Road in chain to Elemental HERO Absolute Zero's effect, but Absolute Zero is in the Extra Deck, so it can't be destroyed and you cannot summon Stardust Dragon.",
+                  "correct": false
+                },
+                {
+                  "text": "You can activate Starlight Road in chain to Elemental HERO Absolute Zero's effect. On resolution, Absolute Zero is destroyed and sent to GY. Then you get to summon Stardust Dragon.",
+                  "correct": true
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Relinquished",
+                  "password": 64631466
+                },
+                {
+                  "name": "Elemental HERO Absolute Zero",
+                  "password": 40854197
+                },
+                {
+                  "name": "Starlight Road",
+                  "password": 58120309
+                },
+                {
+                  "name": "Phoenix Wing Wind Blast",
+                  "password": 63356631
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Summoning",
+          "questions": [
+            {
+              "text": "You special summon [Dark Grepher] by tributing [Destiny HERO - Malicious]. Which of the following statements is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "Your opponent can activate “D.D. Crow” in response to your summon before you have time to activate the effect of Destiny HERO - Malicious.",
+                  "correct": false
+                },
+                {
+                  "text": "You can use your priority to make a normal summon.",
+                  "correct": false
+                },
+                {
+                  "text": "You can activate “Scapegoat” this turn.",
+                  "correct": false
+                },
+                {
+                  "text": "None of the above.",
+                  "correct": true
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Dark Grepher",
+                  "password": 14536035
+                },
+                {
+                  "name": "Destiny HERO - Malicious",
+                  "password": 9411399
+                }
+              ]
+            },
+            {
+              "text": "You control [Dark Simorgh]. Your Dark simorgh attacks a face-down [Super-Nimble Mega Hamster]. Which of the following statements is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "“Super-nimble Mega Hamsters”'s effect cannot be activated.",
+                  "correct": false
+                },
+                {
+                  "text": "\"Super-nimble Mega Hamsters\"'s effect activates and your opponent can Summon a monster from their Deck in face-down Defense Position.",
+                  "correct": false
+                },
+                {
+                  "text": "\"Super-nimble Mega Hamsters\"'s effect activates and your opponent can Summon a monster from their Deck in face-up Defense Position.",
+                  "correct": false
+                },
+                {
+                  "text": "\"Super-nimble Mega Hamsters\"'s effect activates, but your opponent cannot Summon any monsters from their deck.",
+                  "correct": true
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Dark Simorgh",
+                  "password": 11366199
+                },
+                {
+                  "name": "Super-Nimble Mega Hamster",
+                  "password": 5220687
+                }
+              ]
+            },
+            {
+              "text": "You control the [Mausoleum of the Emperor]. You pay 1000lp to summon [Caius the Shadow Monarch]. Which of the following statements is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "Your opponent can activate “Solemn Judgment” to negate your Normal Summon.",
+                  "correct": false
+                },
+                {
+                  "text": "You can activate the effect of Caius the Shadow Monarch.",
+                  "correct": false
+                },
+                {
+                  "text": "After Caius the Shadow Monarch is summoned, you can Normal Summon “Blackwing - Bora the Spear”",
+                  "correct": false
+                },
+                {
+                  "text": "None of the statements are true.",
+                  "correct": true
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Mausoleum of the Emperor",
+                  "password": 80921533
+                },
+                {
+                  "name": "Caius the Shadow Monarch",
+                  "password": 9748752
+                }
+              ]
+            },
+            {
+              "text": "Your opponent has a face-up [Royal Oppression]. You attempt to Special Summon [Chaos Sorcerer]. As chain link 1, your opponent wants to activate the effect of [Royal Oppression] to negate your summon. As chain link 2, you activate [Mystical Space Typhoon] and target [Royal Oppression]. As chain link 3, your opponent activates [Call of the Haunted] and targets [Archlord Kristya]. Which of the following is correct?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "On resolution, your opponent will summon Archlord Kristya. Archlord Krystia's effect will prevent Chaos Sorcerer from being summoned and Chaos Sorcerer will remain in your hand.",
+                  "correct": false
+                },
+                {
+                  "text": "On resolution, your opponent will summon Archlord Kristya. Archlord Kristya's effect will prevent \"Chaos Sorcerers\" from being summoned and \"Chaos Sorcerers\" will be destroyed and end up in GY.",
+                  "correct": false
+                },
+                {
+                  "text": "After the chain resolves, you will control Chaos Sorcerer and your opponent Archlord Kristya.",
+                  "correct": true
+                },
+                {
+                  "text": "Your opponent summons Archlord Kristya. Mystical Space Typhoon doesn't negate, so Royal Oppression resolves and negates the summon of Chaos Sorcerer, which is destroyed and goes to GY.",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Royal Oppression",
+                  "password": 93016201
+                },
+                {
+                  "name": "Chaos Sorcerer",
+                  "password": 9596126
+                },
+                {
+                  "name": "Mystical Space Typhoon",
+                  "password": 5318639
+                },
+                {
+                  "name": "Call of the Haunted",
+                  "password": 97077563
+                },
+                {
+                  "name": "Archlord Kristya",
+                  "password": 59509952
+                }
+              ]
+            },
+            {
+              "text": "You control [Destiny HERO - Plasma]. You activate the effect of [Destiny HERO - Plasma] to equip your opponent's face-down [Cyber Dragon]. Next turn your opponent summons [Card Trooper]. Which of the following statements is correct regarding summoning [Chimeratech Fortress Dragon] by using the equipped [Cyber Dragon] and [Card Trooper] as materials?",
+              "points": null,
+              "submitted_by": null,
+              "choices": [
+                {
+                  "text": "Both players can contact fuse with those materials.",
+                  "correct": false
+                },
+                {
+                  "text": "Only your opponent can contact fuse with those materials.",
+                  "correct": false
+                },
+                {
+                  "text": "Only you can contact fuse with those materials.",
+                  "correct": true
+                },
+                {
+                  "text": "None of the above",
+                  "correct": false
+                }
+              ],
+              "cards": [
+                {
+                  "name": "Destiny HERO - Plasma",
+                  "password": 83965310
+                },
+                {
+                  "name": "Cyber Dragon",
+                  "password": 70095154
+                },
+                {
+                  "name": "Card Trooper",
+                  "password": 85087012
+                },
+                {
+                  "name": "Chimeratech Fortress Dragon",
+                  "password": 79229522
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2005-04-01",
+      "description": "The most famous retro format, named after Scapegoat, which was used as fodder for Black Luster Soldier – Envoy of the Beginning. The game is slow and grindy, built around Chaos monsters, Breaker, Sangan, and careful card advantage.",
+      "name": "Goat",
+      "topics": [
+        {
+          "name": "Combos",
+          "questions": []
+        },
+        {
+          "name": "Floodgates",
+          "questions": []
+        },
+        {
+          "name": "Battle",
+          "questions": []
+        }
+      ]
+    },
+    {
+      "date": "2011-09-01",
+      "description": "Synchro-heavy format built on Tengu and Plant combos like Spore and Glow-Up Bulb, alongside Agents and Six Samurai. It sits just before Xyz monsters fully took over.",
+      "name": "Tengu",
+      "topics": [
+        {
+          "name": "Combos",
+          "questions": []
+        },
+        {
+          "name": "Timing",
+          "questions": []
+        },
+        {
+          "name": "Floodgates",
+          "questions": []
+        }
+      ]
+    }
+  ],
+  "version": 1
+}
