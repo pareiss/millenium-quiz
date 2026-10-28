@@ -28,4 +28,47 @@ defmodule MillenniumQuiz.AvatarsTest do
     assert Avatars.path(nil) == nil
     assert Avatars.name("nope") == nil
   end
+
+  describe "sets of the formats" do
+    test "Edison, Goat and Tengu have a set; the name's case and spaces do not matter" do
+      for name <- ~w(Edison Goat Tengu) do
+        set = Avatars.for_format(name)
+        refute set == Avatars.default_slugs()
+        assert Avatars.for_format(String.upcase(name)) == set
+        assert Avatars.for_format("  #{String.downcase(name)} ") == set
+      end
+
+      refute Avatars.for_format("Edison") == Avatars.for_format("Goat")
+    end
+
+    test "any other format, and a name that is not a string, use the default pool" do
+      assert Avatars.for_format("HAT Format") == Avatars.default_slugs()
+      assert Avatars.for_format("") == Avatars.default_slugs()
+      assert Avatars.for_format(nil) == Avatars.default_slugs()
+    end
+
+    test "a set has monsters of the pool only, without repeats, for the most players of a game" do
+      for name <- ~w(Edison Goat Tengu) do
+        set = Avatars.for_format(name)
+        assert length(set) >= 4, "#{name} has too few monsters"
+        assert set == Enum.uniq(set)
+        assert Enum.all?(set, &Avatars.path/1), "#{name} has a slug that is not in the pool"
+      end
+    end
+
+    test "assign picks from the set it is given" do
+      set = Avatars.for_format("Goat")
+
+      for _ <- 1..20 do
+        assert Avatars.assign(4, &Enum.shuffle/1, set) -- set == []
+      end
+
+      assert Avatars.assign(2, & &1, set) == Enum.take(set, 2)
+    end
+
+    test "the default pool keeps its eight monsters, so saved games still show theirs" do
+      assert length(Avatars.default_slugs()) == 8
+      assert "jinzo" in Avatars.default_slugs()
+    end
+  end
 end
