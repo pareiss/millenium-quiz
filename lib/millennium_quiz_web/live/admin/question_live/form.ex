@@ -52,6 +52,8 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
           </p>
         </div>
 
+        <% first_id = @cards |> List.first() |> then(&(&1 && &1.id)) %>
+        <% last_id = @cards |> List.last() |> then(&(&1 && &1.id)) %>
         <ol :if={@cards != []} class="space-y-2" id="selected-cards">
           <li
             :for={card <- @cards}
@@ -76,23 +78,15 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
                 aria-label={"Move #{card.name}"}
               >
                 <button
-                  :for={
-                    {dir, icon, label} <- [
-                      {"up", "hero-chevron-up", "up"},
-                      {"down", "hero-chevron-down", "down"}
-                    ]
-                  }
+                  :for={{dir, icon} <- [{"up", "hero-chevron-up"}, {"down", "hero-chevron-down"}]}
                   type="button"
                   class="btn btn-ghost btn-square btn-sm"
                   phx-click="move_card"
                   phx-value-id={card.id}
                   phx-value-dir={dir}
                   id={"move-card-#{card.id}-#{dir}"}
-                  aria-label={"Move #{card.name} #{label}"}
-                  disabled={
-                    (dir == "up" && card.id == hd(@cards).id) ||
-                      (dir == "down" && card.id == List.last(@cards).id)
-                  }
+                  aria-label={"Move #{card.name} #{dir}"}
+                  disabled={card.id == if(dir == "up", do: first_id, else: last_id)}
                 >
                   <.icon name={icon} class="size-4" />
                 </button>
@@ -524,7 +518,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
 
   def handle_event("add_card", params, socket), do: start_import(socket, params, :search)
 
-  def handle_event("remove_card", %{"id" => id}, socket) do
+  def handle_event("remove_card", %{"id" => id}, socket) when is_binary(id) do
     with {id, ""} <- Integer.parse(id),
          %{} = card <- Enum.find(socket.assigns.cards, &(&1.id == id)) do
       {:noreply,
@@ -558,7 +552,8 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
 
   # One place up or down in the list; the order is the order players see the
   # cards in (saved with the question). The first cannot go up, the last not down.
-  def handle_event("move_card", %{"id" => id, "dir" => dir}, socket) when dir in ["up", "down"] do
+  def handle_event("move_card", %{"id" => id, "dir" => dir}, socket)
+      when is_binary(id) and dir in ["up", "down"] do
     with {id, ""} <- Integer.parse(id),
          i when is_integer(i) <- Enum.find_index(socket.assigns.cards, &(&1.id == id)),
          j = if(dir == "up", do: i - 1, else: i + 1),

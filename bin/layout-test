@@ -32,12 +32,14 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - how far the question must scroll stays under a limit per viewport
   - with SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD: the admin question form has up and down buttons
     for the cards, on screen at every viewport, and they move a card (nothing is saved);
-    LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip
+    LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip.
+    It logs in on the site it is pointed at, so use the throwaway site of CI or a local fixture, not a real one
 Exit code: 0 all passed, 1 at least one check failed.
 """
 import os
 import sys
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from playwright.sync_api import sync_playwright
 
 base = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("LAYOUT_URL", "http://localhost:4000")).rstrip("/")
@@ -328,8 +330,8 @@ with sync_playwright() as p:
         page.click("#login-submit")
         page.wait_for_url("**/admin/formats")
         page.locator("a:has-text('Layout check')").first.click()
-        # the first question of the first topic is the one with 4 cards
-        page.locator("a[id^='edit-question-']").first.click()
+        # the question with 4 cards (the fixture's first one), found by its text
+        page.locator("li[id^='question-']", has_text="look at four cards").locator("a[id^='edit-question-']").click()
         page.wait_for_selector("#selected-cards li")
 
         def card_order():
@@ -361,16 +363,27 @@ with sync_playwright() as p:
         check("the first card cannot go up, the last cannot go down",
               page.locator(f"#move-card-{before[0].split('-')[-1]}-up").is_disabled()
               and page.locator(f"#move-card-{before[-1].split('-')[-1]}-down").is_disabled())
+        def waits(js, arg, label):
+            # a move that never shows is a failed check, not a crash that loses the summary
+            try:
+                page.wait_for_function(js, arg=arg, timeout=5000)
+                return True
+            except PlaywrightTimeout:
+                check(label, False, "the list did not change within 5 s")
+                return False
+
         for w, h in [(768, 1024), (390, 844)]:  # a tablet, a phone
             page.set_viewport_size({"width": w, "height": h})
             first = card_order()[0].split("-")[-1]
             page.click(f"#move-card-{first}-down")
-            page.wait_for_function("(id) => document.querySelector('#selected-cards > li').id !== 'selected-card-' + id", arg=first)
-            after = card_order()
-            check(f"{w}x{h}: moving the first card down puts it second", after[1] == f"selected-card-{first}", str(after))
-            page.click(f"#move-card-{first}-up")
-            page.wait_for_function("(id) => document.querySelector('#selected-cards > li').id === 'selected-card-' + id", arg=first)
-            check(f"{w}x{h}: and up again restores the order", card_order() == before, str(card_order()))
+            if waits("(id) => document.querySelector('#selected-cards > li').id !== 'selected-card-' + id", first,
+                     f"{w}x{h}: moving the first card down puts it second"):
+                after = card_order()
+                check(f"{w}x{h}: moving the first card down puts it second", after[1] == f"selected-card-{first}", str(after))
+                page.click(f"#move-card-{first}-up")
+                if waits("(id) => document.querySelector('#selected-cards > li').id === 'selected-card-' + id", first,
+                         f"{w}x{h}: and up again restores the order"):
+                    check(f"{w}x{h}: and up again restores the order", card_order() == before, str(card_order()))
     elif os.environ.get("LAYOUT_REQUIRE_ADMIN"):
         # CI sets it: a section that is skipped for a missing login would leave the run green untested
         print("Admin form")

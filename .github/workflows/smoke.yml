@@ -38,6 +38,8 @@ jobs:
 
     env:
       MIX_ENV: prod
+      # the admin the release creates on boot, and the one the smoke and layout tests log in as
+      SMOKE_ADMIN_USER: smoke
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -77,7 +79,7 @@ jobs:
           export POOL_SIZE=2
           export SECRET_KEY_BASE="$(openssl rand -base64 48)"
           # migrations and the first admin on boot, as on a host without a shell
-          export MIGRATE_ON_BOOT=true ADMIN_USERNAME=smoke ADMIN_PASSWORD="$(openssl rand -hex 16)"
+          export MIGRATE_ON_BOOT=true ADMIN_USERNAME="$SMOKE_ADMIN_USER" ADMIN_PASSWORD="$(openssl rand -hex 16)"
           echo "::add-mask::$ADMIN_PASSWORD"
           echo "SMOKE_ADMIN_PASSWORD=$ADMIN_PASSWORD" >>"$GITHUB_ENV"
           nohup _build/prod/rel/millennium_quiz/bin/millennium_quiz start >server.log 2>&1 &
@@ -96,14 +98,11 @@ jobs:
           exit 1
 
       - name: Smoke test
-        env:
-          SMOKE_ADMIN_USER: smoke
         run: bin/smoke-test http://localhost:4000
 
       # tablet and phone viewports in a headless browser (docs/plans/tablet-phone-layout.md)
       - name: Layout test
         env:
-          SMOKE_ADMIN_USER: smoke
           LAYOUT_REQUIRE_ADMIN: "1"
         run: |
           python3 -m venv .venv-layout
