@@ -1020,22 +1020,39 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
   .fieldset .label:has(input[type="checkbox"]) { min-height: 2.75rem; }
 }
 
-/* The "pass the device" bar of a question: there for 3 seconds, then it folds
-   away, so the question gets the room. Pure CSS (a hook would lose its state to
-   the patches of the page); a new bar, with a new id, starts over. The choices
-   cannot be tapped until it has gone (a tap while the page moves up would hit
-   the wrong choice, and an answer hands the device on). */
+/* The "pass the device" bar of a question: there for 2.5 seconds, then gone by
+   3. Pure CSS (a hook would lose its state to the patches of the page); a new
+   bar, with a new id, starts over.
+   On a phone or tablet it folds away, so the question gets the room, and the
+   page moves up while it does: a tap then would hit the wrong choice (and an
+   answer hands the device on), so the choices cannot be tapped until it has gone.
+   They show that meanwhile: dimmed, a "not yet" pointer for a mouse, and a line
+   along the bar that runs out. On a large screen (further down) nothing moves,
+   so nothing is locked. */
 @keyframes mq-pass-bar { to { max-height: 0; padding-block: 0; opacity: 0; } }
+@keyframes mq-pass-fade { to { opacity: 0; } }
+@keyframes mq-pass-timer { to { transform: scaleX(0); } }
 @keyframes mq-choices-lock { 0%, 99% { pointer-events: none; } 100% { pointer-events: auto; } }
+@keyframes mq-choices-wait { 0%, 99% { opacity: 0.55; cursor: not-allowed; } 100% { opacity: 1; cursor: auto; } }
 .mq-passbar {
+  position: relative;
   max-height: 6rem;
   overflow: hidden;
-  animation: mq-pass-bar 400ms ease 3s forwards;
+  animation: mq-pass-bar 500ms ease 2500ms forwards;
 }
-.mq-choices { animation: mq-choices-lock 3.4s linear; }
-@media (prefers-reduced-motion: reduce) {
-  .mq-passbar { animation-duration: 1ms; }
+.mq-passbar__timer {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 0.25rem;
+  background: currentColor;
+  opacity: 0.55;
+  transform-origin: left;
+  animation: mq-pass-timer 2500ms linear forwards;
 }
+/* the buttons are locked, the box around them shows why (a locked button passes
+   the pointer on to it) */
+.mq-choices { animation: mq-choices-wait 3050ms linear; }
+.mq-choices > * { animation: mq-choices-lock 3050ms linear; }
 
 /* While a question is up the player list gives its room to the question (a phone,
    a tablet), see GameLive's scoreboard: hidden here, shown again on a large screen. */
@@ -1055,11 +1072,19 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
 /* Large screens (a monitor, a 4K one at 100%): at least 1600 x 900 CSS px (a browser
    window on a 1080p monitor is about 1920 x 950), which no tablet or phone reaches. There is room for everything, so the player list
    stays with the question, and the "pass the device" bar stays instead of
-   folding away; with the bar not moving, the choices need no tap lock. */
+   folding away; with the bar not moving, the choices need no tap lock. The bar
+   still goes after 3 seconds, but it fades where it is (the page does not move);
+   the line along it is for the phone and tablet wait. */
 @media (min-width: 1600px) and (min-height: 900px) {
   #game[data-phase="answering"] #scoreboard { display: grid; }
-  .mq-passbar { animation: none; }
-  .mq-choices { animation: none; }
+  .mq-passbar { animation: mq-pass-fade 500ms ease 2500ms forwards; }
+  .mq-passbar__timer { display: none; }
+  .mq-choices, .mq-choices > * { animation: none; }
+}
+/* Reduced motion comes last, so it wins over the large-screen rule: no animation. */
+@media (prefers-reduced-motion: reduce) {
+  .mq-passbar { animation-duration: 1ms; }
+  .mq-passbar__timer { display: none; }
 }
 
 /* Past 1920 x 1080 the page grows with the screen: the root font size, which
