@@ -125,7 +125,7 @@ if config_env() == :prod do
   # (a database near its row limit, or read-only). Searching still works and
   # a card an admin picks is still copied into the pool.
   config :millennium_quiz, MillenniumQuiz.Cards.CardNames.Refresher,
-    enabled: System.get_env("CARD_NAMES_REFRESH", "true") not in ~w(false 0)
+    enabled: String.downcase(System.get_env("CARD_NAMES_REFRESH", "true")) not in ~w(false 0)
 
   config :millennium_quiz, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
