@@ -379,6 +379,7 @@ bin/millennium_quiz eval 'MillenniumQuiz.Release.seed()'   # sample format
 | `TRUSTED_PROXY_HOPS` | no | how many proxies of the platform append to `X-Forwarded-For`, default 0 (use the connection's address). The rate limits depend on it: too low and everyone shares the proxy's address, too high and clients can pick their own |
 | `GAME_EXPIRY_DAYS` / `GAME_EXPIRY_FINISHED_DAYS` | no | games nobody touched for this long are deleted, default 30 / 7 |
 | `MIGRATE_ON_BOOT` | no | `true` runs the migrations (and creates the first admin from `ADMIN_*`) when the app starts; for hosts without a shell |
+| `CARD_NAMES_REFRESH` | no | `false` (or `0`) stops the automatic fill and refresh of the card-name list (about 14,000 rows); default on. Searches then ask YGOPRODeck when the list has no match, and a card an admin picks is still saved to the pool |
 | `GAME_LIMIT` | no | maximum number of stored games; new games are refused beyond it (for databases with a row limit). Empty or `0` means no cap |
 | `PHX_ALLOWED_ORIGINS` | no | more websocket hosts besides `PHX_HOST`, comma separated (the platform's own address) |
 
