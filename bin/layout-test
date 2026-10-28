@@ -25,8 +25,10 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - the site's top bar is gone in the question when the screen is at most 920px
     high, and stays on a tall tablet
   - the answer fields of /suggest have no card list (a suggestion has no cards), only the hint
-  - the pass-the-device bar folds away by itself, for the first player and again
-    for the next
+  - the pass-the-device bar goes by itself in about 3 seconds, for the first player and again
+    for the next: on a phone or tablet it folds away while the choices wait (locked, dimmed,
+    a not-allowed pointer, a running line); on a large screen it fades where it is, nothing
+    moves and nothing is locked
   - how far the question must scroll stays under a limit per viewport
 Exit code: 0 all passed, 1 at least one check failed.
 """
@@ -140,12 +142,33 @@ def start_game(page):
     page.locator("a:has-text('Layout check')").first.click()
     page.wait_for_selector("#start-game")
     for i in range(2):
+        # real key events: the field debounces, and the form reads it on blur
         page.click(f"#player-name-{i}")
         page.keyboard.type(f"Player {i + 1}", delay=20)
         page.keyboard.press("Tab")
     page.wait_for_timeout(600)
     page.click("#start-game")
     page.wait_for_selector("button[phx-click='choose']")
+
+
+def choices_state(page):
+    return page.evaluate(
+        """() => {
+          const box = document.querySelector('.mq-choices'), first = document.querySelector('#choice-0')
+          const bar = document.querySelector('.mq-passbar')
+          return {
+            enabled: !first.disabled,
+            locked: getComputedStyle(first).pointerEvents === 'none',
+            dimmed: parseFloat(getComputedStyle(box).opacity) < 1,
+            cursor: getComputedStyle(box).cursor,
+            barOpacity: parseFloat(getComputedStyle(bar).opacity),
+            barHeight: Math.round(bar.getBoundingClientRect().height),
+            barTop: Math.round(bar.getBoundingClientRect().top),
+            choiceTop: Math.round(first.getBoundingClientRect().top),
+            timer: Math.round(document.querySelector('.mq-passbar__timer').getBoundingClientRect().height),
+          }
+        }"""
+    )
 
 
 def pass_bar_height(page):
@@ -156,17 +179,7 @@ with sync_playwright() as p:
     browser = p.chromium.launch()
     page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
 
-    page.goto(base + "/")
-    page.locator("a:has-text('Layout check')").first.click()
-    page.wait_for_selector("#start-game")
-    for i in range(2):
-        # real key events: the field debounces, and the form reads it on blur
-        page.click(f"#player-name-{i}")
-        page.keyboard.type(f"Player {i + 1}", delay=20)
-        page.keyboard.press("Tab")
-    page.wait_for_timeout(600)
-    page.click("#start-game")
-    page.wait_for_selector("button[phx-click='choose']")
+    start_game(page)
 
     print("Board")
     for name, w, h, _, _ in VIEWPORTS:
@@ -184,7 +197,18 @@ with sync_playwright() as p:
     print("Pass the device (first player)")
     check("the bar is full size when the question comes up", pass_bar_height(page) >= 60,
           f"{pass_bar_height(page)}px")
-    page.wait_for_timeout(5000)
+    # a tablet: the bar folds, so the choices wait, and say so. Measured past the
+    # server's 700 ms turn guard, which disables the buttons on its own at first
+    page.wait_for_timeout(1000)
+    st = choices_state(page)
+    check("the server's turn guard is over, so the lock is the CSS's own", st["enabled"], str(st))
+    check("the choices are locked, dimmed, with a not-allowed pointer and a running line",
+          st["locked"] and st["dimmed"] and st["cursor"] == "not-allowed" and st["timer"] > 0, str(st))
+    page.wait_for_timeout(2400)
+    st = choices_state(page)
+    check("after 3 seconds (3.4 s measured) the bar is gone and the choices are free",
+          st["barHeight"] <= 2 and not st["locked"] and not st["dimmed"] and st["cursor"] != "not-allowed", str(st))
+    page.wait_for_timeout(1600)
     check("it folds away by itself after a few seconds", pass_bar_height(page) <= 50,
           f"{pass_bar_height(page)}px")
 
@@ -252,6 +276,26 @@ with sync_playwright() as p:
         )
         check(f"{name}: answers have no card list, the hint shows, no horizontal overflow",
               m["overX"] <= 0 and m["lists"] == 0 and m["hooked"] == 0 and m["hint"], str(m))
+
+    for w, h in [(1920, 1080), (1920, 950)]:  # a full screen, and a browser window on it
+        print(f"Pass the device (large screen {w}x{h}: nothing moves, nothing is locked)")
+        page.set_viewport_size({"width": w, "height": h})
+        start_game(page)
+        page.locator("button[phx-click='choose']:not([disabled])").first.click()
+        page.wait_for_selector("#question-cards article")
+        # past the server's short double-tap guard of a new turn (700 ms) and the question's
+        # pop-in, which scales the page for a moment
+        page.wait_for_timeout(900)
+        before = choices_state(page)
+        check("the choices can be used right away, no dimming, no running line",
+              not before["locked"] and not before["dimmed"] and before["timer"] == 0, str(before))
+        check("the bar is shown at first", before["barOpacity"] == 1 and before["barHeight"] >= 60, str(before))
+        page.wait_for_timeout(2700)
+        after = choices_state(page)
+        check("after 3 seconds the bar has faded out (3.6 s measured) where it was",
+              after["barOpacity"] == 0 and after["barHeight"] == before["barHeight"], str(after))
+        check("and nothing moved: the choices are where they were",
+              after["choiceTop"] == before["choiceTop"] and after["barTop"] == before["barTop"], f"{before} / {after}")
 
     print("Pass the device (large screen, a new game)")
     # a fresh turn at the size of a browser window on a 1080p monitor: the bar and the
