@@ -138,7 +138,17 @@ def metrics(page):
 
 def start_game(page):
     """Opens the Layout check format, names two players and starts; the board is up."""
-    start_game(page)
+    page.goto(base + "/")
+    page.locator("a:has-text('Layout check')").first.click()
+    page.wait_for_selector("#start-game")
+    for i in range(2):
+        # real key events: the field debounces, and the form reads it on blur
+        page.click(f"#player-name-{i}")
+        page.keyboard.type(f"Player {i + 1}", delay=20)
+        page.keyboard.press("Tab")
+    page.wait_for_timeout(600)
+    page.click("#start-game")
+    page.wait_for_selector("button[phx-click='choose']")
 
 
 def choices_state(page):
@@ -169,17 +179,7 @@ with sync_playwright() as p:
     browser = p.chromium.launch()
     page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
 
-    page.goto(base + "/")
-    page.locator("a:has-text('Layout check')").first.click()
-    page.wait_for_selector("#start-game")
-    for i in range(2):
-        # real key events: the field debounces, and the form reads it on blur
-        page.click(f"#player-name-{i}")
-        page.keyboard.type(f"Player {i + 1}", delay=20)
-        page.keyboard.press("Tab")
-    page.wait_for_timeout(600)
-    page.click("#start-game")
-    page.wait_for_selector("button[phx-click='choose']")
+    start_game(page)
 
     print("Board")
     for name, w, h, _, _ in VIEWPORTS:
