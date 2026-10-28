@@ -121,6 +121,12 @@ if config_env() == :prod do
          :game_expiry_finished_days,
          String.to_integer(System.get_env("GAME_EXPIRY_FINISHED_DAYS", "7"))
 
+  # CARD_NAMES_REFRESH=false stops the automatic fill of the card-name list
+  # (a database near its row limit, or read-only). Searching still works and
+  # a card an admin picks is still copied into the pool.
+  config :millennium_quiz, MillenniumQuiz.Cards.CardNames.Refresher,
+    enabled: System.get_env("CARD_NAMES_REFRESH", "true") not in ~w(false 0)
+
   config :millennium_quiz, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   # The public URL is used for resume links (emails, QR codes) and for the
