@@ -445,6 +445,33 @@ the cap is reached; old ones expire after `GAME_EXPIRY_DAYS`, finished ones afte
 (texts per language). A few hundred cards plus 1,500 games stay below the cap;
 if you add many cards, lower `GAME_LIMIT`.
 
+**The card-name list does not fit: set `CARD_NAMES_REFRESH=false`.** The list of all card names
+(`card_names`, about 14,000 rows, see above) alone is more than the cap, and the application fills it by
+itself a minute after start. On the free tier the database then goes read-only (even the migration lock
+fails with `permission denied for schema public`). So set it with the other settings:
+`gigalixir config:set CARD_NAMES_REFRESH=false`. The card search still works: a name the list does not
+have is asked from YGOPRODeck, and a card an admin picks is still saved to the pool.
+
+**Replacing a full or read-only database.** Take a backup first if you can still log in
+(**Backup** in the admin menu); only the quiz content is in it, games and other accounts are lost.
+Then, in this order:
+
+```sh
+gigalixir config:set CARD_NAMES_REFRESH=false     # before the new database fills up again
+gigalixir ps:scale --replicas=0                   # a database in use cannot be destroyed
+gigalixir pg                                      # note the database id
+gigalixir pg:destroy -d <id>                      # cannot be undone
+gigalixir pg:create --free
+gigalixir pg                                      # shows the new "url"
+gigalixir config:set DATABASE_URL='<the new url>' # pg:create does not always set it
+gigalixir ps:scale --replicas=1
+```
+
+With `MIGRATE_ON_BOOT=true` and `ADMIN_USERNAME`/`ADMIN_PASSWORD` set, the app migrates the empty
+database and creates the first admin when it starts. Log in and restore the backup file under
+**Backup** (stay on the page: every card is fetched again). A restore skips a format whose name already
+exists, so delete the format first when you want to load a changed version of it.
+
 **To check on the first deploy** (not known in advance):
 - the Erlang/Elixir versions in `elixir_buildpack.config` exist on the platform (the build log says if not and lists the available ones);
 - the build runs the asset step (`mix assets.setup && mix assets.deploy`) and finds the `vix` NIF;
