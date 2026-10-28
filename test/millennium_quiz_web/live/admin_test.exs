@@ -434,6 +434,18 @@ defmodule MillenniumQuizWeb.AdminTest do
       {:ok, edit, _html} = live(conn, ~p"/admin/questions/#{question.id}/edit")
 
       assert order.(edit) == [plain.id, reborn.id]
+
+      # editing a saved question: move a card back, save, and the order and the owner are kept
+      edit |> element("#move-card-#{plain.id}-down") |> render_click()
+      assert order.(edit) == [reborn.id, plain.id]
+      edit |> form("#question-form") |> render_submit()
+
+      saved = Quiz.get_question!(question.id)
+
+      assert Enum.map(saved.question_cards, &{&1.card_id, &1.owner}) == [
+               {reborn.id, 1},
+               {plain.id, nil}
+             ]
     end
 
     test "a card gets an owner in the form; it is saved, loaded again and dropped with the card",

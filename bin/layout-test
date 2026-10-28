@@ -31,7 +31,8 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
     moves and nothing is locked
   - how far the question must scroll stays under a limit per viewport
   - with SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD: the admin question form has up and down buttons
-    for the cards, on screen at every viewport, and they move a card (nothing is saved)
+    for the cards, on screen at every viewport, and they move a card (nothing is saved);
+    LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip
 Exit code: 0 all passed, 1 at least one check failed.
 """
 import os
@@ -370,6 +371,10 @@ with sync_playwright() as p:
             page.click(f"#move-card-{first}-up")
             page.wait_for_function("(id) => document.querySelector('#selected-cards > li').id === 'selected-card-' + id", arg=first)
             check(f"{w}x{h}: and up again restores the order", card_order() == before, str(card_order()))
+    elif os.environ.get("LAYOUT_REQUIRE_ADMIN"):
+        # CI sets it: a section that is skipped for a missing login would leave the run green untested
+        print("Admin form")
+        check("the admin login is there (SMOKE_ADMIN_USER, SMOKE_ADMIN_PASSWORD)", False, "not set")
     else:
         print("Admin form: skipped (set SMOKE_ADMIN_USER and SMOKE_ADMIN_PASSWORD to run it)")
 
