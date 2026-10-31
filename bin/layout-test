@@ -33,6 +33,9 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - how far the question must scroll stays under a limit per viewport
   - new-game page, on a touch context: the players' picture buttons are >= 44px, the open picture panel fits
     the width with a capped, scrolling grid of >= 44px targets, choosing a picture changes the button
+  - the life-point duel (format "LP duel fixture"): the Life Points choice of the new-game page (cards >= 44px), the
+    board with 2, 3 and 4 players (life points and bars on screen), the result screen with a K.O., the final ranking,
+    and the Level Up! topic buttons with "NEXT ATK" (>= 44px at every width down to 320px)
   - with SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD: the admin question form has up and down buttons
     for the cards, on screen at every viewport, and they move a card (nothing is saved);
     LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip.
@@ -147,6 +150,7 @@ def metrics(page):
 # The fixture formats: "Layout check" is also the start of "Layout check pictures".
 FIXTURE_LINK = "a:has-text('Layout check'):not(:has-text('Layout check pictures'))"
 PICTURES_LINK = "a:has-text('Layout check pictures')"
+DUEL_LINK = "a:has-text('LP duel fixture')"
 
 
 def start_game(page):
@@ -394,7 +398,7 @@ with sync_playwright() as p:
         check(f"{name}: choosing a picture changes the button's image and closes the panel",
               after["src"] != opened["src"] and after["overX"] <= 0, f"{opened['src']} -> {after['src']}")
         check(f"{name}: the closed page scrolls no further than before the buttons (now {closed['overY']}px)",
-              closed["overY"] <= 600 and after["overY"] <= closed["overY"] + 2, f"{closed['overY']} / {after['overY']}")
+              closed["overY"] <= 700 and after["overY"] <= closed["overY"] + 2, f"{closed['overY']} / {after['overY']}")
 
     # The same page for a format whose admin list has cards (Layout check pictures, 5 cards with a
     # generated artwork): the pictures are the cards' artworks, zoomed into a circle.
@@ -626,6 +630,148 @@ with sync_playwright() as p:
         check("the admin login is there (SMOKE_ADMIN_USER, SMOKE_ADMIN_PASSWORD)", False, "not set")
     else:
         print("Admin form: skipped (set SMOKE_ADMIN_USER and SMOKE_ADMIN_PASSWORD to run it)")
+
+    # The life-point duel (format "LP duel fixture": 2 topics of 6 questions, 100 up to 3000 damage), on a
+    # touch context. Free mode and Level Up!, 2 to 4 players.
+    print("Life-point duel")
+    duel = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    dpage = duel.new_page()
+
+    def start_duel(pg, players, mode="free", lp=None):
+        pg.goto(base + "/")
+        pg.locator(DUEL_LINK).first.click()
+        pg.wait_for_selector("#start-game")
+        pg.wait_for_selector("[data-phx-main].phx-connected")
+        for n in range(2, players):
+            pg.click("#add-player")
+            pg.wait_for_selector(f"#player-row-{n}")
+        for i in range(players):
+            pg.fill(f"#player-name-{i}", f"Player {i + 1}")
+            pg.keyboard.press("Tab")
+        pg.wait_for_timeout(600)
+        if mode != "free":
+            pg.click(f"#mode-{mode}")
+        if lp:
+            pg.click(f"#lp-choice-{lp}")
+        pg.click("#start-game")
+        pg.wait_for_selector("#board")
+
+    def sideways(pg):
+        return pg.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+
+    # the new-game page: both life-point cards, 44px or more, inside the screen, 4000 chosen
+    dpage.goto(base + "/")
+    dpage.locator(DUEL_LINK).first.click()
+    dpage.wait_for_selector("#lp-choice-4000")
+    dpage.wait_for_selector("[data-phx-main].phx-connected")
+    for name, w, h, _, _ in VIEWPORTS:
+        dpage.set_viewport_size({"width": w, "height": h})
+        dpage.wait_for_timeout(150)
+        m = dpage.evaluate(
+            """() => {
+              const boxes = ['#lp-choice-4000', '#lp-choice-8000'].map(s => document.querySelector(s).getBoundingClientRect())
+              return {overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                      small: boxes.filter(b => b.height < 44 || b.width < 44).length,
+                      outside: boxes.filter(b => b.left < 0 || b.right > innerWidth).length,
+                      default4000: document.querySelector('#lp-choice-4000 input').checked}
+            }"""
+        )
+        check(f"{name}: the Life Points choice has two cards of 44px or more inside the screen, 4000 chosen, no horizontal overflow",
+              m["small"] == 0 and m["outside"] == 0 and m["default4000"] and m["overX"] <= 0, str(m))
+    dpage.click("#lp-choice-8000")
+    check("a tap on 8000 chooses it", dpage.evaluate("document.querySelector('#lp-choice-8000 input').checked"))
+
+    # the board with 2, 3 and 4 players: every player's life points and bar are on screen
+    for players in (2, 3, 4):
+        dpage.set_viewport_size({"width": 390, "height": 844})
+        start_duel(dpage, players)
+        for name, w, h, _, _ in VIEWPORTS:
+            dpage.set_viewport_size({"width": w, "height": h})
+            dpage.wait_for_timeout(150)
+            m = dpage.evaluate(
+                """(n) => {
+                  const rows = [...Array(n).keys()].map(i => ({
+                    row: document.querySelector('#score-' + i), lp: document.querySelector('#lp-' + i),
+                    bar: document.querySelector('#lp-bar-' + i)}))
+                  const inside = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth }
+                  return {overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                          shown: rows.filter(r => r.row && inside(r.row) && inside(r.lp) && r.bar.getBoundingClientRect().height > 0).length,
+                          lp: document.querySelector('#lp-0').textContent.trim(),
+                          tile: document.querySelector('#question-0').textContent.trim()}
+                }""",
+                players,
+            )
+            check(f"{name}: {players} players: life points and bars on screen, 4000 LP, tile shows its damage, no horizontal overflow",
+                  m["shown"] == players and m["lp"] == "4000" and m["tile"].startswith("100") and m["overX"] <= 0, str(m))
+
+    # a knock-out: Player 2 is wrong on 3000 and then on 2500 damage
+    def answer_round(pg, choose):
+        pg.click(choose)
+        pg.wait_for_selector("#current-player")
+        for _ in range(2):
+            who = pg.inner_text("#current-player").strip()
+            pg.click("#choice-1" if who == "Player 2" else "#choice-0", timeout=15000)
+            pg.wait_for_timeout(300)
+
+    dpage.set_viewport_size({"width": 390, "height": 844})
+    start_duel(dpage, 2)
+    answer_round(dpage, "#question-5")
+    dpage.wait_for_selector("#reveal")
+    check("a hit that is survived reads LP before - damage = LP after",
+          "4000 - 3000 = 1000" in dpage.inner_text("#damage-result-1"), dpage.inner_text("#damage-result-1"))
+    dpage.click("#next-round")
+    dpage.wait_for_selector("#board")
+    answer_round(dpage, "#question-4")
+    dpage.wait_for_selector("#reveal")
+    for name, w, h, _, _ in VIEWPORTS:
+        dpage.set_viewport_size({"width": w, "height": h})
+        dpage.wait_for_timeout(150)
+        m = dpage.evaluate(
+            """() => {
+              const ko = document.querySelector('#damage-result-1'), tag = document.querySelector('#ko-1')
+              const inside = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth }
+              const bar = document.querySelector('#next-round').getBoundingClientRect()
+              return {overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                      ko: !!ko && inside(ko) && ko.textContent.includes('K.O.'), tag: !!tag && inside(tag),
+                      button: bar.height >= 44, safe: document.querySelector('#damage-result-0').textContent.includes('No damage')}
+            }"""
+        )
+        check(f"{name}: the K.O. result is on screen with its Eliminated tag, the next button is >= 44px, no horizontal overflow",
+              m["ko"] and m["tag"] and m["button"] and m["safe"] and m["overX"] <= 0, str(m))
+    dpage.set_viewport_size({"width": 390, "height": 844})
+    dpage.click("#next-round")
+    dpage.wait_for_selector("#final")
+    for name, w, h, _, _ in VIEWPORTS:
+        dpage.set_viewport_size({"width": w, "height": h})
+        dpage.wait_for_timeout(150)
+        check(f"{name}: the final ranking shows the winner and the eliminated player, no horizontal overflow",
+              dpage.locator("#winner").inner_text().endswith("wins!") and dpage.locator("#final-eliminated-1").count() == 1
+              and sideways(dpage) <= 0, str(sideways(dpage)))
+
+    # Level Up!: the topic buttons say what the next question costs
+    dpage.set_viewport_size({"width": 390, "height": 844})
+    start_duel(dpage, 4, mode="ascending")
+    for name, w, h, _, _ in VIEWPORTS:
+        dpage.set_viewport_size({"width": w, "height": h})
+        dpage.wait_for_timeout(150)
+        m = dpage.evaluate(
+            """() => {
+              const tops = [...document.querySelectorAll('button[id^=topic-]')]
+              const info = tops.map(b => {
+                const r = b.getBoundingClientRect(), a = b.querySelector('[id^=next-atk-]').getBoundingClientRect()
+                return {w: r.width, h: r.height, text: b.querySelector('[id^=next-atk-]').innerText.trim(),
+                        within: a.left >= r.left - 0.5 && a.right <= r.right + 0.5 && a.bottom <= r.bottom + 0.5,
+                        inside: r.left >= 0 && r.right <= innerWidth}
+              })
+              return {n: info.length, small: info.filter(i => i.w < 44 || i.h < 44).length,
+                      texts: info.map(i => i.text), within: info.every(i => i.within), inside: info.every(i => i.inside),
+                      overX: document.documentElement.scrollWidth - document.documentElement.clientWidth}
+            }"""
+        )
+        check(f"{name}: Level Up! topic buttons are 44px or more, show NEXT ATK 100 inside the button, no horizontal overflow",
+              m["n"] == 2 and m["small"] == 0 and m["texts"] == ["NEXT ATK 100"] * 2 and m["within"]
+              and m["inside"] and m["overX"] <= 0, str(m))
+    duel.close()
 
     browser.close()
 

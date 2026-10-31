@@ -177,6 +177,29 @@ defmodule MillenniumQuizWeb.NewGameLive do
             </div>
           </fieldset>
 
+          <fieldset class="space-y-2 pt-3" id="lp-choice">
+            <legend class="font-medium mb-2">Life Points</legend>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label
+                :for={lp <- @start_lps}
+                id={"lp-choice-#{lp}"}
+                class="flex cursor-pointer items-start gap-3 rounded-field border border-base-300 p-4 transition hover:border-primary/60 has-checked:border-primary has-checked:bg-primary/5 pointer-coarse:min-h-11"
+              >
+                <input
+                  type="radio"
+                  name="start_lp"
+                  value={lp}
+                  checked={@start_lp == to_string(lp)}
+                  class="radio radio-primary radio-sm mt-0.5"
+                />
+                <span>
+                  <span class="block font-semibold tabular-nums">{lp} LP</span>
+                  <span class="block text-sm text-base-content/70">{lp_description(lp)}</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
           <p :if={@error} class="text-sm text-error flex items-center gap-2" id="players-error">
             <.icon name="hero-exclamation-circle" class="size-5" /> {@error}
           </p>
@@ -234,6 +257,8 @@ defmodule MillenniumQuizWeb.NewGameLive do
      |> assign(:max, Game.max_players())
      |> assign(:modes, Game.modes())
      |> assign(:mode, "free")
+     |> assign(:start_lps, Game.start_lps())
+     |> assign(:start_lp, to_string(Game.default_start_lp()))
      |> assign(:error, nil)
      |> assign(:open, nil)
      |> assign(:avatars, [])
@@ -246,7 +271,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
   @impl true
   def handle_params(params, _uri, socket) do
     # "Play again" passes the previous names: /formats/1/play?players[]=A&players[]=B
-    socket = assign_mode(socket, params["mode"])
+    socket = socket |> assign_mode(params["mode"]) |> assign_start_lp(params["start_lp"])
 
     case params do
       %{"players" => names} when is_list(names) ->
@@ -265,6 +290,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
      socket
      |> assign(:error, nil)
      |> assign_mode(params["mode"])
+     |> assign_start_lp(params["start_lp"])
      |> assign_names(names)}
   end
 
@@ -333,14 +359,21 @@ defmodule MillenniumQuizWeb.NewGameLive do
   def handle_event("start", %{"names" => names} = params, socket)
       when is_list(names) and length(names) <= 20 do
     names = Enum.filter(names, &is_binary/1)
-    socket = socket |> assign_mode(params["mode"]) |> assign_names(names)
 
-    with :ok <- validate_unique(names),
+    socket =
+      socket
+      |> assign_mode(params["mode"])
+      |> assign_start_lp(params["start_lp"])
+      |> assign_names(names)
+
+    with {:ok, start_lp} <- start_lp_param(params, socket),
+         :ok <- validate_unique(names),
          :ok <- validate_name_lengths(names),
          :ok <- rate_limit(socket),
          {:ok, game_id} <-
            Games.create_game(socket.assigns.format.id, names,
              mode: socket.assigns.mode,
+             start_lp: start_lp,
              avatars: socket.assigns.avatars
            ) do
       {:noreply, push_navigate(socket, to: ~p"/games/#{game_id}")}
@@ -411,6 +444,21 @@ defmodule MillenniumQuizWeb.NewGameLive do
 
   defp error_message(:no_questions), do: "This format has no questions yet."
   defp error_message(_), do: "The game could not be started."
+
+  # A forged value is refused with a message (the form never sends one); a
+  # missing field keeps the choice made so far.
+  defp start_lp_param(%{"start_lp" => value}, _socket), do: Game.parse_start_lp(value)
+  defp start_lp_param(_params, socket), do: Game.parse_start_lp(socket.assigns.start_lp)
+
+  defp lp_description(4000), do: "A quick duel. Three or four wrong answers can end a player."
+  defp lp_description(8000), do: "A long duel. Everyone can take more hits."
+
+  defp assign_start_lp(socket, lp) do
+    case Game.parse_start_lp(lp) do
+      {:ok, lp} -> assign(socket, :start_lp, to_string(lp))
+      {:error, _} -> socket
+    end
+  end
 
   defp assign_mode(socket, mode) do
     case Game.parse_mode(mode) do

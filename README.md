@@ -12,21 +12,25 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
 - **Board states / gameplay:** the open-source engine is ygopro-core / EDOPro (Project Ignis), C++ and Lua under the AGPL. A first step is questions with a board state stored as JSON and rendered by a component. The engine itself would run as its own container next to the app. A card in a board state also needs to say where it sits (hand, field, graveyard); the owner of a card (player 1 or 2, see Features) is already there.
 - `Game` is not tied to a question type. A `kind` field on questions (`:multiple_choice`, `:card_image`, `:board_state`) would only change rendering and answer checking.
 - **Pictures, still open:** the crop picker is built (admins set where the face sits, per card, in "Profile pictures" on the format page). Still open: the built-in sets of Edison, Goat and Tengu could move into the table too, so that admins own them. The game snapshot keeps the chosen avatar (the crop is looked up from the card when a page is drawn), so old games must keep loading.
+- **Life points, still open:** the duel is playable in the current look. The `questions.points` column and the custom points in the admin form are unused now and should be removed; the look of the life-point bars and damage (5D's style duel panels) comes with the visual redesign.
 - **Visual redesign:** the current look is plain (warm cream background, amber accent, DaisyUI components). Two directions to pick from, or combine: (a) Millennium items, with gold and lapis colours, Egyptian-style borders and hieroglyph-like ornaments, and the Eye of Wadjet as the logo; or (b) a 5D's style with dark-metal panels, neon cyan and red accents, Duel Disk-like frames and angled shapes. It would mostly touch `assets/css/app.css`, the layouts and the core components, with the drawn cards in `card_components.ex` left as they are. Open: which direction, and whether the admin pages are included.
 
 ## Features
 
 - **Players** (`/`): pick a format, enter 2–4 names, choose a mode, and play on a board:
-  - the topics are the columns and every question is a cell that only shows its points
+  - the topics are the columns and every question is a cell that shows the damage of a wrong answer (its ATK)
   - players take turns choosing a question, in a random order fixed at the start
   - every player then answers it, starting with the chooser; picks stay hidden until the reveal
-  - every player who was right gets the question's points
-  - the game ends when the board is empty
+  - a duel of **life points** (LP): everyone starts with 4000 (default) or 8000, chosen on the new-game page
+  - a wrong answer costs the question's damage: 100, 400, 900, 1600, 2500, then 3000 for the first, second, third... question of a topic (position squared times 100, at most 3000); a right answer costs nothing, and if everyone is wrong everyone is hit
+  - a player on 0 LP is eliminated and skipped from then on; the scoreboard shows each player's LP with a drain bar, the reveal shows `LP before - damage = LP after` ("Direct hit!") or "K.O."
+  - the game ends when one player is left or the board is empty; the most LP wins, eliminated players rank last, and if the last players drop to 0 in the same round the game is a draw
+  - games saved before the life points were score games: they open as finished results and cannot be continued
   - every player gets a random monster face as a picture: from the monsters of the format's popular decks for Edison, Goat and Tengu (e.g. Blackwings and Lightsworn for Edison), from a default pool of eight for other formats; the 46 images are cropped from card artwork by `mix avatars.fetch` and committed (the sets and how they were made are in `MillenniumQuiz.Avatars`); a format whose admin has chosen at least 4 cards (see Admin) uses those cards' artwork instead. A card that has left the card pool is replaced, when the game is loaded, by a picture of the default pool (a different one for each such player)
   - players can choose their picture on the new-game page: each name has a round picture button (random, different defaults), which opens an inline grid of the format's pictures (pictures of other players are disabled, "Another one" draws a free one, Escape closes); what is shown is what the game gets
 - **Modes**:
   - **Heart of the Cards** (free selection): choose any open question on the board
-  - **Level Up!** (ascending difficulty): choose a topic and get its easiest open question
+  - **Level Up!** (ascending difficulty): choose a topic and get its easiest open question; the topic button shows its "NEXT ATK"
 - **Pause and continue**: a paused game is stored in Postgres and can be continued from:
   - a resume link (with a copy button)
   - a QR code
@@ -40,7 +44,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
   - each card attached to a question has an owner (nobody, player 1 or player 2), set in the question form; a card of a player gets a blue or red outline and a "P1"/"P2" badge, and its link in the text is underlined in that colour (the drawn card itself, `card_components.ex`, is unchanged)
   - the owner is a column on `question_cards`, carried by the game snapshot (old snapshots load without it) and by the backup export and import (old backups too; an `"owner"` of 1 or 2 on a card, only written when set)
 - **Admin** (`/admin`): username/password login. It covers formats with their 2–6 topics edited inline, questions per topic (2–6 answers, one correct), ↑/↓ difficulty ordering, the cards of a question with ↑/↓ buttons to put them in the order players see, per format the cards that are its profile pictures ("Profile pictures" on the format page: card search, up to 40, released by the format's date; a "Crop" button per card opens an editor with the whole artwork, a frame and round previews where a click, a drag or three sliders choose which part of the artwork the round picture shows, saved per card and used everywhere the picture is), and managing admins.
-- **Points**: the easiest question in a topic is worth 10, the next 20, then 30 and so on. A custom value on a question overrides this. Moving a question changes its default.
+- **Damage**: the damage of a question comes from its position in the topic (see Players); moving a question changes it. The old `points` column and the custom points of a question are no longer used by games.
 
 ## Card data
 
@@ -224,7 +228,7 @@ lib/millennium_quiz_web/
 2. **`MillenniumQuiz.Games.Server`** runs one GenServer per game. It is
    registered in a `Registry` under the game's UUID and started on demand
    under a `DynamicSupervisor`. It serializes actions (a double tap can't
-   score twice), saves a snapshot after every change and broadcasts it on
+   hurt a player twice), saves a snapshot after every change and broadcasts it on
    PubSub `"game:<id>"`. It stops when paused or after 30 idle minutes.
 3. **Postgres** holds the snapshot (`games.state`, JSONB). When the process
    for a game isn't running, the next action starts it from the snapshot.
@@ -532,7 +536,7 @@ an image pull secret. Gigalixir does not use the image; it builds the release it
 plays one game of the fixture format "Layout check" (`priv/repo/layout_fixture.exs`: questions with 4, 3
 and 1 cards, no network needed) in headless Chromium and resizes the window through tablet and phone
 viewports. It checks that nothing overflows sideways, 4 cards fit a row on a portrait tablet (3 on a
-landscape one, 2 on a phone), the score line and the site's top bar make room in the question view, the
+landscape one, 2 on a phone), the life points line and the site's top bar make room in the question view, the
 pass-the-device bar shrinks by itself, and that the question does not scroll further than a limit per
 viewport. It creates a game on the site, so run it against a local server or CI, not the live site
 (setup in the script's header; the Smoke workflow runs it, and the release's `seed_layout_fixture` refuses to run without `LAYOUT_FIXTURE=1`). Every new feature should add a tablet and a

@@ -38,7 +38,7 @@ defmodule MillenniumQuiz.Release do
   end
 
   @doc """
-  Content for `bin/layout-test`: a format with questions of 4, 3 and 1 cards,
+  Content for `bin/layout-test`: a format with questions of 4, 3 and 1 cards (and one with 12 plain questions for the life-point duel),
   and four cards that exist nowhere else. For CI and local servers only: it
   refuses to run unless `LAYOUT_FIXTURE=1` is set, so it cannot be run on the
   live database by accident (the Smoke workflow sets it).

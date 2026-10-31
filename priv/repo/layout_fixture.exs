@@ -131,3 +131,35 @@ else
 
   IO.puts("Seeded format #{format.name}.")
 end
+
+# A third format for the life-point duel: 2 topics of 6 questions, so the last ones cost 2500 and
+# 3000 life points and two wrong answers knock a player out of 4000. Its name must not contain
+# "Layout check" (bin/layout-test finds the other fixtures by that).
+if Repo.get_by(Format, name: "LP duel fixture") do
+  IO.puts("LP duel fixture already exists, skipping.")
+else
+  {:ok, format} =
+    Quiz.create_format(%{
+      "name" => "LP duel fixture",
+      "date" => Date.utc_today(),
+      "description" => "Fixture for bin/layout-test: 2 topics of 6 questions (100 up to 3000 damage).",
+      "topics" => %{"0" => %{"name" => "First duel topic"}, "1" => %{"name" => "Second duel topic"}}
+    })
+
+  for topic <- format.topics, n <- 1..6 do
+    {:ok, _} =
+      Quiz.create_question(
+        topic,
+        %{
+          "text" => "Duel question #{n}?",
+          "choices" => %{
+            "0" => %{"text" => "Right", "correct" => "true"},
+            "1" => %{"text" => "Wrong"}
+          }
+        },
+        []
+      )
+  end
+
+  IO.puts("Seeded format #{format.name}.")
+end
