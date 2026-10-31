@@ -132,6 +132,20 @@ subsets in `priv/static/fonts` (SIL OFL, licence files next to them, from
 Google Fonts) and are not preloaded. `test/millennium_quiz_web/duel_theme_test.exs`
 checks the WCAG contrast of the key colour pairs (4.5:1) of both variants.
 
+Building blocks of the duel look live in `components/duel_components.ex` (imported
+with the core components; CSS under the duel themes in `app.css`; not used on the game
+screens yet): `lp_gauge` (avatar, name, LP number with leading zeros on a plate, a
+depleting bar, a damage ghost, K.O. state; one markup that rearranges itself by
+container width: wide from 420px, compact 200-419, mini below 200, tight below 100),
+`atk_label` (the red ATK pill before a value), `synchro_ring` (12 identical dashes
+around an avatar, the turn marker; its shape is the `<symbol id="duel-ring">` in the
+root layout) and `orb_rail` (question progress as slanted blocks). State is never by
+colour alone (damage and K.O. are text, the rail is a progress bar with a text value).
+The tokens `--duel-sync`, `--duel-num`, `--duel-ko` and `--duel-ring-inner` come with the
+player colours; `test/millennium_quiz_web/components/duel_components_test.exs` checks
+their contrast too. In development, `/dev/duel?theme=duel-dark` (or `duel-light`) shows
+the components at several widths.
+
 ## Backup and restore
 
 The only data that cannot be fetched again is the quiz you wrote. A backup is
