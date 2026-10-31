@@ -229,9 +229,9 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
         </p>
         <.card_markup_help audience={:admin} />
 
+        <% number = @question.position + 1 %>
         <p class="text-sm text-base-content/60" id="question-damage-note">
-          A wrong answer costs {Question.damage(@question.position)} LP, fixed by the question's position ({@question.position +
-            1}).
+          A wrong answer costs {Question.damage(@question.position)} LP, fixed by the question's position ({number}).
         </p>
 
         <.input

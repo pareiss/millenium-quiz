@@ -163,13 +163,14 @@ defmodule MillenniumQuizWeb.AdminTest do
       assert second.text == "Which card draws 2?"
 
       assert has_element?(show, "#move-up-#{second.id}")
-      assert render(show) =~ "100 ATK"
-      assert render(show) =~ "400 ATK"
+      assert has_element?(show, "#question-#{first.id} .badge", "100 ATK")
+      assert has_element?(show, "#question-#{second.id} .badge", "400 ATK")
 
       show |> element("#move-up-#{second.id}") |> render_click()
       assert Quiz.get_question!(second.id).position == 0
       # the badges follow the positions: the moved question now hits for 100
-      assert [_, _] = Regex.scan(~r/\d+ ATK/, render(show))
+      assert has_element?(show, "#question-#{second.id} .badge", "100 ATK")
+      assert has_element?(show, "#question-#{first.id} .badge", "400 ATK")
       assert Quiz.get_question!(first.id).position == 1
     end
 
