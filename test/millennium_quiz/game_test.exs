@@ -70,9 +70,30 @@ defmodule MillenniumQuiz.GameTest do
       assert Enum.map(game.questions, &{&1.id, &1.column}) == [{3, 0}, {1, 0}, {2, 1}, {4, 1}]
     end
 
-    test "snapshots points: default from position, override wins" do
-      points = new_game().questions |> Map.new(&{&1.id, &1.points})
-      assert points == %{3 => 10, 1 => 20, 2 => 10, 4 => 99}
+    test "snapshots the damage from the position; a points override is ignored" do
+      damage = new_game().questions |> Map.new(&{&1.id, &1.damage})
+      assert damage == %{3 => 100, 1 => 400, 2 => 100, 4 => 400}
+      assert Enum.all?(new_game().questions, &is_nil(&1.points))
+    end
+
+    test "everyone starts with the same life points: 4000, or 8000 on request" do
+      assert Enum.map(new_game().players, &{&1.lp, &1.eliminated_at}) == [
+               {4000, nil},
+               {4000, nil}
+             ]
+
+      game = new_game(start_lp: 8000)
+      assert game.start_lp == 8000
+      assert Enum.map(game.players, & &1.lp) == [8000, 8000]
+      assert new_game(start_lp: "8000").start_lp == 8000
+    end
+
+    test "refuses other life points" do
+      for lp <- [0, 1000, 6000, -4000, nil, "abc", 4000.0, "4000.0"] do
+        assert {:error, :invalid_start_lp} =
+                 Game.new(@format, ["Ann", "Bob"], questions(), start_lp: lp),
+               inspect(lp)
+      end
     end
 
     test "accepts the mode as a string" do
@@ -99,7 +120,7 @@ defmodule MillenniumQuiz.GameTest do
       assert game.phase == :revealed
       assert Game.correct?(game, 2)
       refute Game.correct?(game, 1)
-      assert Enum.map(game.players, & &1.score) == [99, 0, 99]
+      assert Enum.map(game.players, & &1.lp) == [4000, 3600, 4000]
       assert Game.correct_count(Enum.at(game.questions, 3)) == 2
 
       {:ok, game} = Game.next_round(game)
@@ -150,8 +171,9 @@ defmodule MillenniumQuiz.GameTest do
       end)
 
     assert game.phase == :finished
-    # Ann chose Q3 (10) and Q2 (10), Bob chose Q1 (20) and Q4 (99)
-    assert [{%{name: "Bob", score: 119}, 1}, {%{name: "Ann", score: 20}, 0}] =
+    # Ann chose Q3 and Q2 (100 each), Bob chose Q1 and Q4 (400 each); the
+    # other player was wrong every time
+    assert [{%{name: "Bob", lp: 3800}, 1}, {%{name: "Ann", lp: 3200}, 0}] =
              Game.standings(game)
   end
 
@@ -439,6 +461,300 @@ defmodule MillenniumQuiz.GameTest do
     old = update_in(map["players"], fn ps -> Enum.map(ps, &Map.delete(&1, "avatar")) end)
 
     assert [%{avatar: nil}, %{avatar: nil}] = Game.from_map(old).players
+  end
+
+  describe "damage" do
+    test "per position: 100, 400, 900, 1600, 2500, then 3000" do
+      assert Enum.map(0..9, &Question.damage/1) ==
+               [100, 400, 900, 1600, 2500, 3000, 3000, 3000, 3000, 3000]
+    end
+  end
+
+  # One topic with `count` questions, damage 100, 400, 900...
+  defp ladder(count) do
+    for position <- 0..(count - 1), do: question(position + 1, "A", position)
+  end
+
+  defp ladder_game(count, opts \\ [], names \\ ["Ann", "Bob"]) do
+    {:ok, game} = Game.new(@format, names, ladder(count), Keyword.merge(@no_shuffle, opts))
+    game
+  end
+
+  # Plays the next question of the ladder; `picks` are in answer order.
+  defp round_of(game, picks) do
+    index = Enum.find_index(game.questions, &is_nil(&1.result))
+    play(game, index, picks)
+  end
+
+  defp lps(game), do: Enum.map(game.players, & &1.lp)
+
+  defp set_lp(game, lp) when is_integer(lp),
+    do: %{game | players: Enum.map(game.players, &%{&1 | lp: lp})}
+
+  defp set_lp(game, index, lp),
+    do: %{game | players: List.update_at(game.players, index, &%{&1 | lp: lp})}
+
+  describe "life points" do
+    test "everyone right: nothing changes" do
+      game = round_of(new_game(), [0, 0])
+      assert game.phase == :revealed
+      assert lps(game) == [4000, 4000]
+    end
+
+    test "everyone wrong: everyone takes the damage" do
+      game = ladder_game(4, [], ~w(Ann Bob Cy)) |> round_of([1, 1, 1])
+      assert lps(game) == [3900, 3900, 3900]
+    end
+
+    test "only those who were wrong lose the damage of the question" do
+      game = ladder_game(4, [], ~w(Ann Bob Cy)) |> round_of([0, 1, 0])
+      assert lps(game) == [4000, 3900, 4000]
+      {:ok, game} = Game.next_round(game)
+      # question two costs 400; Bob chooses now and answers first
+      game = round_of(game, [0, 1, 1])
+      assert lps(game) == [3600, 3900, 3600]
+    end
+
+    test "life points stop at 0, the player is out and the round is recorded" do
+      game = ladder_game(8) |> set_lp(0, 50) |> round_of([1, 0])
+      assert lps(game) == [0, 4000]
+      assert Enum.map(game.players, & &1.eliminated_at) == [1, nil]
+    end
+
+    test "an eliminated player is skipped as chooser and in the answering order" do
+      game = ladder_game(10, [], ~w(Ann Bob Cy)) |> set_lp(1, 50)
+      # Ann chooses, Bob (answering second) is wrong and out
+      game = round_of(game, [0, 1, 0])
+      assert Enum.at(game.players, 1).eliminated_at == 1
+      assert Game.answer_order(game) == [0, 1, 2]
+      {:ok, game} = Game.next_round(game)
+
+      # the turn passes over Bob to Cy
+      assert game.phase == :choosing
+      refute Game.alive?(game, 1)
+      assert Game.chooser_index(game) == 2
+      assert Game.answer_order(game) == [2, 0]
+
+      # and the rotation keeps skipping him
+      choosers =
+        Enum.scan(1..4, game, fn _, game ->
+          game = round_of(game, [0, 0])
+          {:ok, game} = Game.next_round(game)
+          game
+        end)
+        |> Enum.map(&Game.chooser_index/1)
+
+      assert choosers == [0, 2, 0, 2]
+    end
+
+    test "the chooser being eliminated this round still sees the whole round" do
+      game = ladder_game(8) |> set_lp(0, 100) |> round_of([1, 0])
+      assert game.phase == :revealed
+      assert Game.answer_order(game) == [0, 1]
+      assert lps(game) == [0, 4000]
+      assert [%{eliminated_at: 1}, %{eliminated_at: nil}] = game.players
+    end
+
+    test "a dead chooser hands the turn on in a game of three" do
+      game = ladder_game(8, [], ~w(Ann Bob Cy)) |> set_lp(0, 100) |> round_of([1, 0, 0])
+      {:ok, game} = Game.next_round(game)
+      assert Game.chooser_index(game) == 1
+      assert Game.answer_order(game) == [1, 2]
+    end
+
+    test "two players and one dies: the game ends although the board is not empty" do
+      game = ladder_game(8) |> set_lp(1, 50) |> round_of([0, 1])
+      assert lps(game) == [4000, 0]
+      assert Game.over?(game)
+      {:ok, game} = Game.next_round(game)
+      assert game.phase == :finished
+      assert Enum.any?(game.questions, &is_nil(&1.result))
+      assert [{%{name: "Ann"}, 0}] = Game.winners(game)
+      refute Game.draw?(game)
+    end
+
+    test "three players, two die together: the survivor wins, no draw" do
+      game = ladder_game(8, [], ~w(Ann Bob Cy)) |> set_lp(100) |> round_of([1, 0, 1])
+      {:ok, game} = Game.next_round(game)
+      assert game.phase == :finished
+      assert [{%{name: "Bob"}, 1}] = Game.winners(game)
+      refute Game.draw?(game)
+      # the two eliminated together share second place
+      assert Enum.map(Game.places(game), &elem(&1, 2)) == [1, 2, 2]
+    end
+
+    test "the last players dropping to 0 in the same round is a draw" do
+      game = ladder_game(8, [], ~w(Ann Bob Cy)) |> set_lp(100) |> round_of([1, 1, 1])
+      assert lps(game) == [0, 0, 0]
+      {:ok, game} = Game.next_round(game)
+      assert game.phase == :finished
+      assert Game.draw?(game)
+      assert length(Game.winners(game)) == 3
+      assert Enum.map(Game.places(game), &elem(&1, 2)) == [1, 1, 1]
+    end
+
+    test "a draw between the last two, after a third player was out earlier" do
+      game = ladder_game(8, [], ~w(Ann Bob Cy)) |> set_lp(2, 100) |> round_of([0, 0, 1])
+      {:ok, game} = Game.next_round(game)
+      assert Game.answer_order(game) == [1, 0]
+
+      game = game |> set_lp(0, 100) |> set_lp(1, 100) |> round_of([1, 1])
+      {:ok, game} = Game.next_round(game)
+      assert game.phase == :finished
+      assert Game.draw?(game)
+      assert [{%{name: "Ann"}, 0}, {%{name: "Bob"}, 1}] = Game.winners(game)
+      assert Enum.map(Game.places(game), &{elem(&1, 1), elem(&1, 2)}) == [{0, 1}, {1, 1}, {2, 3}]
+    end
+
+    test "the ranking: survivors by life points, then the latest eliminated first" do
+      game = ladder_game(8, [], ~w(Ann Bob Cy Di))
+      [a, b, c, d] = game.players
+
+      players = [
+        %{a | lp: 1500},
+        %{b | lp: 0, eliminated_at: 3},
+        %{c | lp: 2500},
+        %{d | lp: 0, eliminated_at: 5}
+      ]
+
+      game = %{game | players: players, phase: :finished}
+      assert Enum.map(Game.standings(game), &elem(&1, 1)) == [2, 0, 3, 1]
+      assert Enum.map(Game.places(game), &elem(&1, 2)) == [1, 2, 3, 4]
+      refute Game.draw?(game)
+
+      # equal life points share a place, the next one skips
+      game = %{game | players: List.update_at(players, 0, &%{&1 | lp: 2500})}
+      assert Enum.map(Game.places(game), &elem(&1, 2)) == [1, 1, 3, 4]
+      assert length(Game.winners(game)) == 2
+      refute Game.draw?(game)
+    end
+
+    test "finishing early keeps the life points and ranks the survivors" do
+      game = round_of(new_game(), [0, 1])
+      {:ok, game} = Game.next_round(game)
+      {:ok, game} = Game.finish(game)
+      assert game.phase == :finished
+      assert [{%{name: "Ann", lp: 4000}, 0}, {%{name: "Bob", lp: 3900}, 1}] = Game.standings(game)
+      assert [{%{name: "Ann"}, 0}] = Game.winners(game)
+      assert Game.chooser_index(game) == nil
+    end
+
+    test "Level Up! shows the damage of each column's next question" do
+      game = new_game(mode: :ascending)
+      assert Game.next_damage(game, 0) == 100
+      assert Game.next_damage(game, 1) == 100
+      game = play(game, 0, [0, 0])
+      {:ok, game} = Game.next_round(game)
+      assert Game.next_damage(game, 0) == 400
+      game = play(game, 1, [0, 0])
+      {:ok, game} = Game.next_round(game)
+      assert Game.next_damage(game, 0) == nil
+      assert Game.next_damage(game, 1) == 100
+    end
+
+    test "life points are never negative nor above the start, whatever happens" do
+      :rand.seed(:exsss, {11, 22, 33})
+
+      for start_lp <- [4000, 8000], _ <- 1..30 do
+        count = Enum.random(3..12)
+        names = Enum.take(~w(Ann Bob Cy Di), Enum.random(2..4))
+        game = ladder_game(count, [start_lp: start_lp], names)
+
+        final =
+          Enum.reduce_while(1..count, game, fn _, game ->
+            picks = for _ <- Game.answer_order(game), do: Enum.random([0, 1])
+            game = round_of(game, picks)
+
+            assert Enum.all?(game.players, &(&1.lp in 0..start_lp))
+            assert Enum.all?(game.players, &(&1.lp == 0 == (&1.eliminated_at != nil)))
+            {:ok, game} = Game.next_round(game)
+            if game.phase == :finished, do: {:halt, game}, else: {:cont, game}
+          end)
+
+        alive = Enum.count(final.players, &(&1.lp > 0))
+        assert final.phase == :finished or alive > 1
+        assert [{_, _, 1} | _] = Game.places(final)
+      end
+    end
+
+    test "survives a JSON roundtrip with eliminated players" do
+      game = ladder_game(8) |> set_lp(1, 50) |> round_of([0, 1])
+      json = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+      assert %{"start_lp" => 4000} = json
+      loaded = Game.from_map(json)
+      assert loaded == game
+      assert Enum.map(loaded.players, & &1.eliminated_at) == [nil, 1]
+      assert hd(loaded.questions).damage == 100
+    end
+  end
+
+  describe "snapshots of score games (before the life points)" do
+    # A snapshot as the score rules wrote it.
+    defp score_snapshot do
+      %{
+        "format_id" => 1,
+        "format_name" => "Old",
+        "format_date" => "2005-04-01",
+        "mode" => "free",
+        "players" => [
+          %{"name" => "Ann", "score" => 30, "avatar" => "yugi"},
+          %{"name" => "Bob", "score" => 50, "avatar" => nil}
+        ],
+        "topics" => ["A"],
+        "questions" => [
+          %{
+            "id" => 1,
+            "topic" => "A",
+            "column" => 0,
+            "text" => "Q1",
+            "points" => 10,
+            "choices" => ["right", "wrong"],
+            "correct" => 0,
+            "cards" => [],
+            "result" => %{"chooser" => 0, "picks" => [0, 1]}
+          },
+          %{
+            "id" => 2,
+            "topic" => "A",
+            "column" => 0,
+            "text" => "Q2",
+            "points" => 20,
+            "choices" => ["right", "wrong"],
+            "correct" => 0,
+            "cards" => [],
+            "result" => nil
+          }
+        ],
+        "round" => 2,
+        "turn_order" => [0, 1],
+        "turn_index" => 1,
+        "current" => nil,
+        "picks" => [nil, nil],
+        "answered" => 0,
+        "phase" => "choosing"
+      }
+    end
+
+    test "open as finished and read-only, ranked by their score" do
+      game = Game.from_map(score_snapshot())
+      assert game.phase == :finished
+      assert game.start_lp == nil
+      assert [%{name: "Ann", score: 30, lp: nil}, %{name: "Bob", score: 50}] = game.players
+      assert Enum.map(Game.standings(game), &elem(&1, 1)) == [1, 0]
+      assert [{%{name: "Bob"}, 1}] = Game.winners(game)
+      refute Game.draw?(game)
+      assert [%{points: 10, damage: nil}, %{points: 20}] = game.questions
+
+      assert {:error, :not_choosing} = Game.choose(game, 1)
+      assert {:error, :not_answering} = Game.answer(game, 0)
+      assert {:error, :not_revealed} = Game.next_round(game)
+    end
+
+    test "a score game stays loadable after being saved again" do
+      game = Game.from_map(score_snapshot())
+      json = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+      assert Game.from_map(json) == game
+    end
   end
 
   test "snapshots from before the board modes open as finished" do

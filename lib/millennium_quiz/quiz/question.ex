@@ -42,6 +42,15 @@ defmodule MillenniumQuiz.Quiz.Question do
   def effective_points(%__MODULE__{points: points}) when is_integer(points), do: points
   def effective_points(%__MODULE__{position: position}), do: default_points(position)
 
+  @max_damage 3000
+
+  @doc """
+  The life points a wrong answer costs: (position + 1)^2 * 100 for a 0-based
+  position, at most 3000. 100, 400, 900, 1600, 2500, 3000, 3000...
+  """
+  def damage(position) when is_integer(position) and position >= 0,
+    do: min((position + 1) * (position + 1) * 100, @max_damage)
+
   def changeset(question, attrs) do
     question
     |> cast(attrs, [:text, :points, :submitted_by])

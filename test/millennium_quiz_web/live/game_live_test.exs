@@ -96,13 +96,37 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     refute has_element?(view, "#submitted-by")
   end
 
+  test "a score game from before the life points opens as final results", %{conn: conn} do
+    state = %{
+      "format_id" => 1,
+      "format_name" => "Old",
+      "mode" => "free",
+      "players" => [%{"name" => "Ann", "score" => 30}, %{"name" => "Bob", "score" => 50}],
+      "topics" => ["A"],
+      "questions" => [],
+      "round" => 1,
+      "turn_order" => [0, 1],
+      "phase" => "answering"
+    }
+
+    record =
+      MillenniumQuiz.Repo.insert!(%MillenniumQuiz.Games.GameRecord{status: :active, state: state})
+
+    {:ok, view, _html} = live(conn, ~p"/games/#{record.id}")
+    assert has_element?(view, "#final")
+    assert has_element?(view, "#winner", "Bob wins!")
+    assert has_element?(view, "#final-standings li", "50")
+    refute has_element?(view, "#scoreboard")
+    refute has_element?(view, "#pause-game")
+  end
+
   test "a full Heart of the Cards game", %{conn: conn, format: format} do
     {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], mode: :free)
     {:ok, view, _html} = live(conn, ~p"/games/#{id}")
 
-    # one question per topic, both worth 10 points; the second topic first
+    # one question per topic, both worth 100 damage; the second topic first
     assert has_element?(view, "#game-mode", "Heart of the Cards")
-    assert has_element?(view, "button#question-0", "10")
+    assert has_element?(view, "button#question-0", "100")
     view |> element("#question-1") |> render_click()
     assert has_element?(view, "#answer-progress", "1/2")
     view |> element("#choice-0") |> render_click()
@@ -112,8 +136,7 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert has_element?(view, "#reveal-choice-0.border-success")
     # the call to action stays at the foot of the screen
     assert has_element?(view, "#reveal-bar.sticky #next-round")
-    assert has_element?(view, "#round-results li", "+10")
-    assert has_element?(view, "#round-results li", "+0")
+    assert has_element?(view, "#round-results li", "-100")
     view |> element("#next-round") |> render_click()
 
     refute has_element?(view, "button#question-1")
@@ -121,7 +144,7 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     view |> element("#question-0") |> render_click()
     view |> element("#choice-1") |> render_click()
     view |> element("#choice-1") |> render_click()
-    refute has_element?(view, "#round-results li", "+10")
+    assert has_element?(view, "#round-results li", "-100")
     view |> element("#next-round", "Show final results") |> render_click()
 
     assert has_element?(view, "#final")
@@ -210,13 +233,13 @@ defmodule MillenniumQuizWeb.GameLiveTest do
 
     refute has_element?(view, "button#question-1")
     view |> element("#topic-0") |> render_click()
-    assert has_element?(view, "#question-points", "10 pts")
+    assert has_element?(view, "#question-points", "100 ATK")
     view |> element("#choice-0") |> render_click()
     view |> element("#choice-0") |> render_click()
     view |> element("#next-round") |> render_click()
 
     view |> element("#topic-0") |> render_click()
-    assert has_element?(view, "#question-points", "20 pts")
+    assert has_element?(view, "#question-points", "400 ATK")
   end
 
   test "pause shows resume options and the game continues in another session",

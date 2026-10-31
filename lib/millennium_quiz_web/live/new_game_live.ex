@@ -401,6 +401,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
     do: "Every player needs a different picture."
 
   defp error_message(:invalid_mode), do: "Choose a game mode."
+  defp error_message(:invalid_start_lp), do: "Choose 4000 or 8000 life points."
 
   defp error_message(:full),
     do: "The site is full right now. Please try again in a while."

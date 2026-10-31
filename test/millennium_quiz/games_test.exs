@@ -65,6 +65,46 @@ defmodule MillenniumQuiz.GamesTest do
     assert Games.list_unfinished_games([id]) == []
   end
 
+  test "the starting life points go to the game; others are refused" do
+    format = playable_format_fixture(2)
+    assert {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], start_lp: 8000)
+    assert {:ok, %{game: %Game{start_lp: 8000, players: [%{lp: 8000}, _]}}} = Games.fetch_game(id)
+    assert {:error, :invalid_start_lp} = Games.create_game(format.id, ["Ann", "Bob"], start_lp: 1)
+  end
+
+  describe "a score game saved before the life points" do
+    setup do
+      state = %{
+        "format_name" => "Old",
+        "mode" => "free",
+        "players" => [%{"name" => "Ann", "score" => 30}, %{"name" => "Bob", "score" => 10}],
+        "topics" => ["A"],
+        "questions" => [],
+        "round" => 1,
+        "turn_order" => [0, 1],
+        "phase" => "choosing"
+      }
+
+      record = Repo.insert!(%GameRecord{status: :active, state: state})
+      %{old_id: record.id}
+    end
+
+    test "opens as a finished game that cannot be played", %{old_id: id} do
+      assert {:ok, %{game: %Game{phase: :finished, start_lp: nil}}} = Games.fetch_game(id)
+      assert {:error, :invalid_status} = Games.choose(id, 0)
+    end
+
+    test "is finished in the table too, so it is not shown as paused", %{old_id: id} do
+      Repo.get!(GameRecord, id) |> Ecto.Changeset.change(status: :paused) |> Repo.update!()
+      assert {:ok, %{status: :finished}} = Games.fetch_game(id)
+      assert Repo.get!(GameRecord, id).status == :finished
+    end
+
+    test "is not offered to continue", %{old_id: id} do
+      assert Games.list_unfinished_games([id]) == []
+    end
+  end
+
   test "unknown or malformed ids" do
     assert {:error, :not_found} = Games.fetch_game(Ecto.UUID.generate())
     assert {:error, :not_found} = Games.fetch_game("not-a-uuid")

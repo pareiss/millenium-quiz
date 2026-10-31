@@ -12,7 +12,20 @@ defmodule MillenniumQuiz.Game do
   The topics of the format are the columns of a board, and every question
   is a cell that only shows its points. Players take turns choosing; then
   every player answers the chosen question, starting with the chooser.
-  Picks stay hidden until the reveal, and everyone who was right scores.
+  Picks stay hidden until the reveal.
+
+  ## Life points
+
+  Every player starts with `start_lp` life points (4000 or 8000). At the reveal
+  everyone who was wrong loses the question's `damage` (see `Question.damage/1`,
+  copied when the game is created), never going below 0; right answers change
+  nothing. A player on 0 is eliminated (`eliminated_at` is the round) and is
+  skipped from then on. The game ends when at most one player is left or the
+  board is empty, or early with `finish/1`. If the last players all drop to 0
+  in the same round the game is a draw between them (`draw?/1`).
+
+  Games saved before the life points were score games. They load as finished
+  and read-only (`start_lp` is nil, players have a `score`, questions `points`).
 
     * `:free` ("Heart of the Cards") - any unanswered question can be chosen.
     * `:ascending` ("Level Up!") - the player chooses a topic and gets its
@@ -38,6 +51,8 @@ defmodule MillenniumQuiz.Game do
   # The new-game form limits names to the same length.
   @max_name_length 24
   @modes [:free, :ascending]
+  @start_lps [4000, 8000]
+  @default_start_lp 4000
 
   # What is printed on a card besides its name and text, copied as stored.
   @card_details [
@@ -58,6 +73,7 @@ defmodule MillenniumQuiz.Game do
             format_name: nil,
             format_date: nil,
             mode: :free,
+            start_lp: nil,
             players: [],
             topics: [],
             questions: [],
@@ -70,9 +86,16 @@ defmodule MillenniumQuiz.Game do
             phase: :choosing
 
   @type mode :: :free | :ascending
+  @typedoc """
+  `eliminated_at` is the round the player dropped to 0 (nil while alive).
+  `lp` is nil in games from before the life points, which only have a `score`
+  (nil in all other games).
+  """
   @type player :: %{
           name: String.t(),
-          score: non_neg_integer(),
+          lp: non_neg_integer() | nil,
+          eliminated_at: pos_integer() | nil,
+          score: non_neg_integer() | nil,
           avatar: String.t() | nil
         }
   @type result :: %{chooser: non_neg_integer(), picks: [non_neg_integer()]}
@@ -81,7 +104,8 @@ defmodule MillenniumQuiz.Game do
           topic: String.t(),
           column: non_neg_integer(),
           text: String.t(),
-          points: pos_integer(),
+          damage: pos_integer() | nil,
+          points: pos_integer() | nil,
           choices: [String.t()],
           correct: non_neg_integer(),
           cards: [card()],
@@ -117,6 +141,7 @@ defmodule MillenniumQuiz.Game do
           format_name: String.t() | nil,
           format_date: Date.t() | nil,
           mode: mode(),
+          start_lp: 4000 | 8000 | nil,
           players: [player()],
           topics: [String.t()],
           questions: [question()],
@@ -133,6 +158,8 @@ defmodule MillenniumQuiz.Game do
   def max_players, do: @max_players
   def max_name_length, do: @max_name_length
   def modes, do: @modes
+  def start_lps, do: @start_lps
+  def default_start_lp, do: @default_start_lp
 
   def mode_name(:free), do: "Heart of the Cards"
   def mode_name(:ascending), do: "Level Up!"
@@ -151,12 +178,22 @@ defmodule MillenniumQuiz.Game do
 
   def parse_mode(_), do: {:error, :invalid_mode}
 
+  @doc "Parses the starting life points from a form or JSON value."
+  def parse_start_lp(lp) when lp in @start_lps, do: {:ok, lp}
+
+  def parse_start_lp(lp) when is_binary(lp),
+    do: parse_start_lp(Enum.find(@start_lps, &(Integer.to_string(&1) == lp)))
+
+  def parse_start_lp(_), do: {:error, :invalid_start_lp}
+
   @doc """
   Creates a game from a format, player names and `Question` structs
   (with `:topic` preloaded).
 
   Options:
     * `:mode` - `:free` (default) or `:ascending`.
+    * `:start_lp` - the life points everyone starts with: 4000 (default) or
+      8000, else `{:error, :invalid_start_lp}`.
     * `:shuffle` - function used for every random decision, defaults to
       `Enum.shuffle/1`. Tests pass `& &1` to make games deterministic.
     * `:avatars` - one picture slug per player, or nil for a random one
@@ -170,12 +207,16 @@ defmodule MillenniumQuiz.Game do
     shuffle = Keyword.get(opts, :shuffle, &Enum.shuffle/1)
     names = Enum.map(player_names, &String.trim/1)
     mode = parse_mode(Keyword.get(opts, :mode, :free))
+    start_lp = parse_start_lp(Keyword.get(opts, :start_lp, @default_start_lp))
     pool = MillenniumQuiz.Avatars.pool(format)
     chosen = chosen_avatars(Keyword.get(opts, :avatars), pool, length(names))
 
     cond do
       mode == {:error, :invalid_mode} ->
         mode
+
+      start_lp == {:error, :invalid_start_lp} ->
+        start_lp
 
       length(names) not in @min_players..@max_players ->
         {:error, :invalid_player_count}
@@ -195,6 +236,7 @@ defmodule MillenniumQuiz.Game do
       true ->
         {:ok, chosen} = chosen
         {:ok, mode} = mode
+        {:ok, start_lp} = start_lp
         {topics, questions} = build_board(questions, format.date)
 
         {:ok,
@@ -203,10 +245,13 @@ defmodule MillenniumQuiz.Game do
            format_name: format.name,
            format_date: format.date,
            mode: mode,
+           start_lp: start_lp,
            players:
              names
              |> Enum.zip(MillenniumQuiz.Avatars.assign(length(names), shuffle, pool, chosen))
-             |> Enum.map(fn {name, avatar} -> %{name: name, score: 0, avatar: avatar} end),
+             |> Enum.map(fn {name, avatar} ->
+               %{name: name, lp: start_lp, eliminated_at: nil, score: nil, avatar: avatar}
+             end),
            topics: topics,
            questions: questions,
            picks: List.duplicate(nil, length(names)),
@@ -260,7 +305,8 @@ defmodule MillenniumQuiz.Game do
       column: column,
       text: q.text,
       submitted_by: q.submitted_by,
-      points: Question.effective_points(q),
+      damage: Question.damage(q.position),
+      points: nil,
       choices: Enum.map(q.choices, & &1.text),
       correct: Enum.find_index(q.choices, & &1.correct),
       cards: snapshot_cards(q.question_cards, date),
@@ -302,9 +348,34 @@ defmodule MillenniumQuiz.Game do
 
   def current_player_index(%__MODULE__{} = game), do: chooser_index(game)
 
-  @doc "The players in the order they answer this round, chooser first."
-  def answer_order(%__MODULE__{turn_order: order, turn_index: index}),
-    do: Enum.drop(order, index) ++ Enum.take(order, index)
+  @doc """
+  The players in the order they answer this round, chooser first. Players
+  who were eliminated in an earlier round are left out; those who dropped to 0
+  in this round are still there (until the next round starts).
+  """
+  def answer_order(%__MODULE__{turn_order: order, turn_index: index} = game) do
+    (Enum.drop(order, index) ++ Enum.take(order, index))
+    |> Enum.filter(&playing?(game, &1))
+  end
+
+  # Whether player `index` took part in the current round.
+  defp playing?(game, index) do
+    case Enum.at(game.players, index) do
+      %{eliminated_at: nil} -> true
+      %{eliminated_at: round} -> round == game.round
+    end
+  end
+
+  @doc "Whether player `index` is still in the game (has life points left)."
+  def alive?(%__MODULE__{} = game, index) do
+    case Enum.at(game.players, index) do
+      %{eliminated_at: nil} -> true
+      _ -> false
+    end
+  end
+
+  defp alive_count(%__MODULE__{players: players}),
+    do: Enum.count(players, &is_nil(&1.eliminated_at))
 
   def current_player(%__MODULE__{} = game) do
     case current_player_index(game) do
@@ -332,6 +403,14 @@ defmodule MillenniumQuiz.Game do
     |> Enum.find_value(fn {q, index} -> q.column == column and is_nil(q.result) && index end)
   end
 
+  @doc "The damage of the easiest open question in a column (\"NEXT ATK\"), or nil."
+  def next_damage(%__MODULE__{} = game, column) do
+    case next_in_column(game, column) do
+      nil -> nil
+      index -> Enum.at(game.questions, index).damage
+    end
+  end
+
   @doc "Whether the current player may choose question `index` right now."
   def choosable?(%__MODULE__{phase: :choosing} = game, index) do
     case Enum.at(game.questions, index) do
@@ -357,12 +436,61 @@ defmodule MillenniumQuiz.Game do
   def correct_count(%{result: %{picks: picks}, correct: correct}),
     do: Enum.count(picks, &(&1 == correct))
 
-  @doc "Players sorted by score, highest first, with their index."
-  def standings(%__MODULE__{players: players}) do
-    players
+  @doc "How many players answered a revealed question (eliminated players do not)."
+  def answered_count(%{result: %{picks: picks}}), do: Enum.count(picks, &(&1 != nil))
+
+  @doc """
+  The ranking, best first, with each player's index: survivors by life points
+  (highest first), then the eliminated, the latest eliminated first. Ties keep
+  the seating order; `places/1` tells who shares a place. Games from before the
+  life points rank by their score.
+  """
+  def standings(%__MODULE__{} = game) do
+    game.players
     |> Enum.with_index()
-    |> Enum.sort_by(fn {player, index} -> {-player.score, index} end)
+    |> Enum.sort_by(fn {player, index} -> {rank_key(game, player), index} end)
   end
+
+  # Lower sorts first. Equal keys share a place.
+  defp rank_key(%{start_lp: nil}, player), do: {0, -(player.score || 0)}
+  defp rank_key(_game, %{eliminated_at: nil} = player), do: {0, -player.lp}
+  defp rank_key(_game, player), do: {1, -player.eliminated_at}
+
+  @doc """
+  `{player, index, place}` in ranking order. Players with the same life points
+  (or eliminated in the same round) share a place; the next one skips ahead
+  (1, 1, 3).
+  """
+  def places(%__MODULE__{} = game) do
+    game
+    |> standings()
+    |> Enum.with_index(1)
+    |> Enum.map_reduce(nil, fn {{player, index}, position}, previous ->
+      key = rank_key(game, player)
+
+      place =
+        case previous do
+          {^key, place} -> place
+          _ -> position
+        end
+
+      {{player, index, place}, {key, place}}
+    end)
+    |> elem(0)
+  end
+
+  @doc "The players on first place, `{player, index}`: several on a tie or draw."
+  def winners(%__MODULE__{} = game),
+    do: for({player, index, 1} <- places(game), do: {player, index})
+
+  @doc """
+  Whether the game ended in a draw: the last players all dropped to 0 in the same
+  round (shared first place). A tie on life points is no draw.
+  """
+  def draw?(%__MODULE__{phase: :finished, start_lp: lp} = game) when not is_nil(lp),
+    do: alive_count(game) == 0 and length(winners(game)) > 1
+
+  def draw?(%__MODULE__{}), do: false
 
   ## Transitions
 
@@ -393,7 +521,7 @@ defmodule MillenniumQuiz.Game do
   def answer(%__MODULE__{}, _choice), do: {:error, :not_answering}
 
   defp maybe_reveal(%__MODULE__{} = game) do
-    if game.answered < length(game.players) do
+    if game.answered < length(answer_order(game)) do
       game
     else
       question = current_question(game)
@@ -401,9 +529,10 @@ defmodule MillenniumQuiz.Game do
       players =
         game.players
         |> Enum.zip(game.picks)
-        |> Enum.map(fn {player, pick} ->
-          if pick == question.correct,
-            do: %{player | score: player.score + question.points},
+        |> Enum.with_index()
+        |> Enum.map(fn {{player, pick}, index} ->
+          if playing?(game, index) and pick != question.correct,
+            do: hurt(player, question.damage, game.round),
             else: player
         end)
 
@@ -418,9 +547,22 @@ defmodule MillenniumQuiz.Game do
     end
   end
 
-  @doc "Passes the turn to the next player, or finishes when the board is empty."
+  # Life points never drop below 0; the player on 0 is out.
+  defp hurt(player, damage, round) do
+    lp = max(player.lp - damage, 0)
+    %{player | lp: lp, eliminated_at: if(lp == 0, do: round)}
+  end
+
+  @doc "Whether the game ends after this reveal: the board is empty or at most one player is left."
+  def over?(%__MODULE__{} = game),
+    do: Enum.all?(game.questions, & &1.result) or alive_count(game) <= 1
+
+  @doc """
+  Passes the turn to the next player who is alive, or finishes when the board is
+  empty or at most one player is left.
+  """
   def next_round(%__MODULE__{phase: :revealed} = game) do
-    if Enum.all?(game.questions, & &1.result) do
+    if over?(game) do
       {:ok, %{game | phase: :finished}}
     else
       {:ok,
@@ -431,12 +573,21 @@ defmodule MillenniumQuiz.Game do
            current: nil,
            picks: List.duplicate(nil, length(game.players)),
            answered: 0,
-           turn_index: rem(game.turn_index + 1, length(game.turn_order))
+           turn_index: next_turn_index(game, game.turn_index)
        }}
     end
   end
 
   def next_round(%__MODULE__{}), do: {:error, :not_revealed}
+
+  # Someone is alive (checked by the caller), so this ends.
+  defp next_turn_index(game, index) do
+    next = rem(index + 1, length(game.turn_order))
+
+    if alive?(game, Enum.at(game.turn_order, next)),
+      do: next,
+      else: next_turn_index(game, next)
+  end
 
   @doc "Ends the game early. A question that is not revealed yet is not scored."
   def finish(%__MODULE__{} = game), do: {:ok, %{game | phase: :finished}}
@@ -450,16 +601,19 @@ defmodule MillenniumQuiz.Game do
     |> Map.update!(:mode, &Atom.to_string/1)
   end
 
-  # Snapshots from before the board modes have no "mode"; they open as finished.
+  # Snapshots from before the board modes have no "mode"; they open as finished,
+  # and so do the score games from before the life points (no "start_lp").
   def from_map(%{"mode" => _} = map) do
     {:ok, mode} = parse_mode(map["mode"])
     no_picks = List.duplicate(nil, length(map["players"]))
+    start_lp = map["start_lp"]
 
     %__MODULE__{
       format_id: map["format_id"] || map["category_id"],
       format_name: map["format_name"] || map["category_name"],
       format_date: date_from_map(map["format_date"]),
       mode: mode,
+      start_lp: start_lp,
       players: players_from_map(map["players"]),
       topics: map["topics"],
       questions:
@@ -470,6 +624,7 @@ defmodule MillenniumQuiz.Game do
             column: q["column"],
             text: q["text"],
             submitted_by: q["submitted_by"],
+            damage: q["damage"],
             points: q["points"],
             choices: q["choices"],
             correct: q["correct"],
@@ -483,7 +638,7 @@ defmodule MillenniumQuiz.Game do
       current: map["current"],
       picks: map["picks"] || no_picks,
       answered: map["answered"] || 0,
-      phase: phase_from_string(map["phase"])
+      phase: if(start_lp, do: phase_from_string(map["phase"]), else: :finished)
     }
   end
 
@@ -529,9 +684,18 @@ defmodule MillenniumQuiz.Game do
   defp date_from_map(nil), do: nil
   defp date_from_map(date), do: Date.from_iso8601!(date)
 
-  # Games saved before the avatars have none.
-  defp players_from_map(players),
-    do: Enum.map(players, &%{name: &1["name"], score: &1["score"], avatar: &1["avatar"]})
+  # Games saved before the avatars have none; score games have no life points.
+  defp players_from_map(players) do
+    Enum.map(players, fn player ->
+      %{
+        name: player["name"],
+        lp: player["lp"],
+        eliminated_at: player["eliminated_at"],
+        score: player["score"],
+        avatar: player["avatar"]
+      }
+    end)
+  end
 
   defp phase_from_string("choosing"), do: :choosing
   defp phase_from_string("answering"), do: :answering

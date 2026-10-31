@@ -48,8 +48,9 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
       </.header>
 
       <p class="text-sm text-base-content/60">
-        Questions are ordered from easiest to hardest. The easiest is worth 10 points by default,
-        each following one 10 more. Set custom points on a question to override this.
+        Questions are ordered from easiest to hardest. A wrong answer costs life points by
+        position: 100, 400, 900, 1600, 2500, then 3000 (ATK). The custom points below are no
+        longer used by games.
       </p>
 
       <section
@@ -85,10 +86,10 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
             </p>
             <div class="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:gap-3">
               <span
-                class={["badge badge-sm", if(q.points, do: "badge-secondary", else: "badge-ghost")]}
-                title={if q.points, do: "Custom points", else: "Default points from position"}
+                class="badge badge-sm badge-ghost"
+                title="Damage of a wrong answer, from the position"
               >
-                {Question.effective_points(q)} {if q.points, do: "custom", else: "pts"}
+                {Question.damage(q.position)} ATK
               </span>
               <div class="flex items-center gap-1">
                 <div class="join">
