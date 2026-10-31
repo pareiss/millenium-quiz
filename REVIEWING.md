@@ -13,12 +13,12 @@ here (see "Decisions and known false positives" at the end).
 - A hot-seat Yu-Gi-Oh! trivia game for 2–4 players on one device, built with
   Elixir, Phoenix 1.8 and LiveView, backed by Postgres.
 - **Formats** (formerly "categories") have topics; topics have questions ordered
-  by difficulty (points 10, 20, 30… unless overridden). A format has a **date**:
+  by difficulty (a wrong answer costs fixed damage from the position: `Question.damage/1`, 100, 400, 900, 1600, 2500, then 3000). A format has a **date**:
   the point in time it represents.
 - A game is a board: topics are columns, questions are cells. Two modes:
   "Heart of the Cards" (choose any open question) and "Level Up!" (choose a
   topic, get its easiest open question). The chooser rotates; every player
-  answers, picks stay hidden until the reveal, every correct player scores.
+  answers, picks stay hidden until the reveal, every wrong player loses the question's damage in life points (4000 or 8000 LP; 0 LP is out).
 - **Card pool**: questions can be about Yu-Gi-Oh! cards. A card is copied once
   into the database (names and texts in 10+ languages, every printed text
   version with its release date, stats, artwork). A question shows each card's
@@ -35,7 +35,7 @@ here (see "Decisions and known false positives" at the end).
   old one.
 - One `Games.Server` process per game serializes all actions. LiveViews never
   own game state: they call `MillenniumQuiz.Games` and render broadcasts.
-- A running game keeps what was snapshotted at its start (questions, points,
+- A running game keeps what was snapshotted at its start (questions, damage,
   card texts). Admin edits must not change running games.
 - A format's date is set when it is created and never changes afterwards
   (`Format.changeset/2` casts it only for new formats): the cards attached to

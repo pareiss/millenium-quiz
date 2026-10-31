@@ -5,6 +5,7 @@ defmodule MillenniumQuiz.GamesTest do
   import MillenniumQuiz.QuizFixtures
 
   alias MillenniumQuiz.{Game, Games}
+  alias MillenniumQuiz.Quiz.Question
   alias MillenniumQuiz.Games.{GameRecord, Server}
 
   setup do
@@ -29,6 +30,28 @@ defmodule MillenniumQuiz.GamesTest do
 
     stored = Repo.get!(GameRecord, id)
     assert Game.from_map(stored.state) == view.game
+  end
+
+  test "moving a question afterwards does not change a running game's damage" do
+    format = playable_format_fixture(2)
+    {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+    {:ok, %{game: game}} = Games.fetch_game(id)
+    before = Enum.map(game.questions, &{&1.id, &1.damage})
+
+    # the first question of the first topic moves down: its position, and so
+    # its damage for new games, changes
+    topic = hd(MillenniumQuiz.Quiz.get_format!(format.id).topics)
+    moved = hd(topic.questions)
+    assert MillenniumQuiz.Quiz.get_question!(moved.id).position == 0
+    MillenniumQuiz.Quiz.move_question(moved, :down)
+    assert MillenniumQuiz.Quiz.get_question!(moved.id).position == 1
+    assert Question.damage(1) != Question.damage(0)
+
+    {:ok, %{game: after_game}} = Games.fetch_game(id)
+    assert Enum.map(after_game.questions, &{&1.id, &1.damage}) == before
+
+    assert Enum.map(Repo.get!(GameRecord, id).state["questions"], &{&1["id"], &1["damage"]}) ==
+             before
   end
 
   test "a game continues from its snapshot after the process is gone", %{id: id} do

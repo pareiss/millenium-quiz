@@ -14,7 +14,7 @@ defmodule MillenniumQuiz.Quiz.ExportImportTest do
     :ok
   end
 
-  # Two formats, one question about a card, one with a points override.
+  # Two formats, one question about a card, one with cards.
   defp build_quiz do
     {:ok, reborn} = Cards.import(CardSourcesStub.reborn().password)
 
@@ -32,7 +32,6 @@ defmodule MillenniumQuiz.Quiz.ExportImportTest do
         t1,
         %{
           "text" => "What does [Monster Reborn] do?",
-          "points" => 55,
           "choices" => choices_params(["Revives", "Burns", "Draws"], 1)
         },
         [reborn.id]
@@ -60,7 +59,7 @@ defmodule MillenniumQuiz.Quiz.ExportImportTest do
 
     [monsters, _spells] = edison["topics"]
     [first, second] = monsters["questions"]
-    assert first["points"] == 55
+    refute Map.has_key?(first, "points")
     assert first["cards"] == [%{"password" => 83_764_718, "name" => "Monster Reborn"}]
     assert Enum.map(first["choices"], & &1["correct"]) == [false, true, false]
     assert second["text"] == "Second?"
@@ -86,6 +85,42 @@ defmodule MillenniumQuiz.Quiz.ExportImportTest do
     assert summary.warnings == []
 
     assert strip(Export.build()) == strip(before)
+  end
+
+  test "an old backup with points (integer or null) still imports, the value is ignored" do
+    build_quiz()
+    json = Export.to_json()
+    clear_quiz()
+
+    old =
+      json
+      |> Jason.decode!()
+      |> update_in(["formats", Access.all(), "topics", Access.all(), "questions"], fn qs ->
+        qs
+        |> Enum.with_index()
+        |> Enum.map(fn {q, i} -> Map.put(q, "points", if(i == 0, do: 55)) end)
+      end)
+
+    assert {:ok, summary} = Import.run(Jason.encode!(old))
+    assert summary.questions == 3
+    q = Repo.get_by!(MillenniumQuiz.Quiz.Question, text: "Second?")
+    refute Map.has_key?(Map.from_struct(q), :points)
+
+    assert Enum.all?(Export.build()["formats"], fn f ->
+             Enum.all?(f["topics"], fn t ->
+               Enum.all?(t["questions"], &(not Map.has_key?(&1, "points")))
+             end)
+           end)
+
+    bad =
+      put_in(
+        old,
+        ["formats", Access.at(1), "topics", Access.at(0), "questions", Access.at(0), "points"],
+        "x"
+      )
+
+    clear_quiz()
+    assert {:error, _} = Import.run(Jason.encode!(bad))
   end
 
   describe "avatar cards" do
@@ -358,7 +393,7 @@ defmodule MillenniumQuiz.Quiz.ExportImportTest do
     question = format.topics |> hd() |> Map.fetch!(:questions) |> Enum.min_by(& &1.position)
     # no marker is left that points at nothing
     assert question.text == "What does Monster Reborn do?"
-    assert question.points == 55
+    refute Map.has_key?(Map.from_struct(question), :points)
   end
 
   test "a card missing from the pool is fetched" do

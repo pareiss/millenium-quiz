@@ -12,7 +12,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
 - **Board states / gameplay:** the open-source engine is ygopro-core / EDOPro (Project Ignis), C++ and Lua under the AGPL. A first step is questions with a board state stored as JSON and rendered by a component. The engine itself would run as its own container next to the app. A card in a board state also needs to say where it sits (hand, field, graveyard); the owner of a card (player 1 or 2, see Features) is already there.
 - `Game` is not tied to a question type. A `kind` field on questions (`:multiple_choice`, `:card_image`, `:board_state`) would only change rendering and answer checking.
 - **Pictures, still open:** the crop picker is built (admins set where the face sits, per card, in "Profile pictures" on the format page). Still open: the built-in sets of Edison, Goat and Tengu could move into the table too, so that admins own them. The game snapshot keeps the chosen avatar (the crop is looked up from the card when a page is drawn), so old games must keep loading.
-- **Life points, still open:** the duel is playable in the current look. The `questions.points` column and the custom points in the admin form are unused now and should be removed; the look of the life-point bars and damage (5D's style duel panels) comes with the visual redesign.
+- **Life points, still open:** the duel is playable in the current look. The look of the life-point bars and damage (5D's style duel panels) comes with the visual redesign.
 - **Visual redesign:** the current look is plain (warm cream background, amber accent, DaisyUI components). Two directions to pick from, or combine: (a) Millennium items, with gold and lapis colours, Egyptian-style borders and hieroglyph-like ornaments, and the Eye of Wadjet as the logo; or (b) a 5D's style with dark-metal panels, neon cyan and red accents, Duel Disk-like frames and angled shapes. It would mostly touch `assets/css/app.css`, the layouts and the core components, with the drawn cards in `card_components.ex` left as they are. Open: which direction, and whether the admin pages are included.
 
 ## Features
@@ -44,7 +44,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
   - each card attached to a question has an owner (nobody, player 1 or player 2), set in the question form; a card of a player gets a blue or red outline and a "P1"/"P2" badge, and its link in the text is underlined in that colour (the drawn card itself, `card_components.ex`, is unchanged)
   - the owner is a column on `question_cards`, carried by the game snapshot (old snapshots load without it) and by the backup export and import (old backups too; an `"owner"` of 1 or 2 on a card, only written when set)
 - **Admin** (`/admin`): username/password login. It covers formats with their 2–6 topics edited inline, questions per topic (2–6 answers, one correct), ↑/↓ difficulty ordering, the cards of a question with ↑/↓ buttons to put them in the order players see, per format the cards that are its profile pictures ("Profile pictures" on the format page: card search, up to 40, released by the format's date; a "Crop" button per card opens an editor with the whole artwork, a frame and round previews where a click, a drag or three sliders choose which part of the artwork the round picture shows, saved per card and used everywhere the picture is), and managing admins.
-- **Damage**: the damage of a question comes from its position in the topic (see Players); moving a question changes it. The old `points` column and the custom points of a question are no longer used by games.
+- **Damage**: the damage of a question comes from its position in the topic (see Players); moving a question changes it. The old per-question points override is gone (the column is dropped; old backups with a `points` value still import, the value is ignored).
 
 ## Card data
 
@@ -150,7 +150,7 @@ the components at several widths.
 
 The only data that cannot be fetched again is the quiz you wrote. A backup is
 one JSON file with the formats (name, description, date), their topics, the
-questions (text, points override, order), the choices with their correct flag
+questions (text, order), the choices with their correct flag
 and the cards linked to each question (by YGOPRODeck id and name). It does
 not contain games, accounts or the card pool: admins come from `ADMIN_*`, and
 cards are fetched again by their id when a backup is restored.

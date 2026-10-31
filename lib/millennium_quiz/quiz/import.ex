@@ -168,12 +168,11 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   defp question(%{"text" => text, "choices" => choices} = q) when is_list(choices) do
     cards = Map.get(q, "cards") || []
-    points = Map.get(q, "points")
     submitted_by = Map.get(q, "submitted_by")
 
     with :ok <- text(text, "text"),
          :ok <- optional_text(submitted_by, "submitted_by"),
-         :ok <- points(points),
+         :ok <- legacy_points(Map.get(q, "points")),
          :ok <- count(choices, @max_choices, "choices"),
          {:ok, choices} <- each(choices, &choice/1, "choice"),
          true <- is_list(cards) or {:error, "cards must be a list."},
@@ -182,7 +181,6 @@ defmodule MillenniumQuiz.Quiz.Import do
       {:ok,
        %{
          text: text,
-         points: points,
          submitted_by: submitted_by,
          choices: choices,
          cards: cards
@@ -209,9 +207,11 @@ defmodule MillenniumQuiz.Quiz.Import do
   defp owner(owner) when owner in [nil, 1, 2], do: :ok
   defp owner(_), do: {:error, "\"owner\" must be 1, 2 or null."}
 
-  defp points(nil), do: :ok
-  defp points(p) when is_integer(p), do: :ok
-  defp points(_), do: {:error, "points must be a whole number or null."}
+  # Old backups carry a per-question "points" (null or a whole number). Games no
+  # longer use it: it is checked as before and then dropped.
+  defp legacy_points(nil), do: :ok
+  defp legacy_points(p) when is_integer(p), do: :ok
+  defp legacy_points(_), do: {:error, "points must be a whole number or null."}
 
   defp date(date) when is_binary(date) do
     case Date.from_iso8601(date) do
@@ -505,7 +505,6 @@ defmodule MillenniumQuiz.Quiz.Import do
 
       attrs = %{
         "text" => text,
-        "points" => q.points,
         "submitted_by" => q.submitted_by,
         "choices" => q.choices
       }
