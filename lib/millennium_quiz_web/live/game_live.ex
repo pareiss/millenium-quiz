@@ -156,7 +156,7 @@ defmodule MillenniumQuizWeb.GameLive do
         max={Game.total_rounds(@game)}
       />
       <%!-- while a question is up the css hides it (app.css): a phone or tablet
-           needs the room, and the score is on the board before and in the
+           needs the room, and the life points are on the board before and in the
            reveal after. A large screen has the room and keeps it --%>
       <ul
         :if={not @finished?}
@@ -166,23 +166,70 @@ defmodule MillenniumQuizWeb.GameLive do
         <li
           :for={{player, index} <- Enum.with_index(@game.players)}
           id={"score-#{index}"}
+          data-eliminated={to_string(not Game.alive?(@game, index))}
           class={[
-            "flex items-baseline justify-between gap-2 rounded-field border px-3 py-1.5 sm:block sm:py-2 transition",
-            if(Game.current_player_index(@game) == index,
-              do: "border-primary bg-primary/10 shadow-sm",
-              else: "border-base-300 bg-base-100"
-            )
+            "rounded-field border px-3 py-1.5 sm:py-2 transition",
+            cond do
+              not Game.alive?(@game, index) -> "border-base-300 bg-base-200/60 opacity-60"
+              Game.current_player_index(@game) == index -> "border-primary bg-primary/10 shadow-sm"
+              true -> "border-base-300 bg-base-100"
+            end
           ]}
         >
-          <p class="min-w-0 truncate text-sm flex items-center gap-2">
-            <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-10" />
-            <span class="truncate">{player.name}</span>
+          <div class="flex items-baseline justify-between gap-2 sm:block">
+            <p class="min-w-0 truncate text-sm flex items-center gap-2">
+              <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-10" />
+              <span class={["truncate", not Game.alive?(@game, index) && "line-through"]}>
+                {player.name}
+              </span>
+            </p>
+            <p class="text-lg font-semibold tabular-nums">
+              <span id={"lp-#{index}"}>{player.lp}</span>
+              <span class="text-xs font-medium text-base-content/60">LP</span>
+            </p>
+          </div>
+          <div
+            id={"lp-bar-#{index}"}
+            role="progressbar"
+            aria-label={"#{player.name}'s life points"}
+            aria-valuemin="0"
+            aria-valuemax={@game.start_lp}
+            aria-valuenow={player.lp}
+            class="mt-1 h-1.5 overflow-hidden rounded-full bg-base-300"
+          >
+            <div
+              class={[
+                "h-full rounded-full transition-all duration-700",
+                lp_color(player.lp, @game.start_lp)
+              ]}
+              style={"width: #{lp_percent(player.lp, @game.start_lp)}%"}
+            />
+          </div>
+          <p
+            :if={not Game.alive?(@game, index)}
+            id={"eliminated-#{index}"}
+            class="mt-1 text-xs font-bold uppercase tracking-wide text-error"
+          >
+            Eliminated
           </p>
-          <p class="text-lg font-semibold tabular-nums">{player.lp}</p>
         </li>
       </ul>
     </div>
     """
+  end
+
+  # Share of the starting life points left, 0 to 100.
+  defp lp_percent(lp, start_lp) when is_integer(lp) and is_integer(start_lp) and start_lp > 0,
+    do: lp |> Kernel.*(100) |> div(start_lp) |> min(100) |> max(0)
+
+  defp lp_percent(_lp, _start_lp), do: 0
+
+  defp lp_color(lp, start_lp) do
+    case lp_percent(lp, start_lp) do
+      percent when percent > 50 -> "bg-success"
+      percent when percent > 25 -> "bg-warning"
+      _ -> "bg-error"
+    end
   end
 
   attr :game, Game, required: true
@@ -232,6 +279,12 @@ defmodule MillenniumQuizWeb.GameLive do
             >
               <span class="line-clamp-3 sm:line-clamp-2 leading-tight hyphens-auto break-words">
                 {topic}
+              </span>
+              <span
+                id={"next-atk-#{column}"}
+                class="mt-0.5 block text-[0.65rem] sm:text-xs font-bold uppercase tabular-nums opacity-80"
+              >
+                Next ATK {Game.next_damage(@game, column)}
               </span>
             </button>
             <div
@@ -319,7 +372,7 @@ defmodule MillenniumQuizWeb.GameLive do
           Pass the device to <strong class="text-lg" id="current-player">{@player.name}</strong>
         </p>
         <span class="ml-auto text-sm opacity-80" id="answer-progress">
-          {@game.answered + 1}/{length(@game.players)}
+          {@game.answered + 1}/{length(Game.answer_order(@game))}
         </span>
       </div>
       <%!-- one column; question and choices side by side on a wide screen
@@ -605,6 +658,13 @@ defmodule MillenniumQuizWeb.GameLive do
             </li>
           </ul>
 
+          <p
+            :if={Game.correct_count(@question) == 0}
+            id="all-wrong"
+            class="text-sm font-semibold text-error"
+          >
+            Nobody was right: everyone takes {@question.damage} damage.
+          </p>
           <ul
             class="divide-y divide-base-300 rounded-field border border-base-300"
             id="round-results"
@@ -612,19 +672,20 @@ defmodule MillenniumQuizWeb.GameLive do
             <li
               :for={index <- Game.answer_order(@game)}
               id={"result-#{index}"}
-              class="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4"
+              class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 sm:gap-x-3 sm:px-4"
             >
               <% correct? = Game.correct?(@game, index) %>
+              <% player = Enum.at(@game.players, index) %>
               <.icon
                 name={if correct?, do: "hero-check-circle", else: "hero-x-circle"}
                 class={["size-5 shrink-0", if(correct?, do: "text-success", else: "text-error")]}
               />
               <.avatar
-                slug={Enum.at(@game.players, index).avatar}
-                crop={@crops[Enum.at(@game.players, index).avatar]}
+                slug={player.avatar}
+                crop={@crops[player.avatar]}
                 class="size-12"
               />
-              <span class="min-w-0 font-medium break-words">{Enum.at(@game.players, index).name}</span>
+              <span class="min-w-0 font-medium break-words">{player.name}</span>
               <span class="shrink-0 text-sm text-base-content/60">
                 picked {<<?A + Enum.at(@question.result.picks, index)>>}
               </span>
@@ -632,8 +693,32 @@ defmodule MillenniumQuizWeb.GameLive do
                 "ml-auto tabular-nums font-semibold",
                 if(correct?, do: "text-success", else: "text-base-content/40")
               ]}>
-                {if correct?, do: "0", else: "-#{@question.damage}"}
+                {if correct?,
+                  do: "0",
+                  else: "-#{min(Game.lp_before_reveal(@game, index), @question.damage)}"}
               </span>
+              <p
+                :if={correct?}
+                id={"damage-result-#{index}"}
+                class="basis-full text-sm text-base-content/60 tabular-nums"
+              >
+                No damage. <span class="font-semibold">{player.lp} LP</span>
+              </p>
+              <p
+                :if={not correct? and Game.alive?(@game, index)}
+                id={"damage-result-#{index}"}
+                class="basis-full text-sm font-semibold text-error tabular-nums"
+              >
+                Direct hit! {player.lp + @question.damage} - {@question.damage} = {player.lp} LP
+              </p>
+              <p
+                :if={not correct? and not Game.alive?(@game, index)}
+                id={"damage-result-#{index}"}
+                class="basis-full text-sm font-bold text-error tabular-nums"
+              >
+                K.O.! {Game.lp_before_reveal(@game, index)} LP, {@question.damage} damage: 0 LP left.
+                <span id={"ko-#{index}"} class="uppercase">Eliminated</span>
+              </p>
             </li>
           </ul>
         </div>
@@ -806,7 +891,7 @@ defmodule MillenniumQuizWeb.GameLive do
       cancel_id="cancel-end"
     >
       <p>
-        The final results are shown right away. A question that is not revealed yet will not be scored.
+        The final results are shown right away, ranked by life points. A question that is not revealed yet costs nobody life points.
       </p>
       <p class="mt-2 text-sm text-base-content/60">
         Just need a break? Pause instead and continue later.
@@ -961,7 +1046,8 @@ defmodule MillenniumQuizWeb.GameLive do
 
       <ol class="space-y-2 text-left max-w-sm mx-auto" id="final-standings">
         <li
-          :for={{player, _index, rank} <- @standings}
+          :for={{player, index, rank} <- @standings}
+          id={"final-player-#{index}"}
           class={[
             "flex items-center gap-3 rounded-field border px-4 py-3",
             if(rank == 1, do: "border-primary bg-primary/10", else: "border-base-300")
@@ -970,16 +1056,27 @@ defmodule MillenniumQuizWeb.GameLive do
           <span class="w-6 text-base-content/60 tabular-nums">{rank}.</span>
           <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-16" />
           <span class="flex-1 font-medium">{player.name}</span>
-          <span class="font-semibold tabular-nums">{player.lp || player.score}</span>
+          <span
+            :if={Game.alive?(@game, index)}
+            id={"final-lp-#{index}"}
+            class="font-semibold tabular-nums"
+          >
+            {player.lp || player.score}{if player.lp, do: " LP"}
+          </span>
+          <span
+            :if={not Game.alive?(@game, index)}
+            id={"final-eliminated-#{index}"}
+            class="text-sm font-bold uppercase tracking-wide text-error"
+          >
+            Eliminated
+          </span>
         </li>
       </ol>
 
       <.sticky_bar id="final-bar">
         <div class="flex flex-wrap justify-center gap-2">
           <.link
-            navigate={
-              ~p"/formats/#{@game.format_id}/play?#{[players: Enum.map(@game.players, & &1.name), mode: @game.mode]}"
-            }
+            navigate={~p"/formats/#{@game.format_id}/play?#{play_again_params(@game)}"}
             class="btn btn-primary"
             id="play-again"
           >
@@ -990,6 +1087,12 @@ defmodule MillenniumQuizWeb.GameLive do
       </.sticky_bar>
     </div>
     """
+  end
+
+  # The names, mode and life points of a finished game, for "Play again".
+  defp play_again_params(game) do
+    [players: Enum.map(game.players, & &1.name), mode: game.mode] ++
+      if(game.start_lp, do: [start_lp: game.start_lp], else: [])
   end
 
   ## Lifecycle

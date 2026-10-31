@@ -432,6 +432,25 @@ defmodule MillenniumQuiz.Game do
     end
   end
 
+  @doc """
+  The life points player `index` had before the revealed current question hit
+  them: the start LP minus the damage of every other revealed question they
+  got wrong. Exact, because a player who reaches 0 stops answering, so no
+  earlier hit was cut off at 0.
+  """
+  def lp_before_reveal(%__MODULE__{} = game, index) do
+    lost =
+      for {q, i} <- Enum.with_index(game.questions),
+          i != game.current,
+          %{result: %{picks: picks}} <- [q],
+          pick = Enum.at(picks, index),
+          pick != q.correct,
+          reduce: 0,
+          do: (acc -> acc + q.damage)
+
+    game.start_lp - lost
+  end
+
   @doc "How many players answered an answered question correctly."
   def correct_count(%{result: %{picks: picks}, correct: correct}),
     do: Enum.count(picks, &(&1 == correct))
