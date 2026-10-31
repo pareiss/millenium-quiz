@@ -340,19 +340,25 @@ defmodule MillenniumQuiz.GameTest do
   end
 
   test "the avatars come from the format's set, else from the default pool" do
-    for name <- ~w(Edison Goat Tengu) do
+    for date <- [~D[2010-04-24], ~D[2005-04-01], ~D[2011-09-01]] do
       {:ok, game} =
-        Game.new(%{@format | name: name}, ~w(Ann Bob Cy Di), questions(),
+        Game.new(%{@format | date: date}, ~w(Ann Bob Cy Di), questions(),
           shuffle: &Enum.shuffle/1
         )
 
       avatars = Enum.map(game.players, & &1.avatar)
       assert length(Enum.uniq(avatars)) == 4
-      assert avatars -- MillenniumQuiz.Avatars.for_format(name) == []
+      assert avatars -- MillenniumQuiz.Avatars.for_format(date) == []
     end
 
     default = MillenniumQuiz.Avatars.default_slugs()
-    assert Enum.all?(new_game([], ~w(Ann Bob Cy Di)).players, &(&1.avatar in default))
+
+    {:ok, game} =
+      Game.new(%{@format | date: ~D[2007-01-01]}, ~w(Ann Bob Cy Di), questions(),
+        shuffle: &Enum.shuffle/1
+      )
+
+    assert Enum.all?(game.players, &(&1.avatar in default))
   end
 
   test "games saved before the avatars have none" do

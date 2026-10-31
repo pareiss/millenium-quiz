@@ -7,7 +7,7 @@ defmodule MillenniumQuiz.Avatars do
   pool nor the network for them.
 
   A format can have its own set of monsters (`for_format/1`, by the format's
-  name): the monsters of its popular deck types, so a game of Edison shows
+  date, the one field of a format that never changes): the monsters of its popular deck types, so a game of Edison shows
   Blackwings and Lightsworn, a game of Goat shows Chaos Sorcerer and Don
   Zaloog. Every other format uses the default pool. The sets were made on
   2026-10-28 from the three cards each popular deck type shows on
@@ -219,11 +219,11 @@ defmodule MillenniumQuiz.Avatars do
   ]
 
   @sets %{
-    "edison" =>
+    ~D[2010-04-24] =>
       ~w(blackwing-kalut-the-moon-shadow blackwing-shura-the-blue-flame blackwing-bora-the-spear blackwing-vayu-the-emblem-of-honor blackwing-armor-master dark-grepher elemental-hero-stratos elemental-hero-absolute-zero substitoad gladiator-beast-laquari gladiator-beast-gyzarus lumina-lightsworn-summoner judgment-dragon wulf-lightsworn-beast caius-the-shadow-monarch raiza-the-storm-monarch),
-    "goat" =>
+    ~D[2005-04-01] =>
       ~w(dekoichi-the-battlechanted-locomotive chaos-sorcerer thunder-dragon blade-knight don-zaloog tsukuyomi thousand-eyes-restrict zaborg-the-thunder-monarch gyaku-gire-panda injection-fairy-lily d-d-assailant gigantes goblin-attack-force),
-    "tengu" =>
+    ~D[2011-09-01] =>
       ~w(the-agent-of-mystery-earth master-hyperion gachi-gachi-gantetsu reborn-tengu trishula-dragon-of-the-ice-barrier spore the-fabled-catsith chaos-sorcerer fabled-kushano elemental-hero-neos-alius elemental-hero-the-shining t-g-warwolf t-g-rush-rhino scrap-beast scrap-dragon)
   }
 
@@ -238,12 +238,12 @@ defmodule MillenniumQuiz.Avatars do
   def default_slugs, do: @default_slugs
 
   @doc """
-  The slugs a game of the format called `name` picks its pictures from: the
-  format's own set (Edison, Goat, Tengu; case and surrounding spaces do not
-  matter), else the default pool.
+  The slugs a game of the format with this `date` picks its pictures from: the
+  format's own set (Edison 2010-04-24, Goat 2005-04-01, Tengu 2011-09-01), else
+  the default pool. The date is used because it is fixed when a format is
+  created, while the name can be edited: renaming a format keeps its set.
   """
-  def for_format(name) when is_binary(name),
-    do: Map.get(@sets, name |> String.trim() |> String.downcase(), @default_slugs)
+  def for_format(%Date{} = date), do: Map.get(@sets, date, @default_slugs)
 
   def for_format(_), do: @default_slugs
 

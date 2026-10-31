@@ -197,7 +197,7 @@ defmodule MillenniumQuiz.Game do
                MillenniumQuiz.Avatars.assign(
                  length(names),
                  shuffle,
-                 MillenniumQuiz.Avatars.for_format(format.name)
+                 MillenniumQuiz.Avatars.for_format(format.date)
                )
              )
              |> Enum.map(fn {name, avatar} -> %{name: name, score: 0, avatar: avatar} end),

@@ -29,35 +29,34 @@ defmodule MillenniumQuiz.AvatarsTest do
     assert Avatars.name("nope") == nil
   end
 
+  @set_dates [~D[2010-04-24], ~D[2005-04-01], ~D[2011-09-01]]
+
   describe "sets of the formats" do
-    test "Edison, Goat and Tengu have a set; the name's case and spaces do not matter" do
-      for name <- ~w(Edison Goat Tengu) do
-        set = Avatars.for_format(name)
-        refute set == Avatars.default_slugs()
-        assert Avatars.for_format(String.upcase(name)) == set
-        assert Avatars.for_format("  #{String.downcase(name)} ") == set
+    test "Edison, Goat and Tengu have a set, found by the format's date" do
+      for date <- @set_dates do
+        refute Avatars.for_format(date) == Avatars.default_slugs()
       end
 
-      refute Avatars.for_format("Edison") == Avatars.for_format("Goat")
+      assert Enum.uniq(Enum.map(@set_dates, &Avatars.for_format/1)) |> length() == 3
     end
 
-    test "any other format, and a name that is not a string, use the default pool" do
-      assert Avatars.for_format("HAT Format") == Avatars.default_slugs()
-      assert Avatars.for_format("") == Avatars.default_slugs()
+    test "any other date, and anything that is not a date, use the default pool" do
+      assert Avatars.for_format(~D[2007-01-01]) == Avatars.default_slugs()
       assert Avatars.for_format(nil) == Avatars.default_slugs()
+      assert Avatars.for_format("Goat") == Avatars.default_slugs()
     end
 
     test "a set has monsters of the pool only, without repeats, for the most players of a game" do
-      for name <- ~w(Edison Goat Tengu) do
-        set = Avatars.for_format(name)
-        assert length(set) >= 4, "#{name} has too few monsters"
+      for date <- @set_dates do
+        set = Avatars.for_format(date)
+        assert length(set) >= 4, "#{date} has too few monsters"
         assert set == Enum.uniq(set)
-        assert Enum.all?(set, &Avatars.path/1), "#{name} has a slug that is not in the pool"
+        assert Enum.all?(set, &Avatars.path/1), "#{date} has a slug that is not in the pool"
       end
     end
 
     test "assign picks from the set it is given" do
-      set = Avatars.for_format("Goat")
+      set = Avatars.for_format(~D[2005-04-01])
 
       for _ <- 1..20 do
         assert Avatars.assign(4, &Enum.shuffle/1, set) -- set == []
