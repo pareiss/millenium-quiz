@@ -365,6 +365,25 @@ defmodule MillenniumQuiz.Avatars do
     %{size: zoom * 1.0, left: offset(x, zoom), top: offset(y, zoom)}
   end
 
+  @doc """
+  The focus values (whole percents) that still move the picture at `zoom`: the
+  circle can't leave the artwork, so beyond these `crop_box/1` is the same.
+
+      iex> MillenniumQuiz.Avatars.focus_range(150)
+      33..67
+      iex> MillenniumQuiz.Avatars.focus_range(100)
+      50..50
+  """
+  def focus_range(zoom) do
+    trunc(Float.floor(5000 / zoom))..trunc(Float.ceil(100 - 5000 / zoom))
+  end
+
+  @doc "`crop` with x and y moved into `focus_range/1`, so they show what the picture does."
+  def clamp_focus(%{x: x, y: y, zoom: zoom} = crop) do
+    lo..hi//_ = focus_range(zoom)
+    %{crop | x: x |> max(lo) |> min(hi), y: y |> max(lo) |> min(hi)}
+  end
+
   defp offset(focus, zoom) do
     (50 - focus * zoom / 100) |> max(100 - zoom) |> min(0) |> Kernel.*(1.0)
   end

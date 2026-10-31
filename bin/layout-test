@@ -582,7 +582,8 @@ with sync_playwright() as p:
                 fx, fy = 0.15 + (i * 7 % 70) / 100, 0.2 + (i * 11 % 60) / 100
                 bb = page.locator("#crop-artwork").bounding_box()
                 page.mouse.click(bb["x"] + fx * bb["width"], bb["y"] + fy * bb["height"])
-                want_x, want_y = round(fx * 100), round(fy * 100)
+                # at the default zoom of 150 % the circle stops at a focus of 33 and 67, so do the sliders
+                want_x, want_y = (min(67, max(33, round(v * 100))) for v in (fx, fy))
                 try:
                     page.wait_for_function(
                         "([x, y]) => Math.abs(document.querySelector('#crop-x').value - x) <= 2 && Math.abs(document.querySelector('#crop-y').value - y) <= 2",
@@ -590,7 +591,7 @@ with sync_playwright() as p:
                 except PlaywrightTimeout:
                     pass
                 got = page.evaluate("() => [document.querySelector('#crop-x').value, document.querySelector('#crop-y').value]")
-                check(f"{name}: a click at {want_x}%,{want_y}% of the artwork sets the sliders to it",
+                check(f"{name}: a click at {round(fx * 100)}%,{round(fy * 100)}% of the artwork sets the sliders to it (within 33..67)",
                       abs(int(got[0]) - want_x) <= 2 and abs(int(got[1]) - want_y) <= 2, f"{got} wanted {[want_x, want_y]}")
 
             # zoom to 250 with the slider (the keyboard fallback), then save

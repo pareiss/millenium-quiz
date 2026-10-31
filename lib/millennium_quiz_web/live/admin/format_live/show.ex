@@ -351,11 +351,14 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
     %{card: card, x: x, y: y, zoom: zoom} = assigns.edit
     crop = %{x: x, y: y, zoom: zoom}
     box = Avatars.crop_box(crop)
+    focus_min..focus_max//_ = Avatars.focus_range(zoom)
 
     assigns =
       assigns
       |> assign(:card, card)
       |> assign(:crop, crop)
+      |> assign(:focus_min, focus_min)
+      |> assign(:focus_max, focus_max)
       |> assign(:slug, Avatars.card_slug(card.id))
       |> assign(:frame_size, Float.round(10_000 / zoom, 2))
       |> assign(:frame_left, Float.round(-box.left / box.size * 100, 2) + 0.0)
@@ -410,8 +413,8 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
               field={@form[:x]}
               id="crop-x"
               type="range"
-              min="0"
-              max="100"
+              min={@focus_min}
+              max={@focus_max}
               step="1"
               label={"Horizontal: #{@edit.x}"}
               class="h-11 w-full cursor-pointer accent-primary"
@@ -420,8 +423,8 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
               field={@form[:y]}
               id="crop-y"
               type="range"
-              min="0"
-              max="100"
+              min={@focus_min}
+              max={@focus_max}
               step="1"
               label={"Vertical: #{@edit.y}"}
               class="h-11 w-full cursor-pointer accent-primary"
@@ -772,7 +775,9 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
 
   defp parse_int(_value, _range), do: :error
 
-  defp assign_crop_edit(socket, %{card: _, x: x, y: y, zoom: zoom} = edit) do
+  defp assign_crop_edit(socket, %{card: _, x: _, y: _, zoom: _} = edit) do
+    %{x: x, y: y, zoom: zoom} = edit = Map.merge(edit, Avatars.clamp_focus(edit))
+
     socket
     |> assign(:crop_edit, edit)
     |> assign(:crop_form, to_form(%{"x" => x, "y" => y, "zoom" => zoom}, as: :crop))

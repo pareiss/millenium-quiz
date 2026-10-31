@@ -77,7 +77,7 @@ defmodule MillenniumQuizWeb.AdminAvatarCropsTest do
       assert has_element?(view, "#crop-editor", "Crop Dragon")
       assert has_element?(view, "#crop-artwork[phx-hook]")
       assert has_element?(view, "#crop-artwork img[src='/cards/#{a.id}/artwork?w=400']")
-      assert has_element?(view, "#crop-x[type=range][min='0'][max='100'][value='50']")
+      assert has_element?(view, "#crop-x[type=range][min='33'][max='67'][value='50']")
       assert has_element?(view, "#crop-y[type=range][value='50']")
       assert has_element?(view, "#crop-zoom[type=range][min='100'][max='300'][value='150']")
       assert has_element?(view, "label", "Zoom: 150%")
@@ -124,13 +124,36 @@ defmodule MillenniumQuizWeb.AdminAvatarCropsTest do
 
     test "a click on the artwork (the hook's event) sets the focus point", %{view: view, a: a} do
       view |> element("#crop-avatar-#{a.id}") |> render_click()
-      render_hook(view, "crop_focus", %{"x" => 80, "y" => 10})
+      render_hook(view, "crop_focus", %{"x" => 60, "y" => 40})
 
-      assert has_element?(view, "#crop-x[value='80']")
-      assert has_element?(view, "#crop-y[value='10']")
+      assert has_element?(view, "#crop-x[value='60']")
+      assert has_element?(view, "#crop-y[value='40']")
       assert has_element?(view, "#crop-zoom[value='150']")
-      assert frame_style(view) =~ "left:"
-      assert has_element?(view, "label", "Horizontal: 80")
+      assert frame_style(view) =~ "left:26.67%;top:6.67%"
+      assert has_element?(view, "label", "Horizontal: 60")
+    end
+
+    test "the values never change where the circle can't move", %{view: view, a: a} do
+      view |> element("#crop-avatar-#{a.id}") |> render_click()
+
+      # at 150 % the circle stops at a focus of 33 and of 67
+      render_hook(view, "crop_focus", %{"x" => 80, "y" => 10})
+      assert has_element?(view, "#crop-x[value='67']")
+      assert has_element?(view, "#crop-y[value='33']")
+      assert has_element?(view, "label", "Horizontal: 67")
+      assert has_element?(view, "label", "Vertical: 33")
+      assert frame_style(view) =~ "left:33.33%;top:0.0%"
+
+      sliders(view, "5", "99", "150")
+      assert has_element?(view, "#crop-x[value='33']")
+      assert has_element?(view, "#crop-y[value='67']")
+
+      # a bigger zoom widens the sliders, a smaller one narrows them (and pulls the values in)
+      sliders(view, "33", "67", "300")
+      assert has_element?(view, "#crop-x[min='16'][max='84'][value='33']")
+      sliders(view, "33", "67", "100")
+      assert has_element?(view, "#crop-x[min='50'][max='50'][value='50']")
+      assert has_element?(view, "#crop-y[min='50'][max='50'][value='50']")
     end
 
     test "Save stores the crop and the grid shows it", %{view: view, a: a, b: b} do
@@ -216,12 +239,12 @@ defmodule MillenniumQuizWeb.AdminAvatarCropsTest do
       # and the editor of a card of the list cannot be pointed at another card
       {:ok, view2, _} = live(conn, ~p"/admin/formats/#{other}")
       render_hook(view2, "edit_crop", %{"id" => "#{stranger.id}"})
-      render_hook(view2, "crop_focus", %{"x" => 1, "y" => 2, "id" => "#{loose.id}"})
+      render_hook(view2, "crop_focus", %{"x" => 40, "y" => 60, "id" => "#{loose.id}"})
       view2 |> form("#crop-form") |> render_submit()
       assert Quiz.avatar_crop(loose.id) == Avatars.default_crop()
 
       assert Quiz.avatar_crop(stranger.id) ==
-               Avatars.default_crop() |> Map.put(:x, 1) |> Map.put(:y, 2)
+               Avatars.default_crop() |> Map.put(:x, 40) |> Map.put(:y, 60)
     end
 
     test "malformed and forged events are ignored", %{view: view, a: a} do
