@@ -70,6 +70,34 @@
     </script>
   </head>
   <body class="min-h-dvh bg-base-200/40">
+    <%!-- The shape of the Synchro ring (`DuelComponents.synchro_ring/1`), defined once.
+         12 identical dashes: pathLength 96, dash 5 + gap 3. The colours are CSS variables
+         (as style, because var() does not work in a presentation attribute). --%>
+    <svg width="0" height="0" class="absolute" aria-hidden="true" focusable="false">
+      <symbol id="duel-ring" viewBox="0 0 64 64">
+        <g transform="rotate(-98.75 32 32)">
+          <circle
+            cx="32"
+            cy="32"
+            r="29"
+            fill="none"
+            stroke-width="5"
+            pathLength="96"
+            stroke-dasharray="5 3"
+            style="stroke: var(--duel-sync, #5dff7a)"
+          />
+        </g>
+        <circle
+          cx="32"
+          cy="32"
+          r="24.5"
+          fill="none"
+          stroke-width="1.2"
+          opacity=".8"
+          style="stroke: var(--duel-ring-inner, #19d3ff)"
+        />
+      </symbol>
+    </svg>
     {@inner_content}
   </body>
 </html>
