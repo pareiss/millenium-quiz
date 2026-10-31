@@ -307,15 +307,255 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   --duel-p2: #ff3d4f;
   --duel-p3: #ffb020;
   --duel-p4: #b57bff;
+  --duel-sync: #5dff7a;
+  --duel-ring-inner: #19d3ff;
+  --duel-num: #f2fbff;
+  --duel-ko: #8393a6;
 }
 [data-theme=duel-light] {
   --duel-p1: #076f96;
   --duel-p2: #c9202f;
   --duel-p3: #8a5a00;
   --duel-p4: #7a35d6;
+  --duel-sync: #167a38;
+  --duel-ring-inner: #076f96;
+  --duel-num: #0e1620;
+  --duel-ko: #55657a;
 }
 :is([data-theme=duel-dark], [data-theme=duel-light]) :is(h1, h2, h3, h4, .card-title, .btn, .badge, th) {
   font-family: var(--duel-font-display);
+}
+
+/* Duel components (lib/millennium_quiz_web/components/duel_components.ex): LP gauge,
+   ATK label, Synchro ring, orb rail. Duel themes only. The gauge is a size container
+   and rearranges itself: wide >= 420px, compact 200-419, mini < 200, tight < 100. */
+[data-theme=duel-dark], [data-theme=duel-light] {
+  .duel-gauge {
+    container-type: inline-size;
+    container-name: duel-gauge;
+    width: 100%;
+    min-width: 0;
+    --pc: var(--duel-p1);
+    --cut: 0.6rem;
+    --clip: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)),
+      calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  }
+  .duel-gauge[data-player="2"] { --pc: var(--duel-p2); }
+  .duel-gauge[data-player="3"] { --pc: var(--duel-p3); }
+  .duel-gauge[data-player="4"] { --pc: var(--duel-p4); }
+
+  .duel-gauge-body {
+    position: relative;
+    display: grid;
+    align-items: center;
+    column-gap: 0.75rem;
+    row-gap: 0.35rem;
+    padding: 0.6rem 0.75rem;
+    color: var(--color-base-content);
+    background: color-mix(in oklab, var(--pc) 50%, transparent);
+    clip-path: var(--clip);
+    /* wide layout (default) */
+    grid-template-columns: 3.75rem minmax(0, 1fr) auto;
+    grid-template-areas: "avatar name plate" "avatar bar plate";
+  }
+  .duel-gauge[data-active="true"] .duel-gauge-body { background: var(--duel-sync); }
+  .duel-gauge-body::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    background: var(--color-base-100);
+    clip-path: var(--clip);
+  }
+  .duel-gauge-body > * { position: relative; }
+
+  .duel-gauge-avatar { grid-area: avatar; width: 3.75rem; aspect-ratio: 1; }
+  .duel-gauge-avatar-plain {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 9999px;
+    overflow: hidden;
+    background: var(--color-base-300);
+    box-shadow: 0 0 0 2px var(--pc);
+    transform: scale(0.8);
+  }
+  .duel-ring { filter: drop-shadow(0 0 0.25rem color-mix(in oklab, var(--duel-sync) 55%, transparent)); }
+  .duel-ring-inner { background: var(--color-base-300); }
+
+  .duel-gauge-name {
+    grid-area: name;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+
+  .duel-gauge-plate {
+    grid-area: plate;
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: baseline;
+    justify-content: end;
+    column-gap: 0.5rem;
+    padding: 0.25rem 0.9rem;
+    background: var(--color-base-200);
+    border-block: 1px solid color-mix(in oklab, var(--pc) 55%, transparent);
+    clip-path: polygon(0.5rem 0, 100% 0, calc(100% - 0.5rem) 100%, 0 100%);
+  }
+  .duel-gauge-lp-label {
+    font-family: var(--duel-font-display);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--pc);
+  }
+  .duel-gauge-num {
+    font-family: var(--duel-font-display);
+    font-size: 1.9rem;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--duel-num);
+    font-variant-numeric: tabular-nums;
+  }
+  .duel-gauge-zeros { opacity: 0.55; }
+  .duel-gauge-ko, .duel-gauge-dmg {
+    grid-column: 1 / -1;
+    justify-self: end;
+    font-family: var(--duel-font-display);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+  }
+  .duel-gauge-dmg { color: var(--color-error); }
+  .duel-gauge-ko {
+    padding: 0 0.4rem;
+    background: var(--color-error);
+    color: var(--color-error-content);
+  }
+
+  .duel-gauge-bar {
+    grid-area: bar;
+    position: relative;
+    height: 0.9rem;
+    background: var(--color-base-300);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 0.5rem) 100%, 0 100%);
+    /* 20 slots: the bar, its fill and the ghost are cut into blocks by one mask */
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 calc(5% - 2px), transparent calc(5% - 2px) 5%);
+    mask-image: repeating-linear-gradient(90deg, #000 0 calc(5% - 2px), transparent calc(5% - 2px) 5%);
+  }
+  .duel-gauge-fill, .duel-gauge-ghost { position: absolute; top: 0; bottom: 0; }
+  .duel-gauge-fill { left: 0; background: var(--pc); }
+  .duel-gauge-ghost {
+    background: repeating-linear-gradient(135deg, var(--color-error) 0 3px, transparent 3px 6px);
+  }
+  .duel-gauge[data-status="hit"] .duel-gauge-body::before {
+    background: color-mix(in oklab, var(--color-error) 12%, var(--color-base-100));
+  }
+
+  /* K.O.: greyed out */
+  .duel-gauge[data-status="eliminated"] .duel-gauge-body { background: var(--duel-ko); }
+  .duel-gauge[data-status="eliminated"] :is(.duel-gauge-avatar, .duel-gauge-name) {
+    filter: grayscale(1);
+    opacity: 0.7;
+  }
+  .duel-gauge[data-status="eliminated"] .duel-gauge-num { color: var(--duel-ko); text-shadow: none; }
+  .duel-gauge[data-status="eliminated"] .duel-gauge-lp-label { color: var(--duel-ko); }
+  .duel-gauge[data-status="eliminated"] .duel-gauge-fill { background: var(--duel-ko); }
+
+  /* compact */
+  @container duel-gauge (max-width: 419.98px) {
+    .duel-gauge-body {
+      column-gap: 0.5rem;
+      padding: 0.45rem 0.55rem;
+      grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    }
+    .duel-gauge-avatar { width: 2.5rem; }
+    .duel-gauge-name { font-size: 0.8rem; letter-spacing: 0.08em; }
+    .duel-gauge-num { font-size: 1.25rem; }
+    .duel-gauge-lp-label { font-size: 0.6rem; }
+    .duel-gauge-plate { column-gap: 0.3rem; padding-inline: 0.7rem; }
+    .duel-gauge-bar { height: 0.65rem; }
+  }
+  /* mini: the number goes under the name, the bar under both */
+  @container duel-gauge (max-width: 199.98px) {
+    .duel-gauge-body {
+      grid-template-columns: 2.25rem minmax(0, 1fr);
+      grid-template-areas: "avatar name" "avatar plate" "bar bar";
+    }
+    .duel-gauge-avatar { width: 2.25rem; }
+    .duel-gauge-plate { justify-self: start; }
+    .duel-gauge-ko, .duel-gauge-dmg { justify-self: start; }
+  }
+  /* tight: number and bar only; the name stays for screen readers */
+  @container duel-gauge (max-width: 99.98px) {
+    .duel-gauge-body {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "plate" "bar";
+      padding: 0.35rem;
+    }
+    .duel-gauge-avatar { display: none; }
+    .duel-gauge-name {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    .duel-gauge-lp-label { display: none; }
+    .duel-gauge-plate { justify-self: stretch; justify-content: center; padding-inline: 0.3rem; }
+    .duel-gauge-num { font-size: 0.95rem; }
+  }
+
+  /* ATK label */
+  .duel-atk { display: inline-flex; align-items: baseline; gap: 0.4em; }
+  .duel-atk-pill {
+    font-family: var(--duel-font-display);
+    font-size: 0.65em;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    line-height: 1;
+    padding: 0.3em 0.6em;
+    background: var(--color-secondary);
+    color: var(--color-secondary-content);
+    clip-path: polygon(0.3em 0, 100% 0, calc(100% - 0.3em) 100%, 0 100%);
+  }
+  .duel-atk-value { font-family: var(--duel-font-display); font-weight: 800; }
+
+  /* orb rail: slanted blocks */
+  .duel-rail { display: flex; align-items: center; gap: 0.25rem; width: 100%; height: 1.25rem; }
+  .duel-rail-block {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 0.5rem;
+    transform: skewX(-30deg);
+    background: var(--color-base-300);
+    border: 1px solid color-mix(in oklab, var(--color-base-content) 22%, transparent);
+  }
+  .duel-rail-block[data-state="answered"] {
+    background: var(--duel-sync);
+    border-color: var(--duel-sync);
+  }
+  .duel-rail-block[data-state="current"] {
+    height: 1.1rem;
+    background: var(--color-primary);
+    border-color: var(--color-base-content);
+    box-shadow: 0 0 0.75rem var(--color-primary), inset 0 0 0.3rem var(--color-primary-content);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .duel-rail-block[data-state="current"] { animation: duel-orb 2.4s ease-in-out infinite; }
+  }
+}
+/* the neon glow of the number: the dark variant only */
+[data-theme=duel-dark] .duel-gauge:not([data-status="eliminated"]) .duel-gauge-num {
+  text-shadow: 0 0 0.6rem color-mix(in oklab, var(--pc) 70%, transparent);
+}
+@keyframes duel-orb {
+  50% { box-shadow: 0 0 1.25rem var(--color-primary), inset 0 0 0.3rem var(--color-primary-content); }
 }
 
 /* Old paper, after real cards: soft, round clouds of lighter and darker

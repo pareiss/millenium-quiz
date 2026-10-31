@@ -86,6 +86,7 @@ defmodule MillenniumQuizWeb do
       import Phoenix.HTML
       # Core UI components
       import MillenniumQuizWeb.CoreComponents
+      import MillenniumQuizWeb.DuelComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
