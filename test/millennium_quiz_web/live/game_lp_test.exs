@@ -129,6 +129,9 @@ defmodule MillenniumQuizWeb.GameLpTest do
 
       assert has_element?(view, "#damage-result-0", "No damage")
       assert has_element?(view, "#damage-result-1", "K.O.")
+      # Bob had 1000 LP before the 2500 hit: the row says what he really lost
+      assert has_element?(view, "#damage-result-1", "1000 LP, 2500 damage")
+      assert has_element?(view, "#result-1", "-1000")
       assert has_element?(view, "#eliminated-1")
       assert has_element?(view, "#next-round", "Show final results")
       view |> element("#next-round") |> render_click()

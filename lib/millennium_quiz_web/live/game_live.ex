@@ -681,11 +681,11 @@ defmodule MillenniumQuizWeb.GameLive do
                 class={["size-5 shrink-0", if(correct?, do: "text-success", else: "text-error")]}
               />
               <.avatar
-                slug={Enum.at(@game.players, index).avatar}
-                crop={@crops[Enum.at(@game.players, index).avatar]}
+                slug={player.avatar}
+                crop={@crops[player.avatar]}
                 class="size-12"
               />
-              <span class="min-w-0 font-medium break-words">{Enum.at(@game.players, index).name}</span>
+              <span class="min-w-0 font-medium break-words">{player.name}</span>
               <span class="shrink-0 text-sm text-base-content/60">
                 picked {<<?A + Enum.at(@question.result.picks, index)>>}
               </span>
@@ -693,7 +693,9 @@ defmodule MillenniumQuizWeb.GameLive do
                 "ml-auto tabular-nums font-semibold",
                 if(correct?, do: "text-success", else: "text-base-content/40")
               ]}>
-                {if correct?, do: "0", else: "-#{@question.damage}"}
+                {if correct?,
+                  do: "0",
+                  else: "-#{min(Game.lp_before_reveal(@game, index), @question.damage)}"}
               </span>
               <p
                 :if={correct?}
@@ -714,7 +716,7 @@ defmodule MillenniumQuizWeb.GameLive do
                 id={"damage-result-#{index}"}
                 class="basis-full text-sm font-bold text-error tabular-nums"
               >
-                K.O.! {@question.damage} damage, 0 LP left.
+                K.O.! {Game.lp_before_reveal(@game, index)} LP, {@question.damage} damage: 0 LP left.
                 <span id={"ko-#{index}"} class="uppercase">Eliminated</span>
               </p>
             </li>

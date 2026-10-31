@@ -521,6 +521,20 @@ defmodule MillenniumQuiz.GameTest do
       assert Enum.map(game.players, & &1.eliminated_at) == [1, nil]
     end
 
+    test "lp_before_reveal/2 is the start LP minus the earlier wrong answers" do
+      # Ann answers wrong on the first question (100), Bob is right
+      game = ladder_game(8) |> round_of([1, 0])
+      assert Game.lp_before_reveal(game, 0) == 4000
+      assert Game.lp_before_reveal(game, 1) == 4000
+
+      {:ok, game} = Game.next_round(game)
+      # second question (400): Bob answers first and is right, Ann wrong and out at 50
+      game = game |> set_lp(0, 50) |> round_of([0, 1])
+      assert lps(game) == [0, 4000]
+      assert Game.lp_before_reveal(game, 0) == 3900
+      assert Game.lp_before_reveal(game, 1) == 4000
+    end
+
     test "an eliminated player is skipped as chooser and in the answering order" do
       game = ladder_game(10, [], ~w(Ann Bob Cy)) |> set_lp(1, 50)
       # Ann chooses, Bob (answering second) is wrong and out

@@ -11,7 +11,7 @@ defmodule MillenniumQuizWeb.HomeLive do
         <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">Yu-Gi-Oh! Trivia</p>
         <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">Choose your format</h1>
         <p class="text-base-content/70 max-w-xl mx-auto">
-          2 to 4 players, one device. Take turns choosing questions from the board: a duel of life points: a wrong answer costs damage, the harder the question the more. Be the last one standing.
+          2 to 4 players, one device. A duel of life points: take turns choosing questions from the board. A wrong answer costs damage, and harder questions hit harder. Be the last one standing.
         </p>
       </section>
 
