@@ -133,10 +133,18 @@ Google Fonts) and are not preloaded. `test/millennium_quiz_web/duel_theme_test.e
 checks the WCAG contrast of the key colour pairs (4.5:1) of both variants.
 
 Building blocks of the duel look live in `components/duel_components.ex` (imported
-with the core components; CSS under the duel themes in `app.css`; not used on the game
-screens yet): `lp_gauge` (avatar, name, LP number with leading zeros on a plate, a
+with the core components; their CSS in `app.css` uses the daisyUI colours and the
+`--duel-*` tokens, so they look right in every theme, and the duel themes add the cut
+corners, the segmented bar, Orbitron and the glow). The game screens (`game_live.ex`) use
+them: a gauge per player in the scoreboard (two to a row on a phone, so a name keeps its
+room; a hit shows its ghost in the reveal), the orb rail as question progress, the ATK
+label on the board tiles and the Level Up! topic buttons, the Synchro ring in the "pass the
+device" bar. The panels, tiles, answers and result rows carry `duel-*` hook classes that
+only the duel themes dress up (plates with cut corners, the red banner); in the other
+themes they keep their plain daisyUI look. `bin/layout-test` runs under a theme with
+`LAYOUT_THEME=duel-dark` (or `duel-light`, `light`, `dark`). The components: `lp_gauge` (avatar, name, LP number with leading zeros on a plate, a
 depleting bar, a damage ghost, K.O. state; one markup that rearranges itself by
-container width: wide from 420px, compact 200-419, mini below 200, tight below 100),
+container width: wide from 420px, compact 300-419, mini below 300, tight below 100),
 `atk_label` (the red ATK pill before a value), `synchro_ring` (12 identical dashes
 around an avatar, the turn marker; its shape is the `<symbol id="duel-ring">` in the
 root layout) and `orb_rail` (question progress as slanted blocks). State is never by

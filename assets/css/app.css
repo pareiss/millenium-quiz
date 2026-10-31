@@ -287,22 +287,13 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   font-display: swap;
 }
 
-/* Duel theme tokens: player colours (P1 cyan, P2 red, P3 amber, P4 violet;
-   darker in the light variant to read on pale metal) and the cut-corner
-   shapes (--duel-cut is the size of the corner cut). */
-[data-theme=duel-dark], [data-theme=duel-light] {
-  --duel-cut: 0.75rem;
-  --duel-clip-cut: polygon(
-    var(--duel-cut) 0, 100% 0, 100% calc(100% - var(--duel-cut)),
-    calc(100% - var(--duel-cut)) 100%, 0 100%, 0 var(--duel-cut));
-  --duel-clip-tab: polygon(
-    0 0, calc(100% - var(--duel-cut)) 0, 100% var(--duel-cut), 100% 100%, 0 100%);
-  --duel-font-display: "Orbitron", ui-sans-serif, system-ui, sans-serif;
-  --duel-font-body: "Rajdhani", ui-sans-serif, system-ui, sans-serif;
-  font-family: var(--duel-font-body);
-  font-weight: 500;
-}
-[data-theme=duel-dark] {
+/* Game tokens, in every theme: the player colours (P1 cyan, P2 red, P3 amber, P4
+   violet; darker on the light themes to read on a pale ground), the Synchro green
+   and the colour of the LP numbers. The look that is only the duel themes' (Orbitron,
+   upper case, cut corners, glow) is below; here is what the game screens need to
+   look right in any theme. --duel-radius, --duel-font-display, --duel-case and
+   --duel-track are the plain values and the duel themes replace them. */
+:root, [data-theme=dark], [data-theme=duel-dark] {
   --duel-p1: #19d3ff;
   --duel-p2: #ff3d4f;
   --duel-p3: #ffb020;
@@ -312,7 +303,7 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   --duel-num: #f2fbff;
   --duel-ko: #8393a6;
 }
-[data-theme=duel-light] {
+[data-theme=light], [data-theme=duel-light] {
   --duel-p1: #076f96;
   --duel-p2: #c9202f;
   --duel-p3: #8a5a00;
@@ -322,241 +313,491 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   --duel-num: #0e1620;
   --duel-ko: #55657a;
 }
+:root {
+  --duel-radius: var(--radius-field);
+  --duel-font-display: inherit;
+  --duel-case: none;
+  --duel-track: 0;
+}
+
+/* Duel theme tokens: the cut-corner shapes (--duel-cut is the size of the corner cut),
+   the fonts and the upper-case, spaced headings. */
+[data-theme=duel-dark], [data-theme=duel-light] {
+  --duel-radius: 0px;
+  --duel-case: uppercase;
+  --duel-track: 0.12em;
+  --duel-cut: 0.75rem;
+  --duel-clip-cut: polygon(
+    var(--duel-cut) 0, 100% 0, 100% calc(100% - var(--duel-cut)),
+    calc(100% - var(--duel-cut)) 100%, 0 100%, 0 var(--duel-cut));
+  --duel-clip-tab: polygon(
+    0 0, calc(100% - var(--duel-cut)) 0, 100% var(--duel-cut), 100% 100%, 0 100%);
+  --duel-clip-foot: polygon(
+    0 0, 100% 0, 100% calc(100% - var(--duel-cut)), calc(100% - var(--duel-cut)) 100%, 0 100%);
+  --duel-font-display: "Orbitron", ui-sans-serif, system-ui, sans-serif;
+  --duel-font-body: "Rajdhani", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--duel-font-body);
+  font-weight: 500;
+}
 :is([data-theme=duel-dark], [data-theme=duel-light]) :is(h1, h2, h3, h4, .card-title, .btn, .badge, th) {
   font-family: var(--duel-font-display);
 }
 
 /* Duel components (lib/millennium_quiz_web/components/duel_components.ex): LP gauge,
-   ATK label, Synchro ring, orb rail. Duel themes only. The gauge is a size container
-   and rearranges itself: wide >= 420px, compact 200-419, mini < 200, tight < 100. */
+   ATK label, Synchro ring, orb rail. They use the daisyUI colours and the tokens above,
+   so they look right in every theme; the duel themes add the cut corners, the segmented
+   bar and the glow (further down). The gauge is a size container and rearranges
+   itself: wide >= 420px, compact 300-419, mini < 300, tight < 100. */
+.duel-gauge {
+  container-type: inline-size;
+  container-name: duel-gauge;
+  width: 100%;
+  min-width: 0;
+  --pc: var(--duel-p1);
+}
+.duel-gauge[data-player="2"] { --pc: var(--duel-p2); }
+.duel-gauge[data-player="3"] { --pc: var(--duel-p3); }
+.duel-gauge[data-player="4"] { --pc: var(--duel-p4); }
+
+.duel-gauge-body {
+  position: relative;
+  display: grid;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.35rem;
+  padding: 0.6rem 0.75rem;
+  color: var(--color-base-content);
+  border-radius: var(--duel-radius);
+  background: color-mix(in oklab, var(--pc) 50%, transparent);
+  /* wide layout (default) */
+  grid-template-columns: 3.75rem minmax(0, 1fr) auto;
+  grid-template-areas: "avatar name plate" "avatar bar plate";
+}
+.duel-gauge[data-active="true"] .duel-gauge-body { background: var(--duel-sync); }
+.duel-gauge-body::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: var(--color-base-100);
+}
+.duel-gauge-body > * { position: relative; }
+
+.duel-gauge-avatar { grid-area: avatar; width: 3.75rem; aspect-ratio: 1; }
+.duel-gauge-avatar-plain {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--color-base-300);
+  box-shadow: 0 0 0 2px var(--pc);
+  transform: scale(0.8);
+}
+.duel-ring { filter: drop-shadow(0 0 0.25rem color-mix(in oklab, var(--duel-sync) 55%, transparent)); }
+.duel-ring-inner { background: var(--color-base-300); }
+
+.duel-gauge-name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: var(--duel-track);
+  text-transform: var(--duel-case);
+  line-height: 1.2;
+}
+
+.duel-gauge-plate {
+  grid-area: plate;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  justify-content: end;
+  column-gap: 0.5rem;
+  padding: 0.25rem 0.9rem;
+  border-radius: var(--duel-radius);
+  background: var(--color-base-200);
+  border-block: 1px solid color-mix(in oklab, var(--pc) 55%, transparent);
+}
+.duel-gauge-lp-label {
+  font-family: var(--duel-font-display);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--pc);
+}
+.duel-gauge-num {
+  font-family: var(--duel-font-display);
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--duel-num);
+  font-variant-numeric: tabular-nums;
+}
+.duel-gauge-zeros { opacity: 0.55; }
+.duel-gauge-ko, .duel-gauge-dmg {
+  grid-column: 1 / -1;
+  justify-self: end;
+  font-family: var(--duel-font-display);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.duel-gauge-dmg { color: var(--color-error); }
+.duel-gauge-ko {
+  padding: 0 0.4rem;
+  background: var(--color-error);
+  color: var(--color-error-content);
+}
+
+.duel-gauge-bar {
+  grid-area: bar;
+  position: relative;
+  height: 0.9rem;
+  background: var(--color-base-300);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.duel-gauge-fill, .duel-gauge-ghost { position: absolute; top: 0; bottom: 0; }
+.duel-gauge-fill { left: 0; background: var(--pc); }
+.duel-gauge-ghost {
+  background: repeating-linear-gradient(135deg, var(--color-error) 0 3px, transparent 3px 6px);
+}
+.duel-gauge[data-status="hit"] .duel-gauge-body::before {
+  background: color-mix(in oklab, var(--color-error) 12%, var(--color-base-100));
+}
+
+/* K.O.: greyed out */
+.duel-gauge[data-status="eliminated"] .duel-gauge-body { background: var(--duel-ko); }
+.duel-gauge[data-status="eliminated"] :is(.duel-gauge-avatar, .duel-gauge-name) {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+.duel-gauge[data-status="eliminated"] .duel-gauge-num { color: var(--duel-ko); text-shadow: none; }
+.duel-gauge[data-status="eliminated"] .duel-gauge-lp-label { color: var(--duel-ko); }
+.duel-gauge[data-status="eliminated"] .duel-gauge-fill { background: var(--duel-ko); }
+
+/* compact */
+@container duel-gauge (max-width: 419.98px) {
+  .duel-gauge-body {
+    column-gap: 0.5rem;
+    padding: 0.45rem 0.55rem;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  }
+  .duel-gauge-avatar { width: 2.5rem; }
+  .duel-gauge-name { font-size: 0.8rem; letter-spacing: calc(var(--duel-track) * 0.65); }
+  .duel-gauge-num { font-size: 1.25rem; }
+  .duel-gauge-lp-label { font-size: 0.6rem; }
+  .duel-gauge-plate { column-gap: 0.3rem; padding-inline: 0.7rem; }
+  .duel-gauge-bar { height: 0.65rem; }
+}
+/* mini: the number goes under the name, the bar under both */
+@container duel-gauge (max-width: 299.98px) {
+  .duel-gauge-body {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    grid-template-areas: "avatar name" "plate plate" "bar bar";
+    column-gap: 0.4rem;
+  }
+  .duel-gauge-avatar { width: 2rem; }
+  .duel-gauge-name { letter-spacing: 0.02em; }
+  .duel-gauge-plate { justify-self: start; padding-inline: 0.5rem; }
+  .duel-gauge-num { font-size: 1.1rem; }
+  .duel-gauge-ko, .duel-gauge-dmg { justify-self: start; }
+}
+/* tight: number and bar only; the name stays for screen readers */
+@container duel-gauge (max-width: 99.98px) {
+  .duel-gauge-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "plate" "bar";
+    padding: 0.35rem;
+  }
+  .duel-gauge-avatar { display: none; }
+  .duel-gauge-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .duel-gauge-lp-label { display: none; }
+  .duel-gauge-plate { justify-self: stretch; justify-content: center; padding-inline: 0.3rem; }
+  .duel-gauge-num { font-size: 0.95rem; }
+}
+
+/* ATK label */
+.duel-atk { display: inline-flex; align-items: baseline; justify-content: center; flex-wrap: wrap; column-gap: 0.4em; row-gap: 0.1em; }
+.duel-atk-pill {
+  font-family: var(--duel-font-display);
+  font-size: 0.65em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  padding: 0.3em 0.6em;
+  border-radius: calc(var(--duel-radius) + 0.2em);
+  background: var(--color-secondary);
+  color: var(--color-secondary-content);
+}
+.duel-atk-value { font-family: var(--duel-font-display); font-weight: 800; }
+
+/* orb rail: slanted blocks (--n is the number of blocks: many of them get a thin gap) */
+.duel-rail {
+  display: flex;
+  align-items: center;
+  gap: min(0.25rem, calc(50% / var(--n, 16)));
+  width: 100%;
+  height: 1.25rem;
+}
+.duel-rail-block {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 0.5rem;
+  transform: skewX(-30deg);
+  background: var(--color-base-300);
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 22%, transparent);
+}
+.duel-rail-block[data-state="answered"] {
+  background: var(--duel-sync);
+  border-color: var(--duel-sync);
+}
+.duel-rail-block[data-state="current"] {
+  height: 1.1rem;
+  background: var(--color-primary);
+  border-color: var(--color-base-content);
+  box-shadow: 0 0 0.75rem var(--color-primary), inset 0 0 0.3rem var(--color-primary-content);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .duel-rail-block[data-state="current"] { animation: duel-orb 2.4s ease-in-out infinite; }
+}
+@keyframes duel-orb {
+  50% { box-shadow: 0 0 1.25rem var(--color-primary), inset 0 0 0.3rem var(--color-primary-content); }
+}
+
+/* The duel themes: cut corners, the segmented bar, the glow of the numbers */
 [data-theme=duel-dark], [data-theme=duel-light] {
   .duel-gauge {
-    container-type: inline-size;
-    container-name: duel-gauge;
-    width: 100%;
-    min-width: 0;
-    --pc: var(--duel-p1);
     --cut: 0.6rem;
     --clip: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)),
       calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
   }
-  .duel-gauge[data-player="2"] { --pc: var(--duel-p2); }
-  .duel-gauge[data-player="3"] { --pc: var(--duel-p3); }
-  .duel-gauge[data-player="4"] { --pc: var(--duel-p4); }
-
-  .duel-gauge-body {
-    position: relative;
-    display: grid;
-    align-items: center;
-    column-gap: 0.75rem;
-    row-gap: 0.35rem;
-    padding: 0.6rem 0.75rem;
-    color: var(--color-base-content);
-    background: color-mix(in oklab, var(--pc) 50%, transparent);
-    clip-path: var(--clip);
-    /* wide layout (default) */
-    grid-template-columns: 3.75rem minmax(0, 1fr) auto;
-    grid-template-areas: "avatar name plate" "avatar bar plate";
-  }
-  .duel-gauge[data-active="true"] .duel-gauge-body { background: var(--duel-sync); }
-  .duel-gauge-body::before {
-    content: "";
-    position: absolute;
-    inset: 1px;
-    background: var(--color-base-100);
-    clip-path: var(--clip);
-  }
-  .duel-gauge-body > * { position: relative; }
-
-  .duel-gauge-avatar { grid-area: avatar; width: 3.75rem; aspect-ratio: 1; }
-  .duel-gauge-avatar-plain {
-    display: block;
-    width: 100%;
-    height: 100%;
-    border-radius: 9999px;
-    overflow: hidden;
-    background: var(--color-base-300);
-    box-shadow: 0 0 0 2px var(--pc);
-    transform: scale(0.8);
-  }
-  .duel-ring { filter: drop-shadow(0 0 0.25rem color-mix(in oklab, var(--duel-sync) 55%, transparent)); }
-  .duel-ring-inner { background: var(--color-base-300); }
-
-  .duel-gauge-name {
-    grid-area: name;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    line-height: 1.2;
-  }
-
-  .duel-gauge-plate {
-    grid-area: plate;
-    display: grid;
-    grid-template-columns: auto auto;
-    align-items: baseline;
-    justify-content: end;
-    column-gap: 0.5rem;
-    padding: 0.25rem 0.9rem;
-    background: var(--color-base-200);
-    border-block: 1px solid color-mix(in oklab, var(--pc) 55%, transparent);
-    clip-path: polygon(0.5rem 0, 100% 0, calc(100% - 0.5rem) 100%, 0 100%);
-  }
-  .duel-gauge-lp-label {
-    font-family: var(--duel-font-display);
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: var(--pc);
-  }
-  .duel-gauge-num {
-    font-family: var(--duel-font-display);
-    font-size: 1.9rem;
-    font-weight: 800;
-    line-height: 1.1;
-    color: var(--duel-num);
-    font-variant-numeric: tabular-nums;
-  }
-  .duel-gauge-zeros { opacity: 0.55; }
-  .duel-gauge-ko, .duel-gauge-dmg {
-    grid-column: 1 / -1;
-    justify-self: end;
-    font-family: var(--duel-font-display);
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-  }
-  .duel-gauge-dmg { color: var(--color-error); }
-  .duel-gauge-ko {
-    padding: 0 0.4rem;
-    background: var(--color-error);
-    color: var(--color-error-content);
-  }
-
+  .duel-gauge-body, .duel-gauge-body::before { clip-path: var(--clip); }
+  .duel-gauge-plate { clip-path: polygon(0.5rem 0, 100% 0, calc(100% - 0.5rem) 100%, 0 100%); }
   .duel-gauge-bar {
-    grid-area: bar;
-    position: relative;
-    height: 0.9rem;
-    background: var(--color-base-300);
+    border-radius: 0;
+    overflow: visible;
     clip-path: polygon(0 0, 100% 0, calc(100% - 0.5rem) 100%, 0 100%);
     /* 20 slots: the bar, its fill and the ghost are cut into blocks by one mask */
     -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 calc(5% - 2px), transparent calc(5% - 2px) 5%);
     mask-image: repeating-linear-gradient(90deg, #000 0 calc(5% - 2px), transparent calc(5% - 2px) 5%);
   }
-  .duel-gauge-fill, .duel-gauge-ghost { position: absolute; top: 0; bottom: 0; }
-  .duel-gauge-fill { left: 0; background: var(--pc); }
-  .duel-gauge-ghost {
-    background: repeating-linear-gradient(135deg, var(--color-error) 0 3px, transparent 3px 6px);
-  }
-  .duel-gauge[data-status="hit"] .duel-gauge-body::before {
-    background: color-mix(in oklab, var(--color-error) 12%, var(--color-base-100));
-  }
-
-  /* K.O.: greyed out */
-  .duel-gauge[data-status="eliminated"] .duel-gauge-body { background: var(--duel-ko); }
-  .duel-gauge[data-status="eliminated"] :is(.duel-gauge-avatar, .duel-gauge-name) {
-    filter: grayscale(1);
-    opacity: 0.7;
-  }
-  .duel-gauge[data-status="eliminated"] .duel-gauge-num { color: var(--duel-ko); text-shadow: none; }
-  .duel-gauge[data-status="eliminated"] .duel-gauge-lp-label { color: var(--duel-ko); }
-  .duel-gauge[data-status="eliminated"] .duel-gauge-fill { background: var(--duel-ko); }
-
-  /* compact */
-  @container duel-gauge (max-width: 419.98px) {
-    .duel-gauge-body {
-      column-gap: 0.5rem;
-      padding: 0.45rem 0.55rem;
-      grid-template-columns: 2.5rem minmax(0, 1fr) auto;
-    }
-    .duel-gauge-avatar { width: 2.5rem; }
-    .duel-gauge-name { font-size: 0.8rem; letter-spacing: 0.08em; }
-    .duel-gauge-num { font-size: 1.25rem; }
-    .duel-gauge-lp-label { font-size: 0.6rem; }
-    .duel-gauge-plate { column-gap: 0.3rem; padding-inline: 0.7rem; }
-    .duel-gauge-bar { height: 0.65rem; }
-  }
-  /* mini: the number goes under the name, the bar under both */
-  @container duel-gauge (max-width: 199.98px) {
-    .duel-gauge-body {
-      grid-template-columns: 2.25rem minmax(0, 1fr);
-      grid-template-areas: "avatar name" "avatar plate" "bar bar";
-    }
-    .duel-gauge-avatar { width: 2.25rem; }
-    .duel-gauge-plate { justify-self: start; }
-    .duel-gauge-ko, .duel-gauge-dmg { justify-self: start; }
-  }
-  /* tight: number and bar only; the name stays for screen readers */
-  @container duel-gauge (max-width: 99.98px) {
-    .duel-gauge-body {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-areas: "plate" "bar";
-      padding: 0.35rem;
-    }
-    .duel-gauge-avatar { display: none; }
-    .duel-gauge-name {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-    }
-    .duel-gauge-lp-label { display: none; }
-    .duel-gauge-plate { justify-self: stretch; justify-content: center; padding-inline: 0.3rem; }
-    .duel-gauge-num { font-size: 0.95rem; }
-  }
-
-  /* ATK label */
-  .duel-atk { display: inline-flex; align-items: baseline; gap: 0.4em; }
-  .duel-atk-pill {
-    font-family: var(--duel-font-display);
-    font-size: 0.65em;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    line-height: 1;
-    padding: 0.3em 0.6em;
-    background: var(--color-secondary);
-    color: var(--color-secondary-content);
-    clip-path: polygon(0.3em 0, 100% 0, calc(100% - 0.3em) 100%, 0 100%);
-  }
-  .duel-atk-value { font-family: var(--duel-font-display); font-weight: 800; }
-
-  /* orb rail: slanted blocks */
-  .duel-rail { display: flex; align-items: center; gap: 0.25rem; width: 100%; height: 1.25rem; }
-  .duel-rail-block {
-    flex: 1 1 0;
-    min-width: 0;
-    height: 0.5rem;
-    transform: skewX(-30deg);
-    background: var(--color-base-300);
-    border: 1px solid color-mix(in oklab, var(--color-base-content) 22%, transparent);
-  }
-  .duel-rail-block[data-state="answered"] {
-    background: var(--duel-sync);
-    border-color: var(--duel-sync);
-  }
-  .duel-rail-block[data-state="current"] {
-    height: 1.1rem;
-    background: var(--color-primary);
-    border-color: var(--color-base-content);
-    box-shadow: 0 0 0.75rem var(--color-primary), inset 0 0 0.3rem var(--color-primary-content);
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .duel-rail-block[data-state="current"] { animation: duel-orb 2.4s ease-in-out infinite; }
-  }
+  .duel-atk-pill { clip-path: polygon(0.3em 0, 100% 0, calc(100% - 0.3em) 100%, 0 100%); }
 }
 /* the neon glow of the number: the dark variant only */
 [data-theme=duel-dark] .duel-gauge:not([data-status="eliminated"]) .duel-gauge-num {
   text-shadow: 0 0 0.6rem color-mix(in oklab, var(--pc) 70%, transparent);
 }
-@keyframes duel-orb {
-  50% { box-shadow: 0 0 1.25rem var(--color-primary), inset 0 0 0.3rem var(--color-primary-content); }
+
+/* The game screens (GameLive). The markup carries plain daisyUI/Tailwind classes, so
+   every theme has a complete look; the classes with a "duel-" prefix are the hooks the
+   duel themes dress up (plates with cut corners, the red banner, slanted tiles). */
+.duel-headline {
+  text-align: center;
+  font-family: var(--duel-font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: var(--duel-track);
+  text-transform: var(--duel-case);
+  color: var(--color-primary);
 }
+.duel-headline[data-tone="hit"], .duel-headline[data-tone="ko"] { color: var(--color-error); }
+.duel-headline[data-tone="safe"] { color: var(--duel-sync); }
+.duel-rank { --pc: var(--color-primary); }
+.duel-rank[data-player="1"] { --pc: var(--duel-p1); }
+.duel-rank[data-player="2"] { --pc: var(--duel-p2); }
+.duel-rank[data-player="3"] { --pc: var(--duel-p3); }
+.duel-rank[data-player="4"] { --pc: var(--duel-p4); }
+.duel-rank-bar { display: block; height: 0.5rem; border-radius: 9999px; overflow: hidden; background: var(--color-base-300); }
+.duel-rank-bar > span { display: block; height: 100%; background: var(--pc); }
+/* the ATK pill on the gold topic button of Level Up!: the button's own colours */
+.duel-topic .duel-atk-pill { background: var(--color-primary-content); color: var(--color-primary); }
+
+[data-theme=duel-dark], [data-theme=duel-light] {
+  /* a plate: a 1px edge and a fill, both cut by --plate-clip, drawn behind the content
+     (the element itself has no clip-path, so a popover or a focus ring is not cut) */
+  .duel-plate {
+    position: relative;
+    isolation: isolate;
+    border-width: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+    --plate-clip: var(--duel-clip-cut);
+    --plate-border: color-mix(in oklab, var(--color-primary) 42%, transparent);
+    --plate-fill: var(--color-base-100);
+  }
+  .duel-plate::before, .duel-plate::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    clip-path: var(--plate-clip);
+    transition: background-color 0.15s;
+  }
+  .duel-plate::before { inset: 0; background: var(--plate-border); }
+  .duel-plate::after { inset: 1px; background: var(--plate-fill); }
+
+  /* the turn banner: red metal, fading darker to the right, the top left corner cut */
+  .duel-banner {
+    background: linear-gradient(90deg,
+      color-mix(in oklab, var(--color-secondary) 80%, black),
+      color-mix(in oklab, var(--color-secondary) 42%, black));
+    color: #fff;
+    clip-path: polygon(var(--duel-cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--duel-cut));
+    font-family: var(--duel-font-display);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .duel-banner strong { font-size: 1.05em; }
+  .duel-foot { border-radius: 0; clip-path: var(--duel-clip-foot); }
+
+  .duel-title { text-transform: uppercase; letter-spacing: 0.06em; }
+  .duel-headline { font-size: clamp(1.4rem, 7vw, 2.25rem); letter-spacing: 0.16em; }
+  .duel-headline[data-tone="duel"] { color: var(--color-primary); }
+
+  /* tabs: the topic and the damage of a question */
+  .duel-tag {
+    border: 0;
+    border-radius: 0;
+    padding-inline: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: color-mix(in oklab, var(--color-primary) 16%, var(--color-base-100));
+    color: var(--color-primary);
+    clip-path: polygon(0.4rem 0, 100% 0, calc(100% - 0.4rem) 100%, 0 100%);
+  }
+  .duel-tag--atk { background: var(--color-secondary); color: var(--color-secondary-content); }
+
+  /* the board: slanted tiles; an open question glows cyan, an answered or a later one is dim */
+  .duel-tile, .duel-topic {
+    --plate-clip: polygon(0.55rem 0, 100% 0, calc(100% - 0.55rem) 100%, 0 100%);
+  }
+  .duel-tile { color: var(--duel-num); }
+  .duel-tile[data-state="open"], .duel-tile[data-state="next"] {
+    --plate-border: var(--color-primary);
+    --plate-fill: color-mix(in oklab, var(--color-primary) 16%, var(--color-base-100));
+  }
+  .duel-tile[data-state="open"]:hover:enabled {
+    --plate-fill: color-mix(in oklab, var(--color-primary) 34%, var(--color-base-100));
+  }
+  .duel-tile[data-state="done"], .duel-tile[data-state="later"] {
+    --plate-border: color-mix(in oklab, var(--color-base-content) 14%, transparent);
+    --plate-fill: var(--color-base-200);
+    color: color-mix(in oklab, var(--color-base-content) 62%, var(--color-base-100));
+  }
+  .duel-topic {
+    font-family: var(--duel-font-body);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+    --plate-border: var(--color-primary);
+    --plate-fill: color-mix(in oklab, var(--color-primary) 14%, var(--color-base-100));
+  }
+  .duel-topic[data-state="next"]:hover:enabled {
+    --plate-fill: color-mix(in oklab, var(--color-primary) 30%, var(--color-base-100));
+  }
+  .duel-topic[data-state="done"] {
+    --plate-border: color-mix(in oklab, var(--color-base-content) 14%, transparent);
+    --plate-fill: var(--color-base-200);
+    color: color-mix(in oklab, var(--color-base-content) 62%, var(--color-base-100));
+  }
+  .duel-topic .duel-atk-pill { background: var(--color-secondary); color: var(--color-secondary-content); }
+  @media (min-width: 40rem) {
+    .duel-topic { font-family: var(--duel-font-display); font-size: 0.75rem; }
+  }
+
+  /* answers */
+  .duel-choice {
+    --plate-border: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+    font-weight: 600;
+  }
+  .duel-choice:is(button):enabled:hover, .duel-choice:is(button):focus-visible {
+    --plate-border: var(--duel-sync);
+    --plate-fill: color-mix(in oklab, var(--duel-sync) 9%, var(--color-base-100));
+  }
+  .duel-choice[data-correct="true"] {
+    --plate-border: var(--duel-sync);
+    --plate-fill: color-mix(in oklab, var(--duel-sync) 14%, var(--color-base-100));
+  }
+  .duel-letter {
+    border-radius: 0;
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+    font-family: var(--duel-font-display);
+    font-weight: 800;
+    clip-path: polygon(0.35rem 0, 100% 0, calc(100% - 0.35rem) 100%, 0 100%);
+  }
+
+  /* the result rows of a reveal */
+  .duel-rows { display: grid; gap: 0.5rem; border-width: 0; }
+  .duel-row[data-result="right"] {
+    --plate-border: color-mix(in oklab, var(--duel-sync) 70%, transparent);
+    --plate-fill: color-mix(in oklab, var(--duel-sync) 8%, var(--color-base-100));
+  }
+  .duel-row[data-result="hit"] {
+    --plate-border: color-mix(in oklab, var(--color-error) 75%, transparent);
+    --plate-fill: color-mix(in oklab, var(--color-error) 8%, var(--color-base-100));
+  }
+  .duel-row[data-result="ko"] {
+    --plate-border: var(--duel-ko);
+    --plate-fill: color-mix(in oklab, var(--duel-ko) 14%, var(--color-base-100));
+  }
+  .duel-eq-lp, .duel-eq-dmg {
+    display: inline-block;
+    padding: 0.05rem 0.55rem;
+    font-family: var(--duel-font-display);
+    font-weight: 800;
+    color: var(--duel-num);
+    background: var(--color-base-200);
+    clip-path: polygon(0.3rem 0, 100% 0, calc(100% - 0.3rem) 100%, 0 100%);
+  }
+  .duel-eq-dmg { background: color-mix(in oklab, var(--color-error) 28%, var(--color-base-100)); }
+  .duel-ko-tag {
+    display: inline-block;
+    padding: 0 0.5rem;
+    font-family: var(--duel-font-display);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    background: var(--color-error);
+    color: var(--color-error-content);
+  }
+
+  /* the final ranking */
+  .duel-rank[data-rank="1"] {
+    --plate-border: var(--duel-p3);
+    --plate-fill: color-mix(in oklab, var(--duel-p3) 10%, var(--color-base-100));
+  }
+  .duel-rank-no { font-family: var(--duel-font-display); font-size: 1.25rem; font-weight: 800; }
+  .duel-rank[data-rank="1"] .duel-rank-no { color: var(--duel-p3); }
+  .duel-rank-bar { border-radius: 0; height: 0.55rem; clip-path: polygon(0 0, 100% 0, calc(100% - 0.4rem) 100%, 0 100%);
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 calc(5% - 2px), transparent calc(5% - 2px) 5%);
+    mask-image: repeating-linear-gradient(90deg, #000 0 calc(5% - 2px), transparent calc(5% - 2px) 5%); }
+  .duel-rank-lp {
+    padding: 0.2rem 0.7rem;
+    font-family: var(--duel-font-display);
+    font-weight: 800;
+    color: var(--duel-num);
+    background: var(--color-base-200);
+    clip-path: polygon(0.4rem 0, 100% 0, calc(100% - 0.4rem) 100%, 0 100%);
+  }
+}
+[data-theme=duel-dark] .duel-headline { text-shadow: 0 0 1rem color-mix(in oklab, currentColor 55%, transparent); }
 
 /* Old paper, after real cards: soft, round clouds of lighter and darker
    colour (isotropic noise in a fixed-size tile, never stretched) and a fine

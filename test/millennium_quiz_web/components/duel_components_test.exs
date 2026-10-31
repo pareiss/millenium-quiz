@@ -33,7 +33,10 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
       assert count(html, ".duel-gauge-avatar") == 1
       assert count(html, ".duel-gauge-plate") == 1
       assert count(html, ".duel-gauge-bar") == 1
-      assert attr(html, ".duel-gauge-bar", "aria-hidden") == ["true"]
+      assert attr(html, ".duel-gauge-bar", "role") == ["progressbar"]
+      assert attr(html, ".duel-gauge-bar", "aria-label") == ["Yugi's life points"]
+      assert attr(html, ".duel-gauge-bar", "aria-valuenow") == ["4000"]
+      assert attr(html, ".duel-gauge-bar", "aria-valuemax") == ["4000"]
       assert attr(html, ".duel-gauge-fill", "style") == ["width:100.0%"]
 
       assert text(gauge(lp: 30), ".duel-gauge-num") == "00030"
@@ -42,11 +45,18 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
       assert text(gauge(lp: 5, start_lp: 100_000), ".duel-gauge-num") == "000005"
     end
 
+    test "the number and the bar take the ids the game screens give them" do
+      html = gauge(lp_id: "lp-0", bar_id: "lp-bar-0", lp: 1000)
+      assert text(html, "#lp-0") == "01000"
+      assert attr(html, "#lp-bar-0", "aria-valuenow") == ["1000"]
+      assert attr(html, "#lp-bar-0 .duel-gauge-fill", "style") == ["width:25.0%"]
+    end
+
     test "the size classes are container queries in the CSS, on a size container" do
       assert gauge() =~ "duel-gauge"
       assert @css =~ "container-type: inline-size"
 
-      for max <- ["419.98px", "199.98px", "99.98px"],
+      for max <- ["419.98px", "299.98px", "99.98px"],
           do: assert(@css =~ "@container duel-gauge (max-width: #{max})")
     end
 
@@ -173,7 +183,14 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
 
   describe "contrast of the colours the components add" do
     defp tokens(theme) do
-      [_, block] = Regex.run(~r/^\[data-theme=#{theme}\] \{(.*?)\n\}/ms, @css)
+      # the tokens are shared with the plain themes of the same brightness
+      selector =
+        case theme do
+          "duel-dark" -> ":root, [data-theme=dark], [data-theme=duel-dark]"
+          "duel-light" -> "[data-theme=light], [data-theme=duel-light]"
+        end
+
+      [_, block] = Regex.run(~r/^#{Regex.escape(selector)} \{(.*?)\n\}/ms, @css)
 
       ~r/--duel-([a-z0-9-]+): (#[0-9a-f]{6});/
       |> Regex.scan(block)

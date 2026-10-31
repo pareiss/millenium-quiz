@@ -3,10 +3,10 @@ defmodule MillenniumQuizWeb.DuelComponents do
   Building blocks of the opt-in "duel" look (5D's / Neo Domino): the life point
   gauge, the ATK label, the Synchro ring and the question progress rail.
 
-  Their CSS is in `assets/css/app.css` and applies only under the daisyUI themes
-  `duel-dark` and `duel-light`; under the other themes the markup is unstyled but
-  still readable (names, numbers and status are real text). They are not used on
-  the game screens yet.
+  Their CSS is in `assets/css/app.css` and uses the daisyUI colours, so they look
+  right in every theme; the duel themes `duel-dark` and `duel-light` add the cut
+  corners, the segmented bar, Orbitron and the glow. Names, numbers and status are
+  real text. The game screens (`GameLive`) use them.
   """
   use Phoenix.Component
 
@@ -17,7 +17,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
   leading zeros), a depleting bar and, after a hit, a ghost of the lost part.
 
   One markup for every width: the wrapper is a container, and the CSS rearranges
-  it at 420px and wider (wide), 200 to 419px (compact), below 200px (mini) and below
+  it at 420px and wider (wide), 300 to 419px (compact), below 300px (mini) and below
   100px (tight: number and bar only, the name stays for screen readers).
 
   The state is never shown by colour alone: a hit shows its damage as text, an
@@ -25,6 +25,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
   Synchro ring around the avatar and `aria-current`.
   """
   attr :id, :string, default: nil
+  attr :lp_id, :string, default: nil, doc: "the id of the number (its text is the LP)"
+  attr :bar_id, :string, default: nil, doc: "the id of the bar, a progress bar of the LP"
   attr :name, :string, required: true
   attr :avatar, :string, default: nil, doc: "the avatar slug"
   attr :crop, :map, default: nil, doc: "the avatar's crop, see `CoreComponents.avatar/1`"
@@ -76,7 +78,10 @@ defmodule MillenniumQuizWeb.DuelComponents do
         <span class="duel-gauge-name" title={@name}>{@name}</span>
         <div class="duel-gauge-plate">
           <span class="duel-gauge-lp-label" aria-hidden="true">LP</span>
-          <span class="duel-gauge-num"><span :if={@number.zeros != ""} class="duel-gauge-zeros">{@number.zeros}</span>{@number.digits}</span>
+          <span id={@lp_id} class="duel-gauge-num"><span
+            :if={@number.zeros != ""}
+            class="duel-gauge-zeros"
+          >{@number.zeros}</span>{@number.digits}</span>
           <span :if={@status == :eliminated} class="duel-gauge-ko">
             <span aria-hidden="true">✕</span> K.O.
           </span>
@@ -87,7 +92,15 @@ defmodule MillenniumQuizWeb.DuelComponents do
             <span aria-hidden="true">▼</span> HIT
           </span>
         </div>
-        <div class="duel-gauge-bar" aria-hidden="true">
+        <div
+          id={@bar_id}
+          class="duel-gauge-bar"
+          role="progressbar"
+          aria-label={"#{@name}'s life points"}
+          aria-valuemin="0"
+          aria-valuemax={@start_lp}
+          aria-valuenow={@lp_value}
+        >
           <div class="duel-gauge-fill" style={"width:#{@lp_pct}%"}></div>
           <div
             :if={@ghost_pct && @ghost_pct > 0}
@@ -178,6 +191,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
     <div
       id={@id}
       class={["duel-rail", @class]}
+      style={"--n:#{@total}"}
       role="progressbar"
       aria-valuemin="1"
       aria-valuemax={@total}
