@@ -33,6 +33,15 @@ defmodule MillenniumQuizWeb.GameLiveTest do
     assert MillenniumQuiz.Repo.aggregate(GameRecord, :count) == count
   end
 
+  test "Add player comes before the game mode choice", %{conn: conn, format: format} do
+    {:ok, _view, html} = live(conn, ~p"/formats/#{format.id}/play")
+
+    {add, _} = :binary.match(html, ~s(id="add-player"))
+    {mode, _} = :binary.match(html, ~s(id="mode-choice"))
+    {start, _} = :binary.match(html, ~s(id="start-game"))
+    assert add < mode and mode < start
+  end
+
   test "starting a game validates the players", %{conn: conn, format: format} do
     {:ok, view, _html} = live(conn, ~p"/formats/#{format.id}/play")
 
