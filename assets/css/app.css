@@ -293,7 +293,7 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
    upper case, cut corners, glow) is below; here is what the game screens need to
    look right in any theme. --duel-radius, --duel-font-display, --duel-case and
    --duel-track are the plain values and the duel themes replace them. */
-:root, [data-theme=dark], [data-theme=duel-dark] {
+[data-theme=dark], [data-theme=duel-dark] {
   --duel-p1: #19d3ff;
   --duel-p2: #ff3d4f;
   --duel-p3: #ffb020;
@@ -302,8 +302,9 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   --duel-ring-inner: #19d3ff;
   --duel-num: #f2fbff;
   --duel-ko: #8393a6;
+  --duel-ko-text: #1a0507;
 }
-[data-theme=light], [data-theme=duel-light] {
+:root, [data-theme=light], [data-theme=duel-light] {
   --duel-p1: #076f96;
   --duel-p2: #c9202f;
   --duel-p3: #8a5a00;
@@ -312,6 +313,7 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   --duel-ring-inner: #076f96;
   --duel-num: #0e1620;
   --duel-ko: #55657a;
+  --duel-ko-text: #ffffff;
 }
 :root {
   --duel-radius: var(--radius-field);
@@ -789,7 +791,7 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
     font-size: 0.7rem;
     letter-spacing: 0.08em;
     background: var(--color-error);
-    color: var(--color-error-content);
+    color: var(--duel-ko-text);
   }
 
   /* the final ranking */

@@ -157,7 +157,7 @@ defmodule MillenniumQuizWeb.GameLive do
         id="game-progress"
         class="mq-qhide"
         total={Game.total_rounds(@game)}
-        current={@game.round}
+        current={if @game.phase == :revealed, do: @game.round + 1, else: @game.round}
         label="Question"
       />
       <%!-- while a question is up the css hides it (app.css): a phone or tablet
