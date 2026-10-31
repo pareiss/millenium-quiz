@@ -111,6 +111,23 @@ shows today's monster text in every format. Games paused before cards were drawn
 with a plain frame and no artwork. How a card looks always follows the
 current app; its data (texts, stats) is fixed when a game starts.
 
+### Themes and fonts
+
+The site has a light and a dark "Millennium" theme (gold on parchment or
+indigo; the toggle offers system, light and dark). An opt-in "duel" theme in the
+5D's / Neo Domino style (metal greys, neon cyan, red, Synchro green) exists as
+the daisyUI themes `duel-dark` and `duel-light` in `assets/css/app.css`. It is
+never the default: open any page with `?theme=duel` (follows the system's light
+or dark), `?theme=duel-dark` or `?theme=duel-light`; the choice is kept in
+`localStorage` (`phx:theme`) until the toggle or `?theme=system` replaces it.
+Only under these themes do Orbitron (headings, buttons, badges) and Rajdhani
+(body) apply, and the CSS variables `--duel-p1`..`--duel-p4` (player colours,
+darker in the light variant), `--duel-cut`, `--duel-clip-cut` and
+`--duel-clip-tab` (cut-corner shapes) are defined. The duel fonts are latin
+subsets in `priv/static/fonts` (SIL OFL, licence files next to them, from
+Google Fonts) and are not preloaded. `test/millennium_quiz_web/duel_theme_test.exs`
+checks the WCAG contrast of the key colour pairs (4.5:1) of both variants.
+
 ## Backup and restore
 
 The only data that cannot be fetched again is the quiz you wrote. A backup is

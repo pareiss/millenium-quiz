@@ -57,7 +57,11 @@ defmodule MillenniumQuizWeb.PwaTest do
           "/images/apple-touch-icon.png",
           "/fonts/Cinzel.woff2",
           "/fonts/CrimsonPro.woff2",
-          "/fonts/CrimsonPro-Italic.woff2"
+          "/fonts/CrimsonPro-Italic.woff2",
+          "/fonts/Orbitron.woff2",
+          "/fonts/Rajdhani-500.woff2",
+          "/fonts/Rajdhani-600.woff2",
+          "/fonts/Rajdhani-700.woff2"
         ]
 
     for file <- files, do: assert(File.exists?(Path.join(static, file)), "missing #{file}")
