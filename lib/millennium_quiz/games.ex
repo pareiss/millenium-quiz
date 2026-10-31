@@ -19,7 +19,7 @@ defmodule MillenniumQuiz.Games do
 
   require Logger
 
-  alias MillenniumQuiz.{Game, Quiz, Repo}
+  alias MillenniumQuiz.{Avatars, Cards.Card, Game, Quiz, Repo}
   alias MillenniumQuiz.Games.{GameRecord, Server}
 
   @pubsub MillenniumQuiz.PubSub
@@ -144,7 +144,50 @@ defmodule MillenniumQuiz.Games do
         where: g.id in ^ids and g.status in [:active, :paused],
         order_by: [desc: g.updated_at]
     )
-    |> Enum.map(&%{id: &1.id, status: &1.status, game: Game.from_map(&1.state)})
+    |> Enum.map(
+      &%{id: &1.id, status: &1.status, game: &1.state |> Game.from_map() |> heal_avatars()}
+    )
+  end
+
+  @doc """
+  A player whose picture is a card that has since left the card pool gets a
+  picture of the default pool instead (a different one for each such player,
+  starting from a place that depends on the card, so the same game always
+  shows the same replacement). Everything else stays as it is.
+  """
+  def heal_avatars(%Game{players: players} = game) do
+    ids = for %{avatar: slug} <- players, id = Avatars.card_id(slug), do: id
+
+    existing =
+      if ids == [],
+        do: MapSet.new(),
+        else: MapSet.new(Repo.all(from c in Card, where: c.id in ^ids, select: c.id))
+
+    if Enum.all?(ids, &(&1 in existing)) do
+      game
+    else
+      taken = for %{avatar: slug} <- players, do: slug
+      {players, _taken} = Enum.map_reduce(players, taken, &heal_player(&1, &2, existing))
+      %{game | players: players}
+    end
+  end
+
+  defp heal_player(%{avatar: slug} = player, taken, existing) do
+    case Avatars.card_id(slug) do
+      id when is_integer(id) ->
+        if id in existing do
+          {player, taken}
+        else
+          default = Avatars.default_slugs()
+          offset = rem(id, length(default))
+          {front, back} = Enum.split(default, offset)
+          free = Enum.find(back ++ front, hd(default), &(&1 not in taken))
+          {%{player | avatar: free}, [free | taken]}
+        end
+
+      nil ->
+        {player, taken}
+    end
   end
 
   def subscribe(id), do: Phoenix.PubSub.subscribe(@pubsub, topic(id))

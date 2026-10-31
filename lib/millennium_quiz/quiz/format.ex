@@ -6,7 +6,7 @@ defmodule MillenniumQuiz.Quiz.Format do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias MillenniumQuiz.Quiz.Topic
+  alias MillenniumQuiz.Quiz.{FormatAvatarCard, Topic}
 
   @min_topics 2
   @max_topics 6
@@ -18,6 +18,12 @@ defmodule MillenniumQuiz.Quiz.Format do
     field :date, :date
 
     has_many :topics, Topic, preload_order: [asc: :position], on_replace: :delete
+
+    # The cards chosen as profile pictures (ids only; `Quiz.avatar_cards/1`
+    # has the names). Never cast: they are edited through `Quiz`.
+    has_many :avatar_cards, FormatAvatarCard,
+      preload_order: [asc: :position, asc: :id],
+      on_replace: :delete
 
     timestamps(type: :utc_datetime)
   end

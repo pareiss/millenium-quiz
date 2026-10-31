@@ -88,6 +88,128 @@ defmodule MillenniumQuiz.Quiz.ExportImportTest do
     assert strip(Export.build()) == strip(before)
   end
 
+  describe "avatar cards" do
+    defp avatar_quiz do
+      {:ok, reborn} = Cards.import(CardSourcesStub.reborn().password)
+      {:ok, plain} = Cards.import(CardSourcesStub.plain().password)
+      format = format_fixture(%{"name" => "Avatars", "date" => "2020-01-01"})
+      {:ok, _} = Quiz.add_avatar_card(format.id, plain.id)
+      {:ok, _} = Quiz.add_avatar_card(format.id, reborn.id)
+      format
+    end
+
+    test "are exported in order and survive a round trip" do
+      avatar_quiz()
+      export = Export.build()
+
+      assert [%{"avatar_cards" => cards}] = export["formats"]
+      assert Enum.map(cards, & &1["password"]) == [11_111_111, 83_764_718]
+      assert Enum.map(cards, & &1["name"]) == ["Plain Card", "Monster Reborn"]
+
+      json = Export.to_json()
+      clear_quiz()
+      assert {:ok, %{formats_created: 1, warnings: []}} = Import.run(json)
+      assert strip(Export.build()) == strip(export)
+    end
+
+    test "crops are exported only where stored and survive a round trip" do
+      avatar_quiz()
+      plain = Repo.get_by!(Card, password: 11_111_111)
+      {:ok, _} = Quiz.set_avatar_crop(plain.id, %{x: 20, y: 70, zoom: 200})
+      export = Export.build()
+
+      assert [%{"avatar_cards" => [with_crop, without]}] = export["formats"]
+      assert with_crop["crop"] == %{"x" => 20, "y" => 70, "zoom" => 200}
+      refute Map.has_key?(without, "crop")
+
+      json = Export.to_json()
+      clear_quiz()
+      Quiz.reset_avatar_crop(plain.id)
+      assert {:ok, %{formats_created: 1, warnings: []}} = Import.run(json)
+      assert Quiz.avatar_crop(plain.id) == %{x: 20, y: 70, zoom: 200}
+      assert strip(Export.build()) == strip(export)
+    end
+
+    test "an imported crop does not overwrite a local one" do
+      avatar_quiz()
+      plain = Repo.get_by!(Card, password: 11_111_111)
+      {:ok, _} = Quiz.set_avatar_crop(plain.id, %{x: 20, y: 70, zoom: 200})
+      json = Export.to_json()
+      clear_quiz()
+      {:ok, _} = Quiz.set_avatar_crop(plain.id, %{x: 90, y: 10, zoom: 250})
+
+      assert {:ok, %{formats_created: 1, warnings: []}} = Import.run(json)
+      assert Quiz.avatar_crop(plain.id) == %{x: 90, y: 10, zoom: 250}
+    end
+
+    test "an invalid crop is a warning, the card is still a picture" do
+      avatar_quiz()
+      export = Export.build()
+      plain = Repo.get_by!(Card, password: 11_111_111)
+
+      for bad <- [
+            %{"x" => 101, "y" => 50, "zoom" => 150},
+            %{"x" => 50, "y" => 50, "zoom" => 99},
+            %{"x" => "50", "y" => 50, "zoom" => 150},
+            %{"x" => 50, "y" => 50},
+            "centre"
+          ] do
+        bad_export =
+          put_in(export, ["formats", Access.at(0), "avatar_cards", Access.at(0), "crop"], bad)
+
+        clear_quiz()
+
+        assert {:ok, %{formats_created: 1, warnings: [w]}} = Import.run(bad_export)
+        assert w =~ "Plain Card" and w =~ "crop"
+        assert Quiz.avatar_crop(plain.id) == MillenniumQuiz.Avatars.default_crop()
+        assert [%{"avatar_cards" => [_, _]}] = Export.build()["formats"]
+      end
+    end
+
+    test "a backup without the key imports with none" do
+      avatar_quiz()
+
+      old =
+        Export.build()
+        |> update_in(["formats"], fn fs -> Enum.map(fs, &Map.delete(&1, "avatar_cards")) end)
+
+      clear_quiz()
+      assert {:ok, %{formats_created: 1, warnings: []}} = Import.run(old)
+      assert [%{"avatar_cards" => []}] = Export.build()["formats"]
+    end
+
+    test "a card that can't be a picture is a warning, the format is still created" do
+      avatar_quiz()
+      export = Export.build()
+      # both cards are newer than this format's date
+      late = put_in(export, ["formats", Access.at(0), "date"], "1999-01-01")
+      clear_quiz()
+
+      assert {:ok, %{formats_created: 1, warnings: [w1, w2]}} = Import.run(late)
+      assert w1 =~ "Plain Card" and w2 =~ "Monster Reborn"
+      assert w1 =~ "not a profile picture"
+      assert [%{"avatar_cards" => []}] = Export.build()["formats"]
+    end
+
+    test "a malformed list rejects the file" do
+      avatar_quiz()
+      export = Export.build()
+      clear_quiz()
+
+      bad = put_in(export, ["formats", Access.at(0), "avatar_cards"], "nope")
+      assert {:error, msg} = Import.run(bad)
+      assert msg =~ "avatar_cards"
+
+      bad = put_in(export, ["formats", Access.at(0), "avatar_cards"], [%{"password" => "x"}])
+      assert {:error, _} = Import.run(bad)
+
+      many = for i <- 1..41, do: %{"password" => i}
+      bad = put_in(export, ["formats", Access.at(0), "avatar_cards"], many)
+      assert {:error, _} = Import.run(bad)
+      assert Export.build()["formats"] == []
+    end
+  end
+
   describe "card owners" do
     defp owned_quiz(owner) do
       {:ok, reborn} = Cards.import(CardSourcesStub.reborn().password)

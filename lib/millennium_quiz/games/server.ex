@@ -27,8 +27,12 @@ defmodule MillenniumQuiz.Games.Server do
   @impl true
   def init(id) do
     case Repo.get(GameRecord, id) do
-      nil -> {:stop, :not_found}
-      record -> {:ok, %{record: record, game: Game.from_map(record.state)}, @idle_timeout}
+      nil ->
+        {:stop, :not_found}
+
+      record ->
+        {:ok, %{record: record, game: record.state |> Game.from_map() |> Games.heal_avatars()},
+         @idle_timeout}
     end
   end
 
