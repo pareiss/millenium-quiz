@@ -18,8 +18,8 @@ defmodule MillenniumQuiz.Avatars do
   saved before a set existed keep theirs.
 
   An admin can instead choose cards from the card pool as the pictures of a
-  format (`Quiz.add_avatar_card/2`); when a format has any, those are its set
-  and the hardcoded ones are not used (`pool/1`). Such a picture has the slug
+  format (`Quiz.add_avatar_card/2`); when a format has at least `min_cards/0` of
+  them, those are its set and the hardcoded ones are not used (`pool/1`). Such a picture has the slug
   `"card-<id>"` (`card_slug/1`, `card_id/1`) and is the card's artwork,
   served at `path/2`. The pure functions here never ask the database: the
   name of a card picture is `Quiz.avatar_cards/1`'s business, `name/1` is nil

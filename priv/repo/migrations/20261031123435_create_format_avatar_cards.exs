@@ -11,7 +11,7 @@ defmodule MillenniumQuiz.Repo.Migrations.CreateFormatAvatarCards do
       add :position, :integer, null: false, default: 0
     end
 
+    # Also serves the lookups by format_id (its leading column).
     create unique_index(:format_avatar_cards, [:format_id, :card_id])
-    create index(:format_avatar_cards, [:format_id])
   end
 end
