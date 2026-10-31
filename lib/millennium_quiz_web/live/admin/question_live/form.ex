@@ -229,13 +229,9 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
         </p>
         <.card_markup_help audience={:admin} />
 
-        <.input
-          field={@form[:points]}
-          type="number"
-          label="Points (no longer used by games)"
-          min="1"
-          placeholder={"#{@default_points} (default for position #{@question.position + 1})"}
-        />
+        <p class="text-sm text-base-content/60" id="question-damage-note">
+          A wrong answer costs {Question.damage(@question.position)} LP, fixed by the question's position ({@question.position + 1}).
+        </p>
 
         <.input
           :if={@show_submitter}
@@ -394,7 +390,6 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     |> assign(:topic, topic)
     |> assign(:question, question)
     |> assign(:show_submitter, socket.assigns.submission != nil or question.submitted_by != nil)
-    |> assign(:default_points, Question.default_points(question.position))
     |> assign(:return_to, ~p"/admin/formats/#{topic.format_id}")
     |> assign(:form, to_form(Quiz.change_question(question)))
     |> assign(:cards, cards_of(question))

@@ -29,7 +29,6 @@ defmodule MillenniumQuiz.Quiz.Export do
                 "questions" => [
                   %{
                     "text" => "What does [Monster Reborn] do?",
-                    "points" => nil,
                     "submitted_by" => nil,
                     "choices" => [%{"text" => "...", "correct" => true}],
                     "cards" => [%{"password" => 83764718, "name" => "Monster Reborn"}]
@@ -127,7 +126,6 @@ defmodule MillenniumQuiz.Quiz.Export do
   defp question(q) do
     %{
       "text" => q.text,
-      "points" => q.points,
       "submitted_by" => q.submitted_by,
       "choices" => Enum.map(q.choices, &%{"text" => &1.text, "correct" => &1.correct}),
       "cards" => Enum.map(q.question_cards, &card/1)

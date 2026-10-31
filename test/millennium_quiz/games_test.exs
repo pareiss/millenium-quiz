@@ -31,6 +31,24 @@ defmodule MillenniumQuiz.GamesTest do
     assert Game.from_map(stored.state) == view.game
   end
 
+  test "moving a question afterwards does not change a running game's damage", %{id: id} do
+    {:ok, %{game: game}} = Games.fetch_game(id)
+    before = Enum.map(game.questions, &{&1.id, &1.damage})
+
+    ids = Enum.map(game.questions, & &1.id)
+
+    for qid <- ids do
+      question = MillenniumQuiz.Quiz.get_question!(qid)
+      MillenniumQuiz.Quiz.move_question(question, :down)
+    end
+
+    {:ok, %{game: after_game}} = Games.fetch_game(id)
+    assert Enum.map(after_game.questions, &{&1.id, &1.damage}) == before
+
+    assert Enum.map(Repo.get!(GameRecord, id).state["questions"], &{&1["id"], &1["damage"]}) ==
+             before
+  end
+
   test "a game continues from its snapshot after the process is gone", %{id: id} do
     {:ok, _} = Games.choose(id, 1)
     [{pid, _}] = Registry.lookup(MillenniumQuiz.Games.Registry, id)

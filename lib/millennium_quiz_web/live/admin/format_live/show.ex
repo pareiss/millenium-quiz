@@ -49,8 +49,7 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
 
       <p class="text-sm text-base-content/60">
         Questions are ordered from easiest to hardest. A wrong answer costs life points by
-        position: 100, 400, 900, 1600, 2500, then 3000 (ATK). The custom points below are no
-        longer used by games.
+        position: 100, 400, 900, 1600, 2500, then 3000 (ATK).
       </p>
 
       <section
@@ -80,7 +79,7 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
           >
             <span class="w-6 text-sm text-base-content/50 tabular-nums">{i + 1}.</span>
             <%!-- the text gets the row's width on a phone (two lines), the
-                 points and buttons wrap below it --%>
+                 damage and buttons wrap below it --%>
             <p class="min-w-0 flex-1 basis-40 line-clamp-2 sm:line-clamp-none sm:truncate">
               {CardLinks.plain(q.text)}
             </p>
