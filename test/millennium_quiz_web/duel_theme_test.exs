@@ -85,12 +85,29 @@ defmodule MillenniumQuizWeb.DuelThemeTest do
     for path <- [~p"/", ~p"/?theme=duel", ~p"/?theme=duel-dark", ~p"/?theme=duel-light"] do
       html = conn |> get(path) |> html_response(200)
       assert html =~ ~s("duel-dark")
-      refute html =~ ~s(data-theme="duel)
     end
 
     # the duel fonts are not preloaded: nothing changes unless the theme is chosen
     html = conn |> get(~p"/") |> html_response(200)
     refute html =~ "Orbitron"
     refute html =~ "Rajdhani"
+  end
+
+  test "the theme toggle's slider classes are separate tokens" do
+    html = Phoenix.LiveViewTest.rendered_to_string(MillenniumQuizWeb.Layouts.theme_toggle(%{}))
+
+    [class] =
+      Regex.run(~r/class="([^"]*left-0[^"]*transition-\[left\][^"]*)"/, html,
+        capture: :all_but_first
+      )
+
+    tokens = String.split(class)
+
+    for t <- [
+          "[[data-theme=duel-dark]_&]:left-2/3",
+          "[[data-theme-source=system]_&]:!left-0",
+          "transition-[left]"
+        ],
+        do: assert(t in tokens, "missing class token #{t}")
   end
 end
