@@ -575,6 +575,20 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   50% { box-shadow: 0 0 1.25rem var(--color-primary), inset 0 0 0.3rem var(--color-primary-content); }
 }
 
+/* Motion of the gauge, only for visitors who do not ask for less: the bar drains, the
+   ghost of a hit shows the lost part and then dims, the plate warms to red. These are
+   transitions of what LiveView patches (a width, an attribute), so nothing waits for them;
+   the number counts down in the .LpCount hook of the component. */
+@media (prefers-reduced-motion: no-preference) {
+  .duel-gauge-fill { transition: width 0.9s cubic-bezier(0.22, 0.8, 0.3, 1); }
+  .duel-gauge-body::before { transition: background-color 0.6s; }
+  .duel-gauge-ghost { animation: duel-ghost 2.2s ease-out 0.5s both; }
+}
+@keyframes duel-ghost {
+  from { opacity: 1; }
+  to { opacity: 0.4; }
+}
+
 /* The duel themes: cut corners, the segmented bar, the glow of the numbers */
 [data-theme=duel-dark], [data-theme=duel-light] {
   .duel-gauge {

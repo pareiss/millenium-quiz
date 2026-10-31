@@ -48,6 +48,10 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
     test "the number and the bar take the ids the game screens give them" do
       html = gauge(lp_id: "lp-0", bar_id: "lp-bar-0", lp: 1000)
       assert text(html, "#lp-0") == "01000"
+      assert attr(html, "#lp-0", "data-lp") == ["1000"]
+      assert attr(html, "#lp-0", "phx-hook") == ["MillenniumQuizWeb.DuelComponents.LpCount"]
+      # no id, no hook (a hook needs one)
+      assert attr(gauge(), ".duel-gauge-num", "phx-hook") == []
       assert attr(html, "#lp-bar-0", "aria-valuenow") == ["1000"]
       assert attr(html, "#lp-bar-0 .duel-gauge-fill", "style") == ["width:25.0%"]
     end

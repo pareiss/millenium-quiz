@@ -78,7 +78,12 @@ defmodule MillenniumQuizWeb.DuelComponents do
         <span class="duel-gauge-name" title={@name}>{@name}</span>
         <div class="duel-gauge-plate">
           <span class="duel-gauge-lp-label" aria-hidden="true">LP</span>
-          <span id={@lp_id} class="duel-gauge-num"><span
+          <span
+            id={@lp_id}
+            class="duel-gauge-num"
+            data-lp={@lp_value}
+            phx-hook={@lp_id && "MillenniumQuizWeb.DuelComponents.LpCount"}
+          ><span
             :if={@number.zeros != ""}
             class="duel-gauge-zeros"
           >{@number.zeros}</span>{@number.digits}</span>
@@ -92,6 +97,32 @@ defmodule MillenniumQuizWeb.DuelComponents do
             <span aria-hidden="true">▼</span> HIT
           </span>
         </div>
+        <script :type={Phoenix.LiveView.ColocatedHook} name=".LpCount">
+          // The LP number counts down when it drops (the text is already the new value for
+          // anyone who cannot see it: this only draws the steps in between), unless the
+          // visitor prefers reduced motion. It never holds an update back.
+          export default {
+            mounted() { this.last = Number(this.el.dataset.lp) },
+            updated() {
+              const to = Number(this.el.dataset.lp), from = this.last
+              this.last = to
+              if (!(to < from) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+              const html = this.el.innerHTML
+              const width = this.el.textContent.length
+              const start = performance.now(), span = 700
+              if (this.frame) cancelAnimationFrame(this.frame)
+              const step = (now) => {
+                const t = Math.min(1, (now - start) / span)
+                if (t >= 1) { this.el.innerHTML = html; this.frame = null; return }
+                const v = Math.round(from + (to - from) * (1 - Math.pow(1 - t, 3)))
+                this.el.textContent = String(v).padStart(width, "0")
+                this.frame = requestAnimationFrame(step)
+              }
+              step(start)
+            },
+            destroyed() { if (this.frame) cancelAnimationFrame(this.frame) }
+          }
+        </script>
         <div
           id={@bar_id}
           class="duel-gauge-bar"
