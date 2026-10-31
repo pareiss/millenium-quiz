@@ -60,3 +60,74 @@ else
 
   IO.puts("Seeded format #{format.name}.")
 end
+
+# A second format whose admin list of profile pictures is made of five cards with a
+# (generated, solid colour) artwork, so that the pictures of cards load without a network.
+if Repo.get_by(Format, name: "Layout check pictures") do
+  IO.puts("Layout picture fixture already exists, skipping.")
+else
+  alias MillenniumQuiz.Cards.CardArtwork
+
+  pictures =
+    for n <- 1..5 do
+      card =
+        Repo.get_by(Card, password: 991_000 + n) ||
+          Repo.insert!(%Card{
+            name: "Layout Picture #{n}",
+            password: 991_000 + n,
+            kind: "Monster",
+            frame_type: "normal",
+            attribute: "LIGHT",
+            level: 4,
+            atk: "1000",
+            def: "1000",
+            monster_type_line: "Warrior / Normal",
+            fetched_at: DateTime.utc_now(:second)
+          })
+
+      unless Repo.get_by(CardArtwork, card_id: card.id) do
+        {:ok, image} = Vix.Vips.Operation.black(160, 160)
+        {:ok, image} = Vix.Vips.Operation.linear(image, [1, 1, 1], [40 * n, 255 - 40 * n, 128])
+        {:ok, jpeg} = Vix.Vips.Image.write_to_buffer(image, ".jpg")
+
+        Repo.insert!(%CardArtwork{
+          card_id: card.id,
+          artwork_id: 991_000 + n,
+          content_type: "image/jpeg",
+          data: jpeg,
+          source_url: "https://example.invalid/layout-picture-#{n}.jpg",
+          fetched_at: DateTime.utc_now(:second)
+        })
+      end
+
+      card
+    end
+
+  {:ok, format} =
+    Quiz.create_format(%{
+      "name" => "Layout check pictures",
+      "date" => Date.utc_today(),
+      "description" => "Fixture for bin/layout-test: five cards as the format's profile pictures.",
+      "topics" => %{"0" => %{"name" => "Pictures"}, "1" => %{"name" => "More pictures"}}
+    })
+
+  for card <- pictures, do: {:ok, _} = Quiz.add_avatar_card(format.id, card.id)
+
+  # a format is only listed (and playable) with questions
+  for topic <- format.topics do
+    {:ok, _} =
+      Quiz.create_question(
+        topic,
+        %{
+          "text" => "Which picture is the first?",
+          "choices" => %{
+            "0" => %{"text" => "The first", "correct" => "true"},
+            "1" => %{"text" => "The second"}
+          }
+        },
+        []
+      )
+  end
+
+  IO.puts("Seeded format #{format.name}.")
+end

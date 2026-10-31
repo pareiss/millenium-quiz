@@ -70,4 +70,82 @@ defmodule MillenniumQuiz.AvatarsTest do
       assert "jinzo" in Avatars.default_slugs()
     end
   end
+
+  describe "card slugs" do
+    test "card_slug and card_id round trip" do
+      assert Avatars.card_slug(42) == "card-42"
+      assert Avatars.card_id("card-42") == 42
+
+      assert Avatars.card_id(Avatars.card_slug(9_223_372_036_854_775_807)) ==
+               9_223_372_036_854_775_807
+    end
+
+    test "only canonical slugs of the bigint range are card slugs" do
+      for bad <- [
+            "card-0",
+            "card-007",
+            "card-01",
+            "card--1",
+            "card-",
+            "card",
+            "Card-1",
+            "card-1 ",
+            "card-1\n",
+            " card-1",
+            "card-1; drop table cards",
+            "card-1.5",
+            "card-9223372036854775808",
+            "card-99999999999999999999999",
+            "jinzo",
+            nil,
+            1,
+            :"card-1"
+          ] do
+        assert Avatars.card_id(bad) == nil, inspect(bad)
+        if bad not in ["jinzo"], do: assert(Avatars.path(bad) == nil, inspect(bad))
+      end
+    end
+
+    test "path serves the artwork, name has no database to ask" do
+      assert Avatars.path("card-7") == "/cards/7/artwork?w=200"
+      assert Avatars.name("card-7") == nil
+      assert_raise FunctionClauseError, fn -> Avatars.card_slug(0) end
+      assert_raise FunctionClauseError, fn -> Avatars.card_slug(-1) end
+    end
+  end
+
+  describe "pool/1" do
+    test "card links make card slugs in order, else the date set" do
+      links = for id <- [9, 2, 7, 4], do: %{card_id: id}
+
+      assert Avatars.pool(%{date: ~D[2010-04-24], avatar_cards: links}) ==
+               ["card-9", "card-2", "card-7", "card-4"]
+
+      # fewer cards than the most players of a game: not used
+      assert Avatars.pool(%{date: ~D[2010-04-24], avatar_cards: Enum.take(links, 3)}) ==
+               Avatars.for_format(~D[2010-04-24])
+
+      for avatar_cards <- [[], %Ecto.Association.NotLoaded{}, nil] do
+        assert Avatars.pool(%{date: ~D[2010-04-24], avatar_cards: avatar_cards}) ==
+                 Avatars.for_format(~D[2010-04-24])
+      end
+
+      assert Avatars.pool(%{date: ~D[2010-04-24]}) == Avatars.for_format(~D[2010-04-24])
+    end
+  end
+
+  describe "assign with chosen slugs" do
+    test "chosen players keep theirs, the others get different ones without them" do
+      pool = ~w(a b c d)
+      assert Avatars.assign(3, & &1, pool, ["c", nil, nil]) == ["c", "a", "b"]
+      assert Avatars.assign(3, & &1, pool, [nil, "a"]) == ["b", "a", "c"]
+      assert Avatars.assign(2, & &1, pool, []) == ["a", "b"]
+      assert Avatars.assign(2, & &1, pool, ["x", nil]) == ["x", "a"]
+    end
+
+    test "when the chosen use up the pool the others repeat from it" do
+      assert Avatars.assign(2, & &1, ["a"], ["a", nil]) == ["a", "a"]
+      assert Avatars.assign(2, & &1, [], [nil, nil]) == [nil, nil]
+    end
+  end
 end

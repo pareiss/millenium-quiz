@@ -112,14 +112,46 @@ defmodule MillenniumQuiz.Quiz.Import do
          :ok <- optional_text(f["description"], "description"),
          {:ok, date} <- date(date),
          :ok <- count(topics, @max_topics, "topics"),
-         {:ok, topics} <- each(topics, &topic/1, "topic") do
-      {:ok, %{name: name, description: f["description"], date: date, topics: topics}}
+         {:ok, topics} <- each(topics, &topic/1, "topic"),
+         {:ok, avatars} <- avatar_cards(Map.get(f, "avatar_cards")) do
+      {:ok,
+       %{name: name, description: f["description"], date: date, topics: topics, avatars: avatars}}
     else
       {:error, msg} -> {:error, "#{label(name)}#{msg}"}
     end
   end
 
   defp format(_), do: {:error, "needs a name, a date and a list of topics."}
+
+  # Optional (older backups have none).
+  defp avatar_cards(nil), do: {:ok, []}
+
+  defp avatar_cards(cards) when is_list(cards) do
+    with :ok <- count(cards, Quiz.max_avatar_cards(), "avatar cards"),
+         do: each(cards, &avatar_card/1, "avatar card")
+  end
+
+  defp avatar_cards(_), do: {:error, "avatar_cards must be a list."}
+
+  # A card with an optional "crop"; a crop that is not valid is remembered as
+  # :invalid and costs a warning later, not the file.
+  defp avatar_card(c) do
+    with {:ok, card} <- card(c), do: {:ok, Map.put(card, :crop, crop(c["crop"]))}
+  end
+
+  defp crop(nil), do: nil
+
+  defp crop(%{"x" => x, "y" => y, "zoom" => zoom} = c) when map_size(c) == 3 do
+    crop = %{x: x, y: y, zoom: zoom}
+    if valid_crop?(crop), do: crop, else: :invalid
+  end
+
+  defp crop(_), do: :invalid
+
+  defp valid_crop?(%{x: x, y: y, zoom: zoom}),
+    do:
+      is_integer(x) and is_integer(y) and is_integer(zoom) and x in 0..100 and y in 0..100 and
+        zoom in 100..300
 
   defp label(name) when is_binary(name), do: "\"#{String.slice(name, 0, 40)}\": "
   defp label(_), do: ""
@@ -316,6 +348,7 @@ defmodule MillenniumQuiz.Quiz.Import do
       format.topics
       |> Enum.flat_map(& &1.questions)
       |> Enum.flat_map(& &1.cards)
+      |> Enum.concat(format.avatars)
       |> Enum.map(& &1.password)
       |> Enum.uniq()
 
@@ -388,17 +421,21 @@ defmodule MillenniumQuiz.Quiz.Import do
             {:error, changeset} -> Repo.rollback({:format, changeset})
           end
 
-        created.topics
-        |> Enum.zip(format.topics)
-        |> Enum.reduce(%{questions: 0, linked: 0, missing: 0, warnings: []}, fn {topic, data},
-                                                                                acc ->
-          create_questions(topic, data, format.name, pool, acc)
-        end)
+        counts =
+          created.topics
+          |> Enum.zip(format.topics)
+          |> Enum.reduce(%{questions: 0, linked: 0, missing: 0, warnings: []}, fn {topic, data},
+                                                                                  acc ->
+            create_questions(topic, data, format.name, pool, acc)
+          end)
+
+        {created, counts}
       end)
 
     case result do
-      {:ok, counts} ->
-        {:ok, %{counts | warnings: Enum.reverse(counts.warnings)}}
+      {:ok, {created, counts}} ->
+        counts = %{counts | warnings: Enum.reverse(counts.warnings)}
+        {:ok, add_avatar_cards(created, format, pool, counts)}
 
       {:error, {:format, %Ecto.Changeset{} = cs}} ->
         if Enum.any?(Keyword.get_values(cs.errors, :name), fn {_, o} ->
@@ -410,6 +447,54 @@ defmodule MillenniumQuiz.Quiz.Import do
       {:error, {:question, where, %Ecto.Changeset{} = cs}} ->
         {:error, "#{where}: " <> errors(cs)}
     end
+  end
+
+  # After the transaction: a card that can't be a picture (not fetched, newer
+  # than the format) costs a warning, not the format.
+  defp add_avatar_cards(created, format, pool, counts) do
+    warnings =
+      Enum.flat_map(format.avatars, fn card ->
+        name = card.name || "card #{card.password}"
+
+        case Map.get(pool, card.password) do
+          {:ok, id, _name} ->
+            case Quiz.add_avatar_card(created.id, id) do
+              {:ok, _} -> apply_crop(card, id, created.name, name)
+              {:error, reason} -> [avatar_warning(format.name, name, card.password, reason)]
+            end
+
+          _missing ->
+            [avatar_warning(format.name, name, card.password, :missing)]
+        end
+      end)
+
+    %{counts | warnings: counts.warnings ++ warnings}
+  end
+
+  # A crop already stored for the card is kept: the local one wins, silently.
+  defp apply_crop(%{crop: nil}, _id, _format, _name), do: []
+
+  defp apply_crop(%{crop: :invalid, password: password}, _id, format, name),
+    do: [
+      "#{format}: the crop of avatar card #{name} (#{password}) is not valid and was ignored."
+    ]
+
+  defp apply_crop(%{crop: crop}, id, _format, _name) do
+    unless Repo.get(MillenniumQuiz.Quiz.CardAvatarCrop, id), do: Quiz.set_avatar_crop(id, crop)
+
+    []
+  end
+
+  defp avatar_warning(format, name, password, reason) do
+    why =
+      case reason do
+        :missing -> "could not be fetched"
+        :not_released -> "was not released by the format's date"
+        :limit -> "is over the limit of #{Quiz.max_avatar_cards()}"
+        _ -> "could not be added"
+      end
+
+    "#{format}: avatar card #{name} (#{password}) #{why} and is not a profile picture."
   end
 
   defp create_questions(topic, data, format_name, pool, acc) do

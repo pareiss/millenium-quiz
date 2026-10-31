@@ -175,7 +175,7 @@ defmodule MillenniumQuizWeb.CoreComponents do
   attr :type, :string,
     default: "text",
     values: ~w(checkbox color date datetime-local email file month number password
-               search select tel text textarea time url week hidden)
+               range search select tel text textarea time url week hidden)
 
   attr :field, Phoenix.HTML.FormField,
     doc: "a form field struct retrieved from the form, for example: @form[:email]"
@@ -596,10 +596,24 @@ defmodule MillenniumQuizWeb.CoreComponents do
       <.avatar slug={player.avatar} class="size-8" />
   """
   attr :slug, :string, default: nil
+  attr :title, :string, default: nil, doc: "the card's name, for a card slug"
   attr :class, :any, default: "size-8"
 
+  attr :crop, :map,
+    default: nil,
+    doc:
+      "the crop of a card picture, `%{x, y, zoom}` (see `MillenniumQuiz.Quiz.avatar_crops/2`); nil is the default crop"
+
   def avatar(assigns) do
-    assigns = assign(assigns, :monster, MillenniumQuiz.Avatars.name(assigns.slug))
+    card? = MillenniumQuiz.Avatars.card_id(assigns.slug) != nil
+    crop = assigns.crop || MillenniumQuiz.Avatars.default_crop()
+
+    assigns =
+      assigns
+      |> assign(:monster, MillenniumQuiz.Avatars.name(assigns.slug))
+      |> assign(:card?, card?)
+      |> assign(:card_src, card? && MillenniumQuiz.Avatars.path(assigns.slug, crop_width(crop)))
+      |> assign(:card_style, card? && crop_style(crop))
 
     ~H"""
     <img
@@ -611,8 +625,41 @@ defmodule MillenniumQuizWeb.CoreComponents do
       height="64"
       class={["shrink-0 rounded-full object-cover ring-2 ring-base-300", @class]}
     />
+    <%!-- A card of the card pool: its square artwork, placed by the crop (zoomed
+         in around a focus point; by default the middle, because the face of a
+         monster is usually near it). A card deleted from the pool is healed to
+         a picture of the default pool before a game gets here
+         (`Games.heal_avatars/1`); if not, the ring stays empty. --%>
+    <span
+      :if={@card?}
+      title={@title}
+      class={[
+        "relative shrink-0 inline-block overflow-hidden rounded-full ring-2 ring-base-300",
+        @class
+      ]}
+    >
+      <img
+        src={@card_src}
+        alt=""
+        width="64"
+        height="64"
+        class="absolute max-w-none"
+        style={@card_style}
+      />
+    </span>
     """
   end
+
+  # The artwork is served in 200 and 400 px; a strong zoom needs the sharper one.
+  defp crop_width(%{zoom: zoom}) when is_integer(zoom) and zoom > 150, do: 400
+  defp crop_width(_crop), do: 200
+
+  defp crop_style(crop) do
+    %{size: size, left: left, top: top} = MillenniumQuiz.Avatars.crop_box(crop)
+    "width:#{pct(size)}%;height:#{pct(size)}%;left:#{pct(left)}%;top:#{pct(top)}%"
+  end
+
+  defp pct(value), do: (Float.round(value, 2) + 0.0) |> to_string()
 
   ## JS Commands
 

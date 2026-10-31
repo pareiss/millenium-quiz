@@ -8,7 +8,7 @@ defmodule MillenniumQuizWeb.GameLive do
 
   import MillenniumQuizWeb.CardComponents
 
-  alias MillenniumQuiz.{Game, Games, GameNotifier, RateLimit}
+  alias MillenniumQuiz.{Game, Games, GameNotifier, Quiz, RateLimit}
   alias MillenniumQuizWeb.ClientIP
   alias MillenniumQuiz.Quiz.CardLinks
 
@@ -42,7 +42,7 @@ defmodule MillenniumQuizWeb.GameLive do
         data-phase={if @status == :paused, do: :paused, else: @game.phase}
         class="space-y-5 transition-opacity phx-offline:pointer-events-none phx-offline:opacity-50 phx-offline:delay-700"
       >
-        <.game_header game={@game} status={@status} />
+        <.game_header game={@game} status={@status} crops={@crops} />
 
         <%= cond do %>
           <% @status == :paused -> %>
@@ -53,13 +53,13 @@ defmodule MillenniumQuizWeb.GameLive do
               email_form={@email_form}
             />
           <% @game.phase == :finished -> %>
-            <.final_panel game={@game} />
+            <.final_panel game={@game} crops={@crops} />
           <% @game.phase == :choosing -> %>
             <.board_panel game={@game} turn_locked={@turn_locked} />
           <% @game.phase == :answering -> %>
-            <.answering_panel game={@game} turn_locked={@turn_locked} />
+            <.answering_panel game={@game} turn_locked={@turn_locked} crops={@crops} />
           <% @game.phase == :revealed -> %>
-            <.reveal_panel game={@game} turn_locked={@turn_locked} />
+            <.reveal_panel game={@game} turn_locked={@turn_locked} crops={@crops} />
         <% end %>
 
         <.zoomed_card
@@ -111,6 +111,7 @@ defmodule MillenniumQuizWeb.GameLive do
   ## Components
 
   attr :game, Game, required: true
+  attr :crops, :map, default: %{}, doc: "slug => crop of the players' card pictures"
   attr :status, :atom, required: true
 
   defp game_header(assigns) do
@@ -174,7 +175,7 @@ defmodule MillenniumQuizWeb.GameLive do
           ]}
         >
           <p class="min-w-0 truncate text-sm flex items-center gap-2">
-            <.avatar slug={player.avatar} class="size-10" />
+            <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-10" />
             <span class="truncate">{player.name}</span>
           </p>
           <p class="text-lg font-semibold tabular-nums">{player.score}</p>
@@ -292,6 +293,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
+  attr :crops, :map, default: %{}, doc: "slug => crop of the players' card pictures"
   attr :turn_locked, :boolean, default: false
 
   defp answering_panel(assigns) do
@@ -312,7 +314,7 @@ defmodule MillenniumQuizWeb.GameLive do
            as the page moves, and the line along its bottom runs out meanwhile --%>
       <div class="mq-passbar bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
         <span class="mq-passbar__timer" aria-hidden="true"></span>
-        <.avatar slug={@player.avatar} class="size-14" />
+        <.avatar slug={@player.avatar} crop={@crops[@player.avatar]} class="size-14" />
         <p class="min-w-0">
           Pass the device to <strong class="text-lg" id="current-player">{@player.name}</strong>
         </p>
@@ -539,6 +541,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
+  attr :crops, :map, default: %{}, doc: "slug => crop of the players' card pictures"
   attr :turn_locked, :boolean, default: false
 
   defp reveal_panel(assigns) do
@@ -564,7 +567,7 @@ defmodule MillenniumQuizWeb.GameLive do
           <.question_link_popovers question={@question} />
           <.question_cards cards={@question.cards} />
           <p class="flex items-center gap-2 text-sm text-base-content/60">
-            Chosen by <.avatar slug={@chooser.avatar} class="size-9" />
+            Chosen by <.avatar slug={@chooser.avatar} crop={@crops[@chooser.avatar]} class="size-9" />
             <span>{@chooser.name}</span>
           </p>
           <p
@@ -616,7 +619,11 @@ defmodule MillenniumQuizWeb.GameLive do
                 name={if correct?, do: "hero-check-circle", else: "hero-x-circle"}
                 class={["size-5 shrink-0", if(correct?, do: "text-success", else: "text-error")]}
               />
-              <.avatar slug={Enum.at(@game.players, index).avatar} class="size-12" />
+              <.avatar
+                slug={Enum.at(@game.players, index).avatar}
+                crop={@crops[Enum.at(@game.players, index).avatar]}
+                class="size-12"
+              />
               <span class="min-w-0 font-medium break-words">{Enum.at(@game.players, index).name}</span>
               <span class="shrink-0 text-sm text-base-content/60">
                 picked {<<?A + Enum.at(@question.result.picks, index)>>}
@@ -922,6 +929,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   attr :game, Game, required: true
+  attr :crops, :map, default: %{}, doc: "slug => crop of the players' card pictures"
 
   defp final_panel(assigns) do
     standings = Game.standings(assigns.game)
@@ -959,7 +967,7 @@ defmodule MillenniumQuizWeb.GameLive do
           ]}
         >
           <span class="w-6 text-base-content/60 tabular-nums">{rank}.</span>
-          <.avatar slug={player.avatar} class="size-16" />
+          <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-16" />
           <span class="flex-1 font-medium">{player.name}</span>
           <span class="font-semibold tabular-nums">{player.score}</span>
         </li>
@@ -1002,6 +1010,11 @@ defmodule MillenniumQuizWeb.GameLive do
          |> assign(:turn_key, nil)
          |> assign(:turn_locked, false)
          |> assign(:email_form, to_form(%{"email" => ""}, as: :resume))
+         # The players' pictures never change during a game: one query here.
+         |> assign(
+           :crops,
+           Quiz.avatar_crops(Enum.map(view.game.players, & &1.avatar), defaults: true)
+         )
          |> assign_view(view)}
 
       {:error, _} ->

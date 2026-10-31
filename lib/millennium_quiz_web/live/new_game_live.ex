@@ -1,7 +1,7 @@
 defmodule MillenniumQuizWeb.NewGameLive do
   use MillenniumQuizWeb, :live_view
 
-  alias MillenniumQuiz.{Game, Games, Quiz, RateLimit}
+  alias MillenniumQuiz.{Avatars, Game, Games, Quiz, RateLimit}
   alias MillenniumQuizWeb.ClientIP
 
   @impl true
@@ -34,36 +34,113 @@ defmodule MillenniumQuizWeb.NewGameLive do
           class="space-y-3"
         >
           <p class="font-medium">Who is playing? ({@min}–{@max} players)</p>
-          <div :for={{name, i} <- Enum.with_index(@names)} class="flex items-start gap-2">
-            <span class="mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-secondary text-secondary-content text-sm font-semibold">
-              {i + 1}
-            </span>
-            <div class="flex-1">
-              <.input
-                name="names[]"
-                id={"player-name-#{i}"}
-                value={name}
-                placeholder={"Player #{i + 1}"}
-                maxlength={Game.max_name_length()}
-                autocomplete="off"
-                autocapitalize="words"
-                autocorrect="off"
-                spellcheck="false"
-                enterkeyhint="next"
-                phx-debounce="200"
-              />
+          <div :for={{name, i} <- Enum.with_index(@names)} id={"player-row-#{i}"}>
+            <div class="flex items-start gap-2">
+              <button
+                type="button"
+                id={"avatar-button-#{i}"}
+                phx-click="toggle_avatar"
+                phx-value-index={i}
+                aria-label={"Player #{i + 1}'s picture: #{avatar_label(@labels, Enum.at(@avatars, i))}, change"}
+                aria-expanded={to_string(@open == i)}
+                aria-controls={"avatar-panel-#{i}"}
+                class="relative mt-0.5 shrink-0 cursor-pointer rounded-full size-11 transition hover:ring-2 hover:ring-primary/60 hover:ring-offset-2 hover:ring-offset-base-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <.avatar
+                  slug={Enum.at(@avatars, i)}
+                  title={avatar_label(@labels, Enum.at(@avatars, i))}
+                  crop={@crops[Enum.at(@avatars, i)]}
+                  class="size-11"
+                />
+                <span class="absolute -bottom-0.5 -right-0.5 grid place-items-center size-5 rounded-full bg-secondary text-secondary-content text-xs font-semibold">
+                  {i + 1}
+                </span>
+              </button>
+              <div class="flex-1 min-w-0">
+                <.input
+                  name="names[]"
+                  id={"player-name-#{i}"}
+                  value={name}
+                  placeholder={"Player #{i + 1}"}
+                  maxlength={Game.max_name_length()}
+                  autocomplete="off"
+                  autocapitalize="words"
+                  autocorrect="off"
+                  spellcheck="false"
+                  enterkeyhint="next"
+                  phx-debounce="200"
+                />
+              </div>
+              <button
+                :if={length(@names) > @min}
+                type="button"
+                class="btn btn-ghost btn-square mt-0.5 pointer-coarse:size-11"
+                phx-click="remove"
+                phx-value-index={i}
+                id={"remove-player-#{i}"}
+                aria-label={"Remove player #{i + 1}"}
+              >
+                <.icon name="hero-x-mark" class="size-5" />
+              </button>
             </div>
-            <button
-              :if={length(@names) > @min}
-              type="button"
-              class="btn btn-ghost btn-square mt-0.5"
-              phx-click="remove"
-              phx-value-index={i}
-              id={"remove-player-#{i}"}
-              aria-label={"Remove player #{i + 1}"}
+
+            <div
+              :if={@open == i}
+              id={"avatar-panel-#{i}"}
+              phx-window-keydown="close_avatar"
+              phx-key="Escape"
+              class="mt-2 rounded-box border border-base-300 bg-base-200/50 p-2 space-y-2"
             >
-              <.icon name="hero-x-mark" class="size-5" />
-            </button>
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-sm font-medium">Pick a picture for player {i + 1}</p>
+                <button
+                  type="button"
+                  id={"avatar-random-#{i}"}
+                  phx-click="random_avatar"
+                  phx-value-index={i}
+                  class="btn btn-ghost btn-sm pointer-coarse:min-h-11"
+                >
+                  <.icon name="hero-arrow-path" class="size-4" /> Another one
+                </button>
+              </div>
+              <div
+                role="group"
+                aria-label={"Pictures for player #{i + 1}"}
+                class="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-1 max-h-56 overflow-y-auto overscroll-contain p-1"
+              >
+                <button
+                  :for={slug <- @pool}
+                  type="button"
+                  id={"avatar-choice-#{i}-#{slug}"}
+                  phx-click="pick_avatar"
+                  phx-value-index={i}
+                  phx-value-slug={slug}
+                  disabled={taken_by_other?(@avatars, i, slug)}
+                  aria-pressed={to_string(Enum.at(@avatars, i) == slug)}
+                  aria-label={
+                    avatar_label(@labels, slug) <>
+                      if(taken_by_other?(@avatars, i, slug), do: " (taken)", else: "")
+                  }
+                  class={
+                    [
+                      "aspect-square min-h-11 rounded-full p-0.5 transition",
+                      Enum.at(@avatars, i) == slug && "ring-2 ring-primary bg-primary/20",
+                      # a free picture lights up under the mouse; a taken one shows "not allowed"
+                      not taken_by_other?(@avatars, i, slug) &&
+                        "cursor-pointer hover:bg-primary/20 hover:ring-2 hover:ring-primary/60 hover:scale-105",
+                      taken_by_other?(@avatars, i, slug) && "opacity-30 grayscale cursor-not-allowed"
+                    ]
+                  }
+                >
+                  <.avatar
+                    slug={slug}
+                    title={avatar_label(@labels, slug)}
+                    crop={@crops[slug]}
+                    class="size-full"
+                  />
+                </button>
+              </div>
+            </div>
           </div>
 
           <fieldset class="space-y-2 pt-3">
@@ -157,6 +234,9 @@ defmodule MillenniumQuizWeb.NewGameLive do
      |> assign(:modes, Game.modes())
      |> assign(:mode, "free")
      |> assign(:error, nil)
+     |> assign(:open, nil)
+     |> assign(:avatars, [])
+     |> assign_pool(format)
      # connect_info is only readable in mount.
      |> assign(:client_ip, ClientIP.from_socket(socket))
      |> assign_names(["", ""])}
@@ -194,8 +274,57 @@ defmodule MillenniumQuizWeb.NewGameLive do
   end
 
   def handle_event("remove", %{"index" => index}, socket) do
-    case Integer.parse(to_string(index)) do
-      {index, ""} -> {:noreply, assign_names(socket, List.delete_at(socket.assigns.names, index))}
+    with {:ok, index} <- parse_index(index, socket) do
+      {:noreply,
+       socket
+       |> assign(:open, nil)
+       |> assign(:avatars, List.delete_at(socket.assigns.avatars, index))
+       |> assign_names(List.delete_at(socket.assigns.names, index))}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_avatar", %{"index" => index}, socket) do
+    case parse_index(index, socket) do
+      {:ok, i} ->
+        {:noreply, assign(socket, :open, if(socket.assigns.open == i, do: nil, else: i))}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_avatar", _params, socket), do: {:noreply, assign(socket, :open, nil)}
+
+  def handle_event("pick_avatar", %{"index" => index, "slug" => slug}, socket) do
+    with {:ok, i} <- parse_index(index, socket),
+         true <- is_binary(slug) and slug in socket.assigns.pool,
+         false <- taken_by_other?(socket.assigns.avatars, i, slug) do
+      {:noreply,
+       socket
+       |> assign(:avatars, List.replace_at(socket.assigns.avatars, i, slug))
+       |> assign(:open, nil)
+       |> assign(:error, nil)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("random_avatar", %{"index" => index}, socket) do
+    with {:ok, i} <- parse_index(index, socket) do
+      avatars = socket.assigns.avatars
+      others = List.delete_at(avatars, i)
+      free = socket.assigns.pool -- [Enum.at(avatars, i) | others]
+
+      case free do
+        [] ->
+          {:noreply, socket}
+
+        free ->
+          {:noreply, assign(socket, :avatars, List.replace_at(avatars, i, Enum.random(free)))}
+      end
+    else
       _ -> {:noreply, socket}
     end
   end
@@ -209,10 +338,22 @@ defmodule MillenniumQuizWeb.NewGameLive do
          :ok <- validate_name_lengths(names),
          :ok <- rate_limit(socket),
          {:ok, game_id} <-
-           Games.create_game(socket.assigns.format.id, names, mode: socket.assigns.mode) do
+           Games.create_game(socket.assigns.format.id, names,
+             mode: socket.assigns.mode,
+             avatars: socket.assigns.avatars
+           ) do
       {:noreply, push_navigate(socket, to: ~p"/games/#{game_id}")}
     else
-      {:error, reason} -> {:noreply, assign(socket, :error, error_message(reason))}
+      {:error, :invalid_avatar} ->
+        # The format's pictures changed since this page opened: start over with
+        # the current ones, keeping the pictures that are still in the pool.
+        {:noreply,
+         socket
+         |> reload_pool()
+         |> assign(:error, error_message(:invalid_avatar))}
+
+      {:error, reason} ->
+        {:noreply, assign(socket, :error, error_message(reason))}
     end
   end
 
@@ -251,6 +392,13 @@ defmodule MillenniumQuizWeb.NewGameLive do
   defp error_message(:blank_player_name), do: "Every player needs a name."
   defp error_message(:duplicate_names), do: "Player names must be different."
   defp error_message(:invalid_player_count), do: "A game needs 2 to 4 players."
+
+  defp error_message(:invalid_avatar),
+    do: "Some pictures are not available any more. Please check them and start again."
+
+  defp error_message(:duplicate_avatars),
+    do: "Every player needs a different picture."
+
   defp error_message(:invalid_mode), do: "Choose a game mode."
 
   defp error_message(:full),
@@ -284,5 +432,55 @@ defmodule MillenniumQuizWeb.NewGameLive do
     socket
     |> assign(:names, names)
     |> assign(:form, to_form(%{"names" => names}))
+    |> fill_avatars()
+    |> then(fn socket ->
+      # a panel for a player who is gone closes
+      if socket.assigns.open && socket.assigns.open >= length(names),
+        do: assign(socket, :open, nil),
+        else: socket
+    end)
   end
+
+  # One picture per name: those already chosen stay (as long as they are in the
+  # pool), new players get different random ones out of the rest.
+  defp fill_avatars(socket) do
+    %{names: names, avatars: avatars, pool: pool} = socket.assigns
+    count = length(names)
+    chosen = avatars |> Enum.take(count) |> Enum.map(&if(&1 in pool, do: &1))
+    assign(socket, :avatars, Avatars.assign(count, &Enum.shuffle/1, pool, chosen))
+  end
+
+  defp assign_pool(socket, format) do
+    cards = Quiz.avatar_cards(format.id)
+
+    labels =
+      Map.new(cards, &{Avatars.card_slug(&1.id), &1.name})
+
+    pool = Avatars.pool(format)
+
+    socket
+    |> assign(:pool, pool)
+    |> assign(:labels, labels)
+    |> assign(:crops, Quiz.avatar_crops(pool, defaults: true))
+  end
+
+  defp reload_pool(socket) do
+    format = Quiz.get_format!(socket.assigns.format.id)
+    socket |> assign(:format, format) |> assign_pool(format) |> fill_avatars()
+  end
+
+  defp avatar_label(labels, slug), do: Map.get(labels, slug) || Avatars.name(slug) || "a picture"
+
+  defp taken_by_other?(avatars, i, slug),
+    do: avatars |> List.delete_at(i) |> Enum.member?(slug)
+
+  # An index of an existing name row; anything else from the browser is ignored.
+  defp parse_index(value, socket) when is_binary(value) or is_integer(value) do
+    case Integer.parse(to_string(value)) do
+      {i, ""} when i >= 0 -> if i < length(socket.assigns.names), do: {:ok, i}, else: :error
+      _ -> :error
+    end
+  end
+
+  defp parse_index(_value, _socket), do: :error
 end
