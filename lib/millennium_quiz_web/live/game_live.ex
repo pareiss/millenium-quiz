@@ -178,7 +178,7 @@ defmodule MillenniumQuizWeb.GameLive do
             <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-10" />
             <span class="truncate">{player.name}</span>
           </p>
-          <p class="text-lg font-semibold tabular-nums">{player.score}</p>
+          <p class="text-lg font-semibold tabular-nums">{player.lp}</p>
         </li>
       </ul>
     </div>
@@ -256,13 +256,13 @@ defmodule MillenniumQuizWeb.GameLive do
                 disabled={@turn_locked}
                 class="h-14 rounded-field border border-primary/30 bg-primary/10 text-lg font-bold tabular-nums text-primary transition hover:bg-primary hover:text-primary-content active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
               >
-                {question.points}
+                {question.damage}
               </button>
               <div
                 :if={question.result}
                 id={"question-#{index}"}
                 class="h-14 flex flex-col items-center justify-center rounded-field bg-base-200/60 px-1 text-xs text-base-content/50"
-                title={"#{question.points} pts"}
+                title={"#{question.damage} damage"}
               >
                 <% correct = Game.correct_count(question) %>
                 <.icon
@@ -282,7 +282,7 @@ defmodule MillenniumQuizWeb.GameLive do
                   )
                 ]}
               >
-                {question.points}
+                {question.damage}
               </div>
             <% end %>
           </div>
@@ -551,7 +551,7 @@ defmodule MillenniumQuizWeb.GameLive do
       assigns
       |> assign(:question, question)
       |> assign(:chooser, Enum.at(assigns.game.players, question.result.chooser))
-      |> assign(:last_round?, Enum.all?(assigns.game.questions, & &1.result))
+      |> assign(:last_round?, Game.over?(assigns.game))
 
     ~H"""
     <div
@@ -632,7 +632,7 @@ defmodule MillenniumQuizWeb.GameLive do
                 "ml-auto tabular-nums font-semibold",
                 if(correct?, do: "text-success", else: "text-base-content/40")
               ]}>
-                {if correct?, do: "+#{@question.points}", else: "+0"}
+                {if correct?, do: "0", else: "-#{@question.damage}"}
               </span>
             </li>
           </ul>
@@ -791,7 +791,7 @@ defmodule MillenniumQuizWeb.GameLive do
     ~H"""
     <div class="flex items-center gap-2 text-sm">
       <span class="badge badge-outline">{@question.topic}</span>
-      <span class="badge badge-primary" id="question-points">{@question.points} pts</span>
+      <span class="badge badge-primary" id="question-points">{@question.damage} ATK</span>
     </div>
     """
   end
@@ -932,14 +932,13 @@ defmodule MillenniumQuizWeb.GameLive do
   attr :crops, :map, default: %{}, doc: "slug => crop of the players' card pictures"
 
   defp final_panel(assigns) do
-    standings = Game.standings(assigns.game)
-    top = standings |> List.first() |> elem(0) |> Map.fetch!(:score)
-    winners = for {p, _} <- standings, p.score == top, do: p.name
+    standings = Game.places(assigns.game)
+    winners = for {p, _} <- Game.winners(assigns.game), do: p.name
 
     assigns =
       assigns
       |> assign(:standings, standings)
-      |> assign(:top, top)
+      |> assign(:draw?, Game.draw?(assigns.game))
       |> assign(:winners, winners)
 
     ~H"""
@@ -952,24 +951,26 @@ defmodule MillenniumQuizWeb.GameLive do
           <.icon name="hero-trophy" class="size-8" />
         </span>
         <h2 class="text-3xl font-bold" id="winner">
-          {if length(@winners) == 1,
-            do: "#{hd(@winners)} wins!",
-            else: "Tie: #{Enum.join(@winners, " & ")}"}
+          {cond do
+            length(@winners) == 1 -> "#{hd(@winners)} wins!"
+            @draw? -> "Draw: #{Enum.join(@winners, " & ")}"
+            true -> "Tie: #{Enum.join(@winners, " & ")}"
+          end}
         </h2>
       </div>
 
       <ol class="space-y-2 text-left max-w-sm mx-auto" id="final-standings">
         <li
-          :for={{{player, _index}, rank} <- Enum.with_index(@standings, 1)}
+          :for={{player, _index, rank} <- @standings}
           class={[
             "flex items-center gap-3 rounded-field border px-4 py-3",
-            if(player.score == @top, do: "border-primary bg-primary/10", else: "border-base-300")
+            if(rank == 1, do: "border-primary bg-primary/10", else: "border-base-300")
           ]}
         >
           <span class="w-6 text-base-content/60 tabular-nums">{rank}.</span>
           <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-16" />
           <span class="flex-1 font-medium">{player.name}</span>
-          <span class="font-semibold tabular-nums">{player.score}</span>
+          <span class="font-semibold tabular-nums">{player.lp || player.score}</span>
         </li>
       </ol>
 

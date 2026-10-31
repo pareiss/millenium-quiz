@@ -146,6 +146,8 @@ defmodule MillenniumQuiz.Games do
         order_by: [desc: g.updated_at]
     )
     |> Enum.map(&%{id: &1.id, status: &1.status, game: Game.from_map(&1.state)})
+    # Score games from before the life points open as finished: nothing to continue.
+    |> Enum.reject(&(&1.game.phase == :finished))
   end
 
   @doc """
