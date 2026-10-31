@@ -53,7 +53,13 @@ defmodule MillenniumQuizWeb.Layouts do
           <span class="grid place-items-center size-9 rounded-xl bg-primary text-primary-content shadow-sm transition-transform motion-safe:group-hover:rotate-6">
             <.icon name="hero-eye" class="size-5" />
           </span>
-          <span class="hidden sm:inline font-semibold tracking-tight text-lg">Millennium Quiz</span>
+          <%!-- an admin's bar has six more items: the name waits for 1024px --%>
+          <span class={[
+            "hidden font-semibold tracking-tight text-lg",
+            if(@current_scope, do: "lg:inline", else: "sm:inline")
+          ]}>
+            Millennium Quiz
+          </span>
         </.link>
 
         <div class="flex-1" />
@@ -74,7 +80,7 @@ defmodule MillenniumQuizWeb.Layouts do
           </.link>
           <.link navigate={~p"/admin/users"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
             <.icon name="hero-user-circle" class="size-4" />
-            {@current_scope.user.username}
+            <span class="max-w-40 truncate">{@current_scope.user.username}</span>
           </.link>
           <.link
             href={~p"/admin/logout"}
