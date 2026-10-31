@@ -19,6 +19,7 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - the cards of player 1 and 2 have a blue / red ring with a fading glow and a badge, their links in the
     text are blue / red (and none of it breaks the cards-per-row or overflow checks)
   - the {P1} / {P2} badges of the question text are shown, blue and red
+  - the players' pictures (monster faces) on the board are shown and loaded
   - the score line is on the board and gone in the question, except on a large screen
     (1600x900 and up), where the player list stays with the question and the
     pass-the-device bar does not fold; the page grows with the screen above 1920x1080 (limited by the height too)
@@ -193,6 +194,13 @@ with sync_playwright() as p:
         m = metrics(page)
         check(f"{name}: no horizontal overflow, score line shown",
               m["overX"] <= 0 and m["score"], f"overflow {m['overX']}px, score line {m['score']}")
+        pics = page.evaluate(
+            """() => {
+              const a = [...document.querySelectorAll('img[src^="/images/avatars/"]')]
+              return {n: a.length, notLoaded: a.filter(i => !(i.complete && i.naturalWidth > 0)).length}
+            }"""
+        )
+        check(f"{name}: the players' pictures are shown and loaded", pics["n"] >= 2 and pics["notLoaded"] == 0, str(pics))
 
     # the first question of the board has 4 cards
     page.set_viewport_size({"width": 768, "height": 1024})

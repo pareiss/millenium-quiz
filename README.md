@@ -11,7 +11,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
 
 - **Board states / gameplay:** the open-source engine is ygopro-core / EDOPro (Project Ignis), C++ and Lua under the AGPL. A first step is questions with a board state stored as JSON and rendered by a component. The engine itself would run as its own container next to the app. A card in a board state also needs to say where it sits (hand, field, graveyard); the owner of a card (player 1 or 2, see Features) is already there.
 - `Game` is not tied to a question type. A `kind` field on questions (`:multiple_choice`, `:card_image`, `:board_state`) would only change rendering and answer checking.
-- **Profile pictures per format:** every format gets its own list of iconic cards of that era, so players can pick a profile picture from the cards of the format they are about to quiz on. The avatars today are a fixed set of monster faces (`MillenniumQuiz.Avatars`); this would add a per-format list, chosen by an admin from the card pool (the cropped artwork is already stored and served at `/cards/<id>/artwork`), and a picker on the new-game page that offers the format's cards first. The game snapshot keeps the chosen avatar, so old games must keep loading.
+- **Choosing the picture, and sets for more formats:** every player gets a random, different monster face, and Edison, Goat and Tengu have a set of their own (below). Still open: a picker on the new-game page so a player can choose from the format's set, and a set for every new format an admin creates (today a set is written into `MillenniumQuiz.Avatars` and found by the format's date; an admin-edited list chosen from the card pool would replace that). The game snapshot keeps the chosen avatar, so old games must keep loading.
 - **Visual redesign:** the current look is plain (warm cream background, amber accent, DaisyUI components). Two directions to pick from, or combine: (a) Millennium items, with gold and lapis colours, Egyptian-style borders and hieroglyph-like ornaments, and the Eye of Wadjet as the logo; or (b) a 5D's style with dark-metal panels, neon cyan and red accents, Duel Disk-like frames and angled shapes. It would mostly touch `assets/css/app.css`, the layouts and the core components, with the drawn cards in `card_components.ex` left as they are. Open: which direction, and whether the admin pages are included.
 
 ## Features
@@ -22,6 +22,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
   - every player then answers it, starting with the chooser; picks stay hidden until the reveal
   - every player who was right gets the question's points
   - the game ends when the board is empty
+  - every player gets a random monster face as a picture: from the monsters of the format's popular decks for Edison, Goat and Tengu (e.g. Blackwings and Lightsworn for Edison), from a default pool of eight for other formats; the 46 images are cropped from card artwork by `mix avatars.fetch` and committed (the sets and how they were made are in `MillenniumQuiz.Avatars`)
 - **Modes**:
   - **Heart of the Cards** (free selection): choose any open question on the board
   - **Level Up!** (ascending difficulty): choose a topic and get its easiest open question

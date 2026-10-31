@@ -193,7 +193,13 @@ defmodule MillenniumQuiz.Game do
            mode: mode,
            players:
              names
-             |> Enum.zip(MillenniumQuiz.Avatars.assign(length(names), shuffle))
+             |> Enum.zip(
+               MillenniumQuiz.Avatars.assign(
+                 length(names),
+                 shuffle,
+                 MillenniumQuiz.Avatars.for_format(format.date)
+               )
+             )
              |> Enum.map(fn {name, avatar} -> %{name: name, score: 0, avatar: avatar} end),
            topics: topics,
            questions: questions,

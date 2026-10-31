@@ -339,6 +339,28 @@ defmodule MillenniumQuiz.GameTest do
     assert Enum.map(saved.players, & &1.avatar) == avatars
   end
 
+  test "the avatars come from the format's set, else from the default pool" do
+    for date <- [~D[2010-04-24], ~D[2005-04-01], ~D[2011-09-01]] do
+      {:ok, game} =
+        Game.new(%{@format | date: date}, ~w(Ann Bob Cy Di), questions(),
+          shuffle: &Enum.shuffle/1
+        )
+
+      avatars = Enum.map(game.players, & &1.avatar)
+      assert length(Enum.uniq(avatars)) == 4
+      assert avatars -- MillenniumQuiz.Avatars.for_format(date) == []
+    end
+
+    default = MillenniumQuiz.Avatars.default_slugs()
+
+    {:ok, game} =
+      Game.new(%{@format | date: ~D[2007-01-01]}, ~w(Ann Bob Cy Di), questions(),
+        shuffle: &Enum.shuffle/1
+      )
+
+    assert Enum.all?(game.players, &(&1.avatar in default))
+  end
+
   test "games saved before the avatars have none" do
     map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
     old = update_in(map["players"], fn ps -> Enum.map(ps, &Map.delete(&1, "avatar")) end)
