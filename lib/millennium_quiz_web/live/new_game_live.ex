@@ -143,7 +143,18 @@ defmodule MillenniumQuizWeb.NewGameLive do
             </div>
           </div>
 
-          <fieldset class="space-y-2 pt-3">
+          <div :if={length(@names) < @max} class="flex">
+            <button
+              type="button"
+              class="btn btn-ghost"
+              phx-click="add"
+              id="add-player"
+            >
+              <.icon name="hero-user-plus" class="size-5" /> Add player
+            </button>
+          </div>
+
+          <fieldset id="mode-choice" class="space-y-2 pt-3">
             <legend class="font-medium mb-2">Game mode</legend>
             <div class="grid gap-3 sm:grid-cols-2">
               <label
@@ -170,17 +181,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
             <.icon name="hero-exclamation-circle" class="size-5" /> {@error}
           </p>
 
-          <div class="flex flex-wrap gap-2 pt-2">
-            <button
-              :if={length(@names) < @max}
-              type="button"
-              class="btn btn-ghost"
-              phx-click="add"
-              id="add-player"
-            >
-              <.icon name="hero-user-plus" class="size-5" /> Add player
-            </button>
-            <div class="flex-1" />
+          <div class="flex justify-end pt-2">
             <button
               type="submit"
               class="btn btn-primary"
