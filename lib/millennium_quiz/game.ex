@@ -436,6 +436,9 @@ defmodule MillenniumQuiz.Game do
   def correct_count(%{result: %{picks: picks}, correct: correct}),
     do: Enum.count(picks, &(&1 == correct))
 
+  @doc "How many players answered a revealed question (eliminated players do not)."
+  def answered_count(%{result: %{picks: picks}}), do: Enum.count(picks, &(&1 != nil))
+
   @doc """
   The ranking, best first, with each player's index: survivors by life points
   (highest first), then the eliminated, the latest eliminated first. Ties keep

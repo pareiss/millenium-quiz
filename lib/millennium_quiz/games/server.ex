@@ -31,8 +31,8 @@ defmodule MillenniumQuiz.Games.Server do
         {:stop, :not_found}
 
       record ->
-        {:ok, %{record: record, game: record.state |> Game.from_map() |> Games.heal_avatars()},
-         @idle_timeout}
+        game = record.state |> Game.from_map() |> Games.heal_avatars()
+        {:ok, %{record: finish_record(record, game), game: game}, @idle_timeout}
     end
   end
 
@@ -109,6 +109,17 @@ defmodule MillenniumQuiz.Games.Server do
   rescue
     Ecto.StaleEntryError -> :gone
   end
+
+  # A game that loads as finished (an old score game, which `Game.from_map`
+  # always opens as finished) must also be finished in the table, or it would
+  # show the pause screen, stay remembered on the device and expire late.
+  defp finish_record(%{status: status} = record, %{phase: :finished}) when status != :finished do
+    record |> Ecto.Changeset.change(status: :finished) |> Repo.update!()
+  rescue
+    Ecto.StaleEntryError -> record
+  end
+
+  defp finish_record(record, _game), do: record
 
   defp gone(state), do: {:stop, :normal, {:error, :not_found}, state}
 

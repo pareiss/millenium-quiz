@@ -91,7 +91,13 @@ defmodule MillenniumQuiz.GamesTest do
 
     test "opens as a finished game that cannot be played", %{old_id: id} do
       assert {:ok, %{game: %Game{phase: :finished, start_lp: nil}}} = Games.fetch_game(id)
-      assert {:error, :not_choosing} = Games.choose(id, 0)
+      assert {:error, :invalid_status} = Games.choose(id, 0)
+    end
+
+    test "is finished in the table too, so it is not shown as paused", %{old_id: id} do
+      Repo.get!(GameRecord, id) |> Ecto.Changeset.change(status: :paused) |> Repo.update!()
+      assert {:ok, %{status: :finished}} = Games.fetch_game(id)
+      assert Repo.get!(GameRecord, id).status == :finished
     end
 
     test "is not offered to continue", %{old_id: id} do

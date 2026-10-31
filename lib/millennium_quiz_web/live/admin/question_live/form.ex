@@ -232,7 +232,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
         <.input
           field={@form[:points]}
           type="number"
-          label="Points"
+          label="Points (no longer used by games)"
           min="1"
           placeholder={"#{@default_points} (default for position #{@question.position + 1})"}
         />

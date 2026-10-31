@@ -269,7 +269,7 @@ defmodule MillenniumQuizWeb.GameLive do
                   name={if correct > 0, do: "hero-check", else: "hero-x-mark"}
                   class={["size-4", if(correct > 0, do: "text-success", else: "text-error")]}
                 />
-                <span class="tabular-nums">{correct}/{length(@game.players)} right</span>
+                <span class="tabular-nums">{correct}/{Game.answered_count(question)} right</span>
               </div>
               <div
                 :if={is_nil(question.result) and @game.mode == :ascending}
