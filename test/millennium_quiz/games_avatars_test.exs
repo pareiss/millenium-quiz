@@ -144,16 +144,6 @@ defmodule MillenniumQuiz.GamesAvatarsTest do
       assert Enum.all?(avatars, &(&1 in Avatars.default_slugs()))
     end
 
-    test "the unfinished games of the home page show the replacement too" do
-      {format, cards} = format_with_cards(4)
-      {:ok, id} = Games.create_game(format.id, @names)
-      Repo.delete!(hd(cards))
-
-      assert [%{game: game}] = Games.list_unfinished_games([id])
-      refute Enum.any?(game.players, &(Avatars.card_id(&1.avatar) == hd(cards).id))
-      assert Enum.all?(game.players, &Avatars.path(&1.avatar))
-    end
-
     test "deleting the format's cards from the pool does not break a new game" do
       {format, cards} = format_with_cards(4)
       for card <- cards, do: Repo.delete!(card)

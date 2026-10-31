@@ -23,8 +23,8 @@ defmodule MillenniumQuiz.Avatars do
   `"card-<id>"` (`card_slug/1`, `card_id/1`) and is the card's artwork,
   served at `path/2`. The pure functions here never ask the database: the
   name of a card picture is `Quiz.avatar_cards/1`'s business, `name/1` is nil
-  for it. If a card leaves the pool, games that saved its slug show no
-  picture.
+  for it. If a card leaves the pool, `Games.heal_avatars/1` gives
+  the games that saved its slug a picture of the default pool instead.
   """
 
   @max_card_id 9_223_372_036_854_775_807

@@ -161,8 +161,8 @@ defmodule MillenniumQuiz.Game do
       `Enum.shuffle/1`. Tests pass `& &1` to make games deterministic.
     * `:avatars` - one picture slug per player, or nil for a random one
       (missing entries count as nil). Each must be in the format's pool
-      (`Avatars.pool/1`: its avatar cards if `avatar_cards` is loaded and not
-      empty, else the set of its date) or the game is refused with
+      (`Avatars.pool/1`: its avatar cards if `avatar_cards` is loaded and has at
+      least `Avatars.min_cards/0` cards, else the set of its date) or the game is refused with
       `{:error, :invalid_avatar}`; two players can't have the same one
       (`{:error, :duplicate_avatars}`). The others get different random ones.
   """

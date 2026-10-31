@@ -135,7 +135,8 @@ defmodule MillenniumQuiz.Games do
   def pause(id), do: call(id, :pause)
   def resume(id), do: call(id, :resume)
 
-  @doc "Paused or active games among `ids`, newest first (for the home page)."
+  @doc "Paused or active games among `ids`, newest first (for the home page, which shows
+  no pictures, so they are not healed here; `Games.Server` heals when a game opens)."
   def list_unfinished_games(ids) when is_list(ids) do
     ids = for id <- ids, {:ok, uuid} <- [Ecto.UUID.cast(id)], do: uuid
 
@@ -144,9 +145,7 @@ defmodule MillenniumQuiz.Games do
         where: g.id in ^ids and g.status in [:active, :paused],
         order_by: [desc: g.updated_at]
     )
-    |> Enum.map(
-      &%{id: &1.id, status: &1.status, game: &1.state |> Game.from_map() |> heal_avatars()}
-    )
+    |> Enum.map(&%{id: &1.id, status: &1.status, game: Game.from_map(&1.state)})
   end
 
   @doc """

@@ -627,8 +627,9 @@ defmodule MillenniumQuizWeb.CoreComponents do
     />
     <%!-- A card of the card pool: its square artwork, placed by the crop (zoomed
          in around a focus point; by default the middle, because the face of a
-         monster is usually near it). A card deleted from the pool leaves an
-         empty ring. --%>
+         monster is usually near it). A card deleted from the pool is healed to
+         a picture of the default pool before a game gets here
+         (`Games.heal_avatars/1`); if not, the ring stays empty. --%>
     <span
       :if={@card?}
       title={@title}
