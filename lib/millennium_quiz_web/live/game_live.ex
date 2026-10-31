@@ -126,7 +126,10 @@ defmodule MillenniumQuizWeb.GameLive do
             <span class="text-base-content/50" id="game-mode">· {Game.mode_name(@game.mode)}</span>
           </p>
           <%!-- a finished game is no "Question 2 of 20" any more --%>
-          <h1 class="whitespace-nowrap text-xl sm:text-2xl font-bold tracking-tight" id="round-label">
+          <h1
+            class="duel-title whitespace-nowrap text-xl sm:text-2xl font-bold tracking-tight"
+            id="round-label"
+          >
             <%= if @finished? do %>
               Final results
             <% else %>
@@ -149,88 +152,67 @@ defmodule MillenniumQuizWeb.GameLive do
         </div>
       </div>
       <%!-- the final panel has the standings --%>
-      <progress
+      <.orb_rail
         :if={not @finished?}
-        class="mq-qhide progress progress-primary w-full"
-        value={Enum.count(@game.questions, & &1.result)}
-        max={Game.total_rounds(@game)}
+        id="game-progress"
+        class="mq-qhide"
+        total={Game.total_rounds(@game)}
+        current={if @game.phase == :revealed, do: @game.round + 1, else: @game.round}
+        label="Question"
       />
       <%!-- while a question is up the css hides it (app.css): a phone or tablet
            needs the room, and the life points are on the board before and in the
-           reveal after. A large screen has the room and keeps it --%>
+           reveal after. A large screen has the room and keeps it. Two to a row on
+           a phone (four players too up to lg), so a name keeps its room --%>
       <ul
         :if={not @finished?}
-        class="mq-nosel grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2"
+        class="mq-nosel grid grid-cols-2 gap-1.5 sm:gap-2 data-[n='3']:sm:grid-cols-3 data-[n='4']:lg:grid-cols-4"
         id="scoreboard"
+        data-n={length(@game.players)}
       >
         <li
           :for={{player, index} <- Enum.with_index(@game.players)}
           id={"score-#{index}"}
           data-eliminated={to_string(not Game.alive?(@game, index))}
-          class={[
-            "rounded-field border px-3 py-1.5 sm:py-2 transition",
-            cond do
-              not Game.alive?(@game, index) -> "border-base-300 bg-base-200/60 opacity-60"
-              Game.current_player_index(@game) == index -> "border-primary bg-primary/10 shadow-sm"
-              true -> "border-base-300 bg-base-100"
-            end
-          ]}
+          class="min-w-0 max-sm:[&:last-child:nth-child(odd)]:col-span-2"
         >
-          <div class="flex items-baseline justify-between gap-2 sm:block">
-            <p class="min-w-0 truncate text-sm flex items-center gap-2">
-              <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-10" />
-              <span class={["truncate", not Game.alive?(@game, index) && "line-through"]}>
-                {player.name}
-              </span>
-            </p>
-            <p class="text-lg font-semibold tabular-nums">
-              <span id={"lp-#{index}"}>{player.lp}</span>
-              <span class="text-xs font-medium text-base-content/60">LP</span>
-            </p>
-          </div>
-          <div
-            id={"lp-bar-#{index}"}
-            role="progressbar"
-            aria-label={"#{player.name}'s life points"}
-            aria-valuemin="0"
-            aria-valuemax={@game.start_lp}
-            aria-valuenow={player.lp}
-            class="mt-1 h-1.5 overflow-hidden rounded-full bg-base-300"
-          >
-            <div
-              class={[
-                "h-full rounded-full transition-all duration-700",
-                lp_color(player.lp, @game.start_lp)
-              ]}
-              style={"width: #{lp_percent(player.lp, @game.start_lp)}%"}
-            />
-          </div>
-          <p
-            :if={not Game.alive?(@game, index)}
-            id={"eliminated-#{index}"}
-            class="mt-1 text-xs font-bold uppercase tracking-wide text-error"
-          >
+          <% {status, damage} = gauge_state(@game, index) %>
+          <.lp_gauge
+            id={"gauge-#{index}"}
+            lp_id={"lp-#{index}"}
+            bar_id={"lp-bar-#{index}"}
+            name={player.name}
+            avatar={player.avatar}
+            crop={@crops[player.avatar]}
+            lp={player.lp}
+            start_lp={@game.start_lp}
+            player={index}
+            status={status}
+            damage={damage}
+            active={
+              @game.phase in [:choosing, :answering] and Game.current_player_index(@game) == index
+            }
+          />
+          <span :if={not Game.alive?(@game, index)} id={"eliminated-#{index}"} class="sr-only">
             Eliminated
-          </p>
+          </span>
         </li>
       </ul>
     </div>
     """
   end
 
-  # Share of the starting life points left, 0 to 100.
-  defp lp_percent(lp, start_lp) when is_integer(lp) and is_integer(start_lp) and start_lp > 0,
-    do: lp |> Kernel.*(100) |> div(start_lp) |> min(100) |> max(0)
+  # What a player's gauge shows: in the reveal, the hit of the question just
+  # answered (the ghost of the lost life points); otherwise nothing.
+  defp gauge_state(%{phase: :revealed} = game, index) do
+    question = Game.current_question(game)
 
-  defp lp_percent(_lp, _start_lp), do: 0
-
-  defp lp_color(lp, start_lp) do
-    case lp_percent(lp, start_lp) do
-      percent when percent > 50 -> "bg-success"
-      percent when percent > 25 -> "bg-warning"
-      _ -> "bg-error"
-    end
+    if index in Game.answer_order(game) and not Game.correct?(game, index),
+      do: {:hit, min(Game.lp_before_reveal(game, index), question.damage)},
+      else: {:alive, nil}
   end
+
+  defp gauge_state(_game, _index), do: {:alive, nil}
 
   attr :game, Game, required: true
   attr :turn_locked, :boolean, default: false
@@ -249,9 +231,9 @@ defmodule MillenniumQuizWeb.GameLive do
     <div
       id={"board-panel-#{@game.round}"}
       data-turn-panel
-      class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden"
+      class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden"
     >
-      <div class="bg-secondary text-secondary-content px-4 py-2.5 sm:px-5 sm:py-3 flex items-center gap-3">
+      <div class="duel-banner bg-secondary text-secondary-content px-4 py-2.5 sm:px-5 sm:py-3 flex items-center gap-3">
         <.icon name="hero-hand-raised" class="size-5 shrink-0" />
         <p>
           <strong class="text-lg" id="current-player">{@player.name}</strong>, {@prompt}
@@ -275,23 +257,26 @@ defmodule MillenniumQuizWeb.GameLive do
               phx-click="choose"
               phx-value-question={next}
               disabled={@turn_locked}
-              class="min-h-14 rounded-field bg-primary px-1 py-1 text-xs sm:px-2 sm:text-sm font-semibold text-primary-content shadow-sm transition hover:brightness-110 active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
+              data-state="next"
+              class="duel-plate duel-topic min-h-14 rounded-field bg-primary px-1 py-1 text-xs sm:px-2 sm:text-sm font-semibold text-primary-content shadow-sm transition hover:brightness-110 active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
             >
               <span class="line-clamp-3 sm:line-clamp-2 leading-tight hyphens-auto break-words">
                 {topic}
               </span>
               <span
                 id={"next-atk-#{column}"}
-                class="mt-0.5 block text-[0.65rem] sm:text-xs font-bold uppercase tabular-nums opacity-80"
+                class="mt-0.5 flex flex-wrap items-baseline justify-center gap-x-1.5 text-[0.65rem] sm:text-xs font-bold uppercase tabular-nums"
               >
-                Next ATK {Game.next_damage(@game, column)}
+                <span class="opacity-80">Next</span>
+                <.atk_label value={Game.next_damage(@game, column)} class="text-sm sm:text-base" />
               </span>
             </button>
             <div
               :if={@game.mode == :free or is_nil(next)}
               id={"topic-#{column}"}
+              data-state={if next, do: "free", else: "done"}
               class={[
-                "min-h-14 grid place-items-center rounded-field px-1 py-1 text-center text-xs sm:px-2 sm:text-sm font-semibold",
+                "duel-plate duel-topic min-h-14 grid place-items-center rounded-field px-1 py-1 text-center text-xs sm:px-2 sm:text-sm font-semibold",
                 if(next, do: "bg-base-200", else: "bg-base-200/50 text-base-content/40")
               ]}
             >
@@ -307,35 +292,44 @@ defmodule MillenniumQuizWeb.GameLive do
                 phx-click="choose"
                 phx-value-question={index}
                 disabled={@turn_locked}
-                class="h-14 rounded-field border border-primary/30 bg-primary/10 text-lg font-bold tabular-nums text-primary transition hover:bg-primary hover:text-primary-content active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
+                data-state="open"
+                class="duel-plate duel-tile h-14 rounded-field border border-primary/30 bg-primary/10 text-base sm:text-lg font-bold tabular-nums text-base-content transition hover:bg-primary hover:text-primary-content active:scale-95 phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
               >
-                {question.damage}
+                <.atk_label value={question.damage} />
               </button>
               <div
                 :if={question.result}
                 id={"question-#{index}"}
-                class="h-14 flex flex-col items-center justify-center rounded-field bg-base-200/60 px-1 text-xs text-base-content/50"
+                data-state="done"
+                class="duel-plate duel-tile h-14 flex flex-col items-center justify-center rounded-field bg-base-200/60 px-1 text-xs text-base-content/50"
                 title={"#{question.damage} damage"}
               >
                 <% correct = Game.correct_count(question) %>
-                <.icon
-                  name={if correct > 0, do: "hero-check", else: "hero-x-mark"}
-                  class={["size-4", if(correct > 0, do: "text-success", else: "text-error")]}
-                />
-                <span class="tabular-nums">{correct}/{Game.answered_count(question)} right</span>
+                <span class="flex items-center gap-1 text-sm font-bold tabular-nums">
+                  <.icon
+                    name={if correct > 0, do: "hero-check", else: "hero-x-mark"}
+                    class={["size-4", if(correct > 0, do: "text-success", else: "text-error")]}
+                  />
+                  {question.damage}
+                </span>
+                <span class="text-[0.65rem] tabular-nums">
+                  {correct}/{Game.answered_count(question)} right
+                </span>
               </div>
               <div
                 :if={is_nil(question.result) and @game.mode == :ascending}
                 id={"question-#{index}"}
+                data-state={if index == next, do: "next", else: "later"}
                 class={[
-                  "h-14 grid place-items-center rounded-field border text-lg font-bold tabular-nums",
+                  "duel-plate duel-tile h-14 grid place-items-center rounded-field border text-base sm:text-lg font-bold tabular-nums",
                   if(index == next,
-                    do: "border-primary/40 bg-primary/10 text-primary",
+                    do: "border-primary/40 bg-primary/10 text-base-content",
                     else: "border-base-300 text-base-content/40"
                   )
                 ]}
               >
-                {question.damage}
+                <.atk_label :if={index == next} value={question.damage} />
+                <span :if={index != next}>{question.damage}</span>
               </div>
             <% end %>
           </div>
@@ -359,15 +353,22 @@ defmodule MillenniumQuizWeb.GameLive do
     <div
       id={"turn-#{@game.round}-#{@game.answered}"}
       data-turn-panel
-      class="rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden reveal-pop"
+      class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 shadow-sm overflow-hidden reveal-pop"
     >
       <%!-- goes by itself after about 3 seconds (app.css), when a question comes
            up and again for each next player; on a phone or tablet the choices
            below cannot be tapped until it has gone, so nobody hits the wrong one
            as the page moves, and the line along its bottom runs out meanwhile --%>
-      <div class="mq-passbar bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
+      <div class="mq-passbar duel-banner bg-secondary text-secondary-content px-5 py-3 flex items-center gap-3">
         <span class="mq-passbar__timer" aria-hidden="true"></span>
-        <.avatar slug={@player.avatar} crop={@crops[@player.avatar]} class="size-14" />
+        <.synchro_ring class="size-14 shrink-0">
+          <.avatar
+            slug={@player.avatar}
+            crop={@crops[@player.avatar]}
+            title={@player.name}
+            class="size-full !ring-0"
+          />
+        </.synchro_ring>
         <p class="min-w-0">
           Pass the device to <strong class="text-lg" id="current-player">{@player.name}</strong>
         </p>
@@ -397,9 +398,9 @@ defmodule MillenniumQuizWeb.GameLive do
               phx-click="answer"
               phx-value-choice={i}
               disabled={@turn_locked}
-              class="mq-nosel group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
+              class="duel-plate duel-choice mq-nosel group flex items-center gap-3 rounded-field border border-base-300 bg-base-100 p-4 text-left transition hover:border-primary hover:bg-primary/5 active:scale-[0.98] phx-click-loading:opacity-50 disabled:opacity-50 disabled:pointer-events-none"
             >
-              <span class="grid place-items-center size-8 shrink-0 rounded-full bg-base-200 font-semibold group-hover:bg-primary group-hover:text-primary-content transition">
+              <span class="duel-letter grid place-items-center size-8 shrink-0 rounded-full bg-base-200 font-semibold group-hover:bg-primary group-hover:text-primary-content transition">
                 {<<?A + i>>}
               </span>
               <span><.answer_text text={choice} /></span>
@@ -586,7 +587,7 @@ defmodule MillenniumQuizWeb.GameLive do
     ~H"""
     <div
       id={@id}
-      class="sticky bottom-0 z-10 -mx-4 -mb-4 rounded-b-box border-t border-base-300 bg-base-100 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:-mb-6 sm:px-6"
+      class="duel-foot sticky bottom-0 z-10 -mx-4 -mb-4 rounded-b-box border-t border-base-300 bg-base-100 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:-mb-6 sm:px-6"
     >
       {render_slot(@inner_block)}
     </div>
@@ -605,12 +606,16 @@ defmodule MillenniumQuizWeb.GameLive do
       |> assign(:question, question)
       |> assign(:chooser, Enum.at(assigns.game.players, question.result.chooser))
       |> assign(:last_round?, Game.over?(assigns.game))
+      |> assign(:headline, reveal_headline(assigns.game))
 
     ~H"""
     <div
-      class="rounded-box border border-base-300 bg-base-100 shadow-sm p-4 sm:p-6 space-y-5 reveal-pop"
+      class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 shadow-sm p-4 sm:p-6 space-y-5 reveal-pop"
       id="reveal"
     >
+      <h2 id="reveal-headline" class="duel-headline" data-tone={elem(@headline, 0)}>
+        {elem(@headline, 1)}
+      </h2>
       <div class="grid gap-5 md:landscape:grid-cols-2 lg:grid-cols-2 lg:gap-8 items-start">
         <div class="space-y-5">
           <.question_meta question={@question} />
@@ -638,8 +643,9 @@ defmodule MillenniumQuizWeb.GameLive do
             <li
               :for={{choice, i} <- Enum.with_index(@question.choices)}
               id={"reveal-choice-#{i}"}
+              data-correct={to_string(i == @question.correct)}
               class={[
-                "flex items-center gap-3 rounded-field border p-3",
+                "duel-plate duel-choice flex items-center gap-3 rounded-field border p-3",
                 if(i == @question.correct,
                   do: "border-success bg-success/15 font-semibold",
                   else: "border-base-300 opacity-60"
@@ -666,13 +672,14 @@ defmodule MillenniumQuizWeb.GameLive do
             Nobody was right: everyone takes {@question.damage} damage.
           </p>
           <ul
-            class="divide-y divide-base-300 rounded-field border border-base-300"
+            class="duel-rows divide-y divide-base-300 rounded-field border border-base-300"
             id="round-results"
           >
             <li
               :for={index <- Game.answer_order(@game)}
               id={"result-#{index}"}
-              class="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 sm:gap-x-3 sm:px-4"
+              data-result={result_kind(@game, index)}
+              class="duel-plate duel-row flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 sm:gap-x-3 sm:px-4"
             >
               <% correct? = Game.correct?(@game, index) %>
               <% player = Enum.at(@game.players, index) %>
@@ -700,24 +707,29 @@ defmodule MillenniumQuizWeb.GameLive do
               <p
                 :if={correct?}
                 id={"damage-result-#{index}"}
-                class="basis-full text-sm text-base-content/60 tabular-nums"
+                class="duel-eq basis-full text-sm text-base-content/60 tabular-nums"
               >
                 No damage. <span class="font-semibold">{player.lp} LP</span>
               </p>
               <p
                 :if={not correct? and Game.alive?(@game, index)}
                 id={"damage-result-#{index}"}
-                class="basis-full text-sm font-semibold text-error tabular-nums"
+                class="duel-eq basis-full text-sm font-semibold text-error tabular-nums"
               >
-                Direct hit! {player.lp + @question.damage} - {@question.damage} = {player.lp} LP
+                Direct hit! <span class="duel-eq-lp">{player.lp + @question.damage}</span>
+                - <span class="duel-eq-dmg">{@question.damage}</span>
+                = <span class="duel-eq-lp">{player.lp}</span>
+                LP
               </p>
               <p
                 :if={not correct? and not Game.alive?(@game, index)}
                 id={"damage-result-#{index}"}
-                class="basis-full text-sm font-bold text-error tabular-nums"
+                class="duel-eq basis-full text-sm font-bold text-error tabular-nums"
               >
-                K.O.! {Game.lp_before_reveal(@game, index)} LP, {@question.damage} damage: 0 LP left.
-                <span id={"ko-#{index}"} class="uppercase">Eliminated</span>
+                K.O.! <span class="duel-eq-lp">{Game.lp_before_reveal(@game, index)}</span>
+                LP, <span class="duel-eq-dmg">{@question.damage}</span>
+                damage: 0 LP left.
+                <span id={"ko-#{index}"} class="duel-ko-tag uppercase">Eliminated</span>
               </p>
             </li>
           </ul>
@@ -737,6 +749,25 @@ defmodule MillenniumQuizWeb.GameLive do
       </.sticky_bar>
     </div>
     """
+  end
+
+  # The headline of a reveal: a knock-out, a hit or no damage at all.
+  defp reveal_headline(game) do
+    wrong = Enum.reject(Game.answer_order(game), &Game.correct?(game, &1))
+
+    cond do
+      Enum.any?(wrong, &(not Game.alive?(game, &1))) -> {"ko", "K.O.!"}
+      wrong != [] -> {"hit", "Damage!"}
+      true -> {"safe", "No damage!"}
+    end
+  end
+
+  defp result_kind(game, index) do
+    cond do
+      Game.correct?(game, index) -> "right"
+      Game.alive?(game, index) -> "hit"
+      true -> "ko"
+    end
   end
 
   attr :cards, :list, required: true
@@ -875,8 +906,10 @@ defmodule MillenniumQuizWeb.GameLive do
   defp question_meta(assigns) do
     ~H"""
     <div class="flex items-center gap-2 text-sm">
-      <span class="badge badge-outline">{@question.topic}</span>
-      <span class="badge badge-primary" id="question-points">{@question.damage} ATK</span>
+      <span class="duel-tag badge badge-outline">{@question.topic}</span>
+      <span class="duel-tag duel-tag--atk badge badge-primary" id="question-points">
+        {@question.damage} ATK
+      </span>
     </div>
     """
   end
@@ -917,7 +950,7 @@ defmodule MillenniumQuizWeb.GameLive do
   defp paused_panel(assigns) do
     ~H"""
     <div
-      class="mx-auto max-w-2xl rounded-box border border-primary/50 bg-base-100 shadow-sm p-5 sm:p-6 space-y-6"
+      class="duel-plate duel-panel mx-auto max-w-2xl rounded-box border border-primary/50 bg-base-100 shadow-sm p-5 sm:p-6 space-y-6"
       id="paused"
     >
       <div class="flex items-start gap-3">
@@ -1028,11 +1061,20 @@ defmodule MillenniumQuizWeb.GameLive do
 
     ~H"""
     <div
-      class="mx-auto max-w-2xl rounded-box border border-primary/50 bg-base-100 shadow-sm p-4 sm:p-6 space-y-6 text-center"
+      class="duel-plate duel-panel mx-auto max-w-2xl rounded-box border border-primary/50 bg-base-100 shadow-sm p-4 sm:p-6 space-y-6 text-center"
       id="final"
     >
       <div class="space-y-2">
-        <span class="inline-grid place-items-center size-16 rounded-full bg-primary text-primary-content shadow">
+        <%!-- the ranking of a duel; a game from before the life points has none --%>
+        <p
+          :if={@game.start_lp}
+          id="final-headline"
+          class="duel-headline"
+          data-tone={if @draw?, do: "hit", else: "duel"}
+        >
+          {if @draw?, do: "Draw!", else: "Duel over"}
+        </p>
+        <span class="duel-trophy inline-grid place-items-center size-16 rounded-full bg-primary text-primary-content shadow">
           <.icon name="hero-trophy" class="size-8" />
         </span>
         <h2 class="text-3xl font-bold" id="winner">
@@ -1048,18 +1090,29 @@ defmodule MillenniumQuizWeb.GameLive do
         <li
           :for={{player, index, rank} <- @standings}
           id={"final-player-#{index}"}
+          data-rank={rank}
+          data-player={index + 1}
           class={[
-            "flex items-center gap-3 rounded-field border px-4 py-3",
+            "duel-plate duel-rank flex items-center gap-3 rounded-field border px-4 py-3",
             if(rank == 1, do: "border-primary bg-primary/10", else: "border-base-300")
           ]}
         >
-          <span class="w-6 text-base-content/60 tabular-nums">{rank}.</span>
-          <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-16" />
-          <span class="flex-1 font-medium">{player.name}</span>
+          <span class="duel-rank-no w-6 text-base-content/60 tabular-nums">{rank}.</span>
+          <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-12 sm:size-16" />
+          <span class="min-w-0 flex-1">
+            <span class="block font-medium break-words">{player.name}</span>
+            <span
+              :if={player.lp && Game.alive?(@game, index)}
+              class="duel-rank-bar mt-1"
+              aria-hidden="true"
+            >
+              <span style={"width:#{lp_percent(player.lp, @game.start_lp)}%"}></span>
+            </span>
+          </span>
           <span
             :if={Game.alive?(@game, index)}
             id={"final-lp-#{index}"}
-            class="font-semibold tabular-nums"
+            class="duel-rank-lp font-semibold tabular-nums"
           >
             {player.lp || player.score}{if player.lp, do: " LP"}
           </span>
@@ -1088,6 +1141,12 @@ defmodule MillenniumQuizWeb.GameLive do
     </div>
     """
   end
+
+  # Share of the starting life points left, 0 to 100.
+  defp lp_percent(lp, start_lp) when is_integer(lp) and is_integer(start_lp) and start_lp > 0,
+    do: lp |> Kernel.*(100) |> div(start_lp) |> min(100) |> max(0)
+
+  defp lp_percent(_lp, _start_lp), do: 0
 
   # The names, mode and life points of a finished game, for "Play again".
   defp play_again_params(game) do

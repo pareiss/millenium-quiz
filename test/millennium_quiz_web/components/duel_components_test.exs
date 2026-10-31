@@ -33,7 +33,10 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
       assert count(html, ".duel-gauge-avatar") == 1
       assert count(html, ".duel-gauge-plate") == 1
       assert count(html, ".duel-gauge-bar") == 1
-      assert attr(html, ".duel-gauge-bar", "aria-hidden") == ["true"]
+      assert attr(html, ".duel-gauge-bar", "role") == ["progressbar"]
+      assert attr(html, ".duel-gauge-bar", "aria-label") == ["Yugi's life points"]
+      assert attr(html, ".duel-gauge-bar", "aria-valuenow") == ["4000"]
+      assert attr(html, ".duel-gauge-bar", "aria-valuemax") == ["4000"]
       assert attr(html, ".duel-gauge-fill", "style") == ["width:100.0%"]
 
       assert text(gauge(lp: 30), ".duel-gauge-num") == "00030"
@@ -42,11 +45,22 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
       assert text(gauge(lp: 5, start_lp: 100_000), ".duel-gauge-num") == "000005"
     end
 
+    test "the number and the bar take the ids the game screens give them" do
+      html = gauge(lp_id: "lp-0", bar_id: "lp-bar-0", lp: 1000)
+      assert text(html, "#lp-0") == "01000"
+      assert attr(html, "#lp-0", "data-lp") == ["1000"]
+      assert attr(html, "#lp-0", "phx-hook") == ["MillenniumQuizWeb.DuelComponents.LpCount"]
+      # no id, no hook (a hook needs one)
+      assert attr(gauge(), ".duel-gauge-num", "phx-hook") == []
+      assert attr(html, "#lp-bar-0", "aria-valuenow") == ["1000"]
+      assert attr(html, "#lp-bar-0 .duel-gauge-fill", "style") == ["width:25.0%"]
+    end
+
     test "the size classes are container queries in the CSS, on a size container" do
       assert gauge() =~ "duel-gauge"
       assert @css =~ "container-type: inline-size"
 
-      for max <- ["419.98px", "199.98px", "99.98px"],
+      for max <- ["419.98px", "299.98px", "99.98px"],
           do: assert(@css =~ "@container duel-gauge (max-width: #{max})")
     end
 
@@ -173,7 +187,17 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
 
   describe "contrast of the colours the components add" do
     defp tokens(theme) do
-      [_, block] = Regex.run(~r/^\[data-theme=#{theme}\] \{(.*?)\n\}/ms, @css)
+      # the tokens are shared with the plain themes of the same brightness
+      selector =
+        case theme do
+          t when t in ["duel-dark", "dark"] ->
+            "[data-theme=dark], [data-theme=duel-dark]"
+
+          t when t in ["duel-light", "light"] ->
+            ":root, [data-theme=light], [data-theme=duel-light]"
+        end
+
+      [_, block] = Regex.run(~r/^#{Regex.escape(selector)} \{(.*?)\n\}/ms, @css)
 
       ~r/--duel-([a-z0-9-]+): (#[0-9a-f]{6});/
       |> Regex.scan(block)
@@ -183,9 +207,45 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
     defp theme(name) do
       [_, block] = Regex.run(~r/name: "#{name}";(.*?)\n\}/s, @css)
 
-      ~r/--color-([a-z0-9-]+): (#[0-9a-f]{6});/
+      # the duel themes use hex, the plain light and dark themes oklch()
+      ~r/--color-([a-z0-9-]+): (#[0-9a-f]{6}|oklch\([^)]*\));/
       |> Regex.scan(block)
-      |> Map.new(fn [_, key, hex] -> {key, hex} end)
+      |> Map.new(fn [_, key, value] -> {key, to_hex(value)} end)
+    end
+
+    defp to_hex("#" <> _ = hex), do: hex
+
+    defp to_hex("oklch(" <> rest) do
+      [l, c, h] =
+        rest |> String.trim_trailing(")") |> String.split(" ", trim: true) |> Enum.map(&number/1)
+
+      # oklab -> linear sRGB -> sRGB (Bjorn Ottosson's matrices)
+      l = l / 100
+      a = c * :math.cos(h * :math.pi() / 180)
+      b = c * :math.sin(h * :math.pi() / 180)
+      l_ = :math.pow(l + 0.3963377774 * a + 0.2158037573 * b, 3)
+      m_ = :math.pow(l - 0.1055613458 * a - 0.0638541728 * b, 3)
+      s_ = :math.pow(l - 0.0894841775 * a - 1.2914855480 * b, 3)
+
+      [
+        4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
+        -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
+        -0.0041960863 * l_ - 0.7034186147 * m_ + 1.7076147010 * s_
+      ]
+      |> Enum.map(fn v ->
+        v = v |> max(0.0) |> min(1.0)
+        v = if v <= 0.0031308, do: 12.92 * v, else: 1.055 * :math.pow(v, 1 / 2.4) - 0.055
+        v |> Kernel.*(255) |> round() |> Integer.to_string(16) |> String.pad_leading(2, "0")
+      end)
+      |> then(&("#" <> Enum.join(&1)))
+      |> String.downcase()
+    end
+
+    defp number(text) do
+      text
+      |> String.trim_trailing("%")
+      |> then(&if &1 =~ ".", do: &1, else: &1 <> ".0")
+      |> String.to_float()
     end
 
     defp channel(hex, from) do
@@ -201,7 +261,7 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
       (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
     end
 
-    for name <- ["duel-dark", "duel-light"] do
+    for name <- ["duel-dark", "duel-light", "dark", "light"] do
       test "#{name}: number, labels, damage, K.O. and the ring are readable" do
         t = tokens(unquote(name))
         c = theme(unquote(name))
@@ -213,7 +273,7 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
               do: {fg, c[bg]}
 
         # the K.O. badge text on its own background
-        text_pairs = [{c["error-content"], c["error"]} | text_pairs]
+        text_pairs = [{t["ko-text"], c["error"]} | text_pairs]
 
         for {fg, bg} <- text_pairs do
           assert ratio(fg, bg) >= 4.5, "#{fg} on #{bg}: #{Float.round(ratio(fg, bg), 2)}:1"

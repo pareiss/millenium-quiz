@@ -49,6 +49,10 @@ import sys
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from playwright.sync_api import sync_playwright
 
+# LAYOUT_THEME=duel-dark (or duel-light, light, dark) runs everything under that theme
+# (the choice a visitor keeps in localStorage 'phx:theme'); unset is the site's default.
+THEME = os.environ.get("LAYOUT_THEME", "")
+
 base = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("LAYOUT_URL", "http://localhost:4000")).rstrip("/")
 
 # name, width, height, cards per row (at least), most scrolling allowed in px.
@@ -195,6 +199,15 @@ def pass_bar_height(page):
 
 with sync_playwright() as p:
     browser = p.chromium.launch()
+    _new_context = browser.new_context
+
+    def themed_context(**kw):
+        ctx = _new_context(**kw)
+        if THEME:
+            ctx.add_init_script(f"localStorage.setItem('phx:theme', '{THEME}')")
+        return ctx
+
+    browser.new_context = themed_context
     page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
 
     start_game(page)
@@ -742,20 +755,22 @@ with sync_playwright() as p:
                   const inside = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth }
                   return {overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
                           shown: rows.filter(r => r.row && inside(r.row) && inside(r.lp) && r.bar.getBoundingClientRect().height > 0).length,
-                          lp: document.querySelector('#lp-0').textContent.trim(),
-                          tile: document.querySelector('#question-0').textContent.trim()}
+                          // a name keeps room for at least 6 letters (the full name is in its title)
+                          nameMin: Math.min(...rows.map(r => r.row.querySelector('.duel-gauge-name').getBoundingClientRect().width)),
+                          lp: document.querySelector('#lp-0').textContent.trim().replace(/^0+/, ''),
+                          tile: document.querySelector('#question-0').textContent.replace(/\s+/g, ' ').trim()}
                 }""",
                 players,
             )
             check(f"{name}: {players} players: life points and bars on screen, 4000 LP, tile shows its damage, no horizontal overflow",
-                  m["shown"] == players and m["lp"] == "4000" and m["tile"].startswith("100") and m["overX"] <= 0, str(m))
+                  m["shown"] == players and m["lp"] == "4000" and m["nameMin"] >= 44 and m["tile"].endswith("100") and m["overX"] <= 0, str(m))
 
     # a knock-out: Player 2 is wrong on 3000 and then on 2500 damage
     def answer_round(pg, choose):
         pg.click(choose)
         pg.wait_for_selector("#current-player")
         for _ in range(2):
-            who = pg.inner_text("#current-player").strip()
+            who = pg.text_content("#current-player").strip()
             pg.click("#choice-1" if who == "Player 2" else "#choice-0", timeout=15000)
             pg.wait_for_timeout(300)
 
@@ -805,7 +820,7 @@ with sync_playwright() as p:
               const tops = [...document.querySelectorAll('button[id^=topic-]')]
               const info = tops.map(b => {
                 const r = b.getBoundingClientRect(), a = b.querySelector('[id^=next-atk-]').getBoundingClientRect()
-                return {w: r.width, h: r.height, text: b.querySelector('[id^=next-atk-]').innerText.trim(),
+                return {w: r.width, h: r.height, text: b.querySelector('[id^=next-atk-]').innerText.replace(/\s+/g, ' ').trim(),
                         within: a.left >= r.left - 0.5 && a.right <= r.right + 0.5 && a.bottom <= r.bottom + 0.5,
                         inside: r.left >= 0 && r.right <= innerWidth}
               })

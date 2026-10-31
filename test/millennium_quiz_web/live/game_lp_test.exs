@@ -105,7 +105,11 @@ defmodule MillenniumQuizWeb.GameLpTest do
 
       assert has_element?(view, "#lp-0", "4000")
       assert has_element?(view, "#lp-bar-0[role=progressbar][aria-valuenow='4000']")
-      assert has_element?(view, "#lp-bar-0 div[style*='width: 100%']")
+      # Ann is first: her gauge is the active one, and the first question is up
+      assert has_element?(view, "#gauge-0[data-active=true]")
+      assert has_element?(view, "#gauge-1[data-active=false]")
+      assert has_element?(view, "#game-progress[aria-valuenow='1']")
+      assert has_element?(view, "#lp-bar-0 div[style*='width:100.0%']")
       assert has_element?(view, "button#question-#{@hit_3000}", "3000")
 
       view |> element("#question-#{@hit_3000}") |> render_click()
@@ -115,11 +119,22 @@ defmodule MillenniumQuizWeb.GameLpTest do
       assert has_element?(view, "#damage-result-0", "No damage")
       assert has_element?(view, "#damage-result-1", "Direct hit! 4000 - 3000 = 1000 LP")
       refute has_element?(view, "#all-wrong")
+
+      # the reveal: a hit headline, Bob's gauge shows the hit and its ghost, Ann's does not
+      assert has_element?(view, "#reveal-headline[data-tone=hit]", "Damage!")
+      assert has_element?(view, "#gauge-1[data-status=hit] .duel-gauge-ghost")
+      assert has_element?(view, "#gauge-1[data-status=hit]", "3000")
+      assert has_element?(view, "#gauge-0[data-status=alive]")
+      refute has_element?(view, "#gauge-0 .duel-gauge-ghost")
+      assert has_element?(view, "#result-0[data-result=right]")
+      assert has_element?(view, "#result-1[data-result=hit]")
+      # the answered question counts as done in the rail
+      assert has_element?(view, "#game-progress[aria-valuenow='2']")
       view |> element("#next-round") |> render_click()
 
       assert has_element?(view, "#lp-0", "4000")
       assert has_element?(view, "#lp-1", "1000")
-      assert has_element?(view, "#lp-bar-1 div[style*='width: 25%']")
+      assert has_element?(view, "#lp-bar-1 div[style*='width:25.0%']")
       refute has_element?(view, "#eliminated-1")
       # the chooser rotates to Bob
       assert has_element?(view, "#current-player", "Bob")
@@ -129,6 +144,11 @@ defmodule MillenniumQuizWeb.GameLpTest do
 
       assert has_element?(view, "#damage-result-0", "No damage")
       assert has_element?(view, "#damage-result-1", "K.O.")
+      # the knock-out headline, Bob's gauge is out (K.O. text) and still shows the final hit
+      assert has_element?(view, "#reveal-headline[data-tone=ko]", "K.O.!")
+      assert has_element?(view, "#gauge-1[data-status=eliminated]", "K.O.")
+      assert has_element?(view, "#gauge-1 .duel-gauge-ghost")
+      assert has_element?(view, "#result-1[data-result=ko]")
       # Bob had 1000 LP before the 2500 hit: the row says what he really lost
       assert has_element?(view, "#damage-result-1", "1000 LP, 2500 damage")
       assert has_element?(view, "#result-1", "-1000")
@@ -137,6 +157,7 @@ defmodule MillenniumQuizWeb.GameLpTest do
       view |> element("#next-round") |> render_click()
 
       assert has_element?(view, "#final")
+      assert has_element?(view, "#final-headline[data-tone=duel]", "Duel over")
       assert has_element?(view, "#winner", "Ann wins!")
       assert has_element?(view, "#final-standings li:nth-child(1)#final-player-0", "4000 LP")
       assert has_element?(view, "#final-standings li:nth-child(2)#final-player-1")
@@ -154,13 +175,16 @@ defmodule MillenniumQuizWeb.GameLpTest do
       pick(view, [1, 2])
 
       assert has_element?(view, "#all-wrong")
+      assert has_element?(view, "#reveal-headline[data-tone=hit]")
+      assert has_element?(view, "#gauge-0[data-status=hit]")
+      assert has_element?(view, "#gauge-1[data-status=hit]")
       assert has_element?(view, "#damage-result-0", "8000 - 1600 = 6400 LP")
       assert has_element?(view, "#damage-result-1", "8000 - 1600 = 6400 LP")
       view |> element("#next-round") |> render_click()
 
       assert has_element?(view, "#lp-0", "6400")
       assert has_element?(view, "#lp-1", "6400")
-      assert has_element?(view, "#lp-bar-0 div[style*='width: 80%']")
+      assert has_element?(view, "#lp-bar-0 div[style*='width:80.0%']")
     end
 
     test "the last two players dropping to 0 together is a draw", %{conn: conn, format: format} do
@@ -175,8 +199,12 @@ defmodule MillenniumQuizWeb.GameLpTest do
       pick(view, [1, 1])
       assert has_element?(view, "#damage-result-0", "K.O.")
       assert has_element?(view, "#damage-result-1", "K.O.")
+      assert has_element?(view, "#reveal-headline[data-tone=ko]")
+      assert has_element?(view, "#gauge-0[data-status=eliminated]")
+      assert has_element?(view, "#gauge-1[data-status=eliminated]")
       view |> element("#next-round") |> render_click()
 
+      assert has_element?(view, "#final-headline[data-tone=hit]", "Draw!")
       assert has_element?(view, "#winner", "Draw: Ann & Bob")
       assert has_element?(view, "#final-standings li:nth-child(1)#final-player-0")
       assert has_element?(view, "#final-eliminated-0")
