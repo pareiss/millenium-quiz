@@ -30,18 +30,22 @@
         const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 
         // the browser bar follows the site's theme, not only the system's
-        const barColors = {light: "#fdfaf4", dark: "#19182a"};
+        const barColors = {light: "#fdfaf4", dark: "#19182a", "duel-light": "#eef2f7", "duel-dark": "#0b0f16"};
         const paintBar = () => {
           const color = barColors[document.documentElement.getAttribute("data-theme")];
           if (color) document.querySelector("meta[name=theme-color]")?.setAttribute("content", color);
         };
 
+        // opt-in "duel" themes: "duel" follows the system like "system" does
+        const resolve = (theme) => theme === "duel" ? "duel-" + systemTheme() : systemTheme();
         const setTheme = (theme) => {
-          if (theme === "system") {
-            localStorage.removeItem("phx:theme");
-            document.documentElement.setAttribute("data-theme", systemTheme());
+          if (theme === "system" || theme === "duel") {
+            if (theme === "system") localStorage.removeItem("phx:theme"); else localStorage.setItem("phx:theme", theme);
+            document.documentElement.setAttribute("data-theme", resolve(theme));
+            document.documentElement.setAttribute("data-theme-family", theme);
             document.documentElement.setAttribute("data-theme-source", "system");
           } else {
+            document.documentElement.setAttribute("data-theme-family", "fixed");
             localStorage.setItem("phx:theme", theme);
             document.documentElement.setAttribute("data-theme", theme);
             document.documentElement.setAttribute("data-theme-source", "user");
@@ -49,14 +53,16 @@
           paintBar();
         };
         if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
+          const asked = new URLSearchParams(location.search).get("theme");
+          const known = ["system", "light", "dark", "duel", "duel-light", "duel-dark"];
+          setTheme(known.includes(asked) ? asked : localStorage.getItem("phx:theme") || "system");
         }
         window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
         window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
 
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
           if (document.documentElement.getAttribute("data-theme-source") === "system") {
-            document.documentElement.setAttribute("data-theme", systemTheme());
+            document.documentElement.setAttribute("data-theme", resolve(document.documentElement.getAttribute("data-theme-family")));
             paintBar();
           }
         });
