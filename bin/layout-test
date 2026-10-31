@@ -31,6 +31,8 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
     a not-allowed pointer, a running line); on a large screen it fades where it is, nothing
     moves and nothing is locked
   - how far the question must scroll stays under a limit per viewport
+  - new-game page, on a touch context: the players' picture buttons are >= 44px, the open picture panel fits
+    the width with a capped, scrolling grid of >= 44px targets, choosing a picture changes the button
   - with SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD: the admin question form has up and down buttons
     for the cards, on screen at every viewport, and they move a card (nothing is saved);
     LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip.
@@ -142,10 +144,15 @@ def metrics(page):
     )
 
 
+# The fixture formats: "Layout check" is also the start of "Layout check pictures".
+FIXTURE_LINK = "a:has-text('Layout check'):not(:has-text('Layout check pictures'))"
+PICTURES_LINK = "a:has-text('Layout check pictures')"
+
+
 def start_game(page):
     """Opens the Layout check format, names two players and starts; the board is up."""
     page.goto(base + "/")
-    page.locator("a:has-text('Layout check')").first.click()
+    page.locator(FIXTURE_LINK).first.click()
     page.wait_for_selector("#start-game")
     for i in range(2):
         # real key events: the field debounces, and the form reads it on blur
@@ -194,12 +201,16 @@ with sync_playwright() as p:
         m = metrics(page)
         check(f"{name}: no horizontal overflow, score line shown",
               m["overX"] <= 0 and m["score"], f"overflow {m['overX']}px, score line {m['score']}")
-        pics = page.evaluate(
-            """() => {
+        # images load lazily after a resize or a reconnect: wait for them instead of sampling once
+        pics_js = """() => {
               const a = [...document.querySelectorAll('img[src^="/images/avatars/"]')]
               return {n: a.length, notLoaded: a.filter(i => !(i.complete && i.naturalWidth > 0)).length}
             }"""
-        )
+        try:
+            page.wait_for_function(f"(() => {{ const m = ({pics_js})(); return m.n >= 2 && m.notLoaded === 0 }})()", timeout=5000)
+        except PlaywrightTimeout:
+            pass
+        pics = page.evaluate(pics_js)
         check(f"{name}: the players' pictures are shown and loaded", pics["n"] >= 2 and pics["notLoaded"] == 0, str(pics))
 
     # the first question of the board has 4 cards
@@ -327,17 +338,115 @@ with sync_playwright() as p:
     check("next player: the bar has not folded away either", pass_bar_height(page) >= 60,
           f"{pass_bar_height(page)}px")
 
+    # The picture buttons of the new-game page. A touch context (coarse pointer), as on a phone or
+    # tablet. The Layout check format has no admin-chosen cards, so these are the monster pictures
+    # of the date's / default pool; the card pictures use the same markup.
+    print("New game page (the players' picture buttons and panel)")
+    touch = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    tpage = touch.new_page()
+    tpage.goto(base + "/")
+    tpage.locator(FIXTURE_LINK).first.click()
+    tpage.wait_for_selector("#avatar-button-0")
+    tpage.wait_for_selector("[data-phx-main].phx-connected")
+    check("the touch context has a coarse pointer", tpage.evaluate("matchMedia('(pointer: coarse)').matches"))
+
+    def picture_metrics(pg):
+        return pg.evaluate(
+            """() => {
+              const d = document.documentElement
+              const rect = (e) => e.getBoundingClientRect()
+              const btns = [...document.querySelectorAll('[id^=avatar-button-]')]
+              const panel = document.querySelector('#avatar-panel-0')
+              const grid = panel && panel.querySelector('[role=group]')
+              const choices = panel ? [...panel.querySelectorAll('[id^=avatar-choice-]')] : []
+              return {
+                overX: d.scrollWidth - d.clientWidth,
+                overY: d.scrollHeight - innerHeight,
+                buttons: btns.map(b => [Math.round(rect(b).width), Math.round(rect(b).height)]),
+                src: btns.length ? btns[0].querySelector('img').getAttribute('src') : null,
+                panelIn: panel ? rect(panel).left >= 0 && rect(panel).right <= innerWidth : null,
+                gridMax: grid ? grid.clientHeight <= 14 * parseFloat(getComputedStyle(d).fontSize) + 1 : null,
+                gridScrolls: grid ? getComputedStyle(grid).overflowY : null,
+                choices: choices.length,
+                smallest: choices.length ? Math.round(Math.min(...choices.map(c => Math.min(rect(c).width, rect(c).height)))) : null,
+                inputIn: (() => { const i = document.querySelector('#player-name-0').getBoundingClientRect(); return i.width >= 100 && i.right <= innerWidth })(),
+              }
+            }"""
+        )
+
+    for name, w, h, _, _ in VIEWPORTS:
+        tpage.set_viewport_size({"width": w, "height": h})
+        tpage.wait_for_timeout(150)
+        closed = picture_metrics(tpage)
+        check(f"{name}: picture buttons are at least 44x44, the name field keeps room, no horizontal overflow",
+              len(closed["buttons"]) == 2 and all(bw >= 44 and bh >= 44 for bw, bh in closed["buttons"])
+              and closed["inputIn"] and closed["overX"] <= 0, str(closed))
+        tpage.click("#avatar-button-0")
+        tpage.wait_for_selector("#avatar-panel-0")
+        opened = picture_metrics(tpage)
+        check(f"{name}: the open panel fits the width, its grid is capped and scrolls inside, targets are >= 44px",
+              opened["overX"] <= 0 and opened["panelIn"] and opened["gridMax"] and opened["gridScrolls"] == "auto"
+              and opened["choices"] >= 8 and opened["smallest"] >= 44, str(opened))
+        tpage.click("#avatar-choice-0-" + tpage.evaluate(
+            "() => [...document.querySelectorAll('[id^=avatar-choice-0-]:not([disabled]):not([aria-pressed=true])')][0].id.slice('avatar-choice-0-'.length)"))
+        tpage.wait_for_selector("#avatar-panel-0", state="detached")
+        after = picture_metrics(tpage)
+        check(f"{name}: choosing a picture changes the button's image and closes the panel",
+              after["src"] != opened["src"] and after["overX"] <= 0, f"{opened['src']} -> {after['src']}")
+        check(f"{name}: the closed page scrolls no further than before the buttons (now {closed['overY']}px)",
+              closed["overY"] <= 600 and after["overY"] <= closed["overY"] + 2, f"{closed['overY']} / {after['overY']}")
+
+    # The same page for a format whose admin list has cards (Layout check pictures, 5 cards with a
+    # generated artwork): the pictures are the cards' artworks, zoomed into a circle.
+    print("New game page, a format with admin-chosen cards")
+    tpage.goto(base + "/")
+    tpage.locator(PICTURES_LINK).first.click()
+    tpage.wait_for_selector("#avatar-button-0")
+    tpage.wait_for_selector("[data-phx-main].phx-connected")
+    card_js = """() => {
+          const a = [...document.querySelectorAll('[id^=avatar-button-] img')]
+          return {n: a.length, cards: a.filter(i => i.getAttribute('src').startsWith('/cards/')).length,
+                  notLoaded: a.filter(i => !(i.complete && i.naturalWidth > 0)).length}
+        }"""
+    try:
+        tpage.wait_for_function(f"(() => {{ const m = ({card_js})(); return m.n >= 2 && m.notLoaded === 0 }})()", timeout=5000)
+    except PlaywrightTimeout:
+        pass
+    pics = tpage.evaluate(card_js)
+    check("the players' pictures are cards of the list, and loaded", pics["n"] >= 2 and pics["cards"] == pics["n"] and pics["notLoaded"] == 0, str(pics))
+    tpage.click("#avatar-button-0")
+    tpage.wait_for_selector("#avatar-panel-0")
+    for name, w, h, _, _ in VIEWPORTS:
+        tpage.set_viewport_size({"width": w, "height": h})
+        tpage.wait_for_timeout(150)
+        m = tpage.evaluate(
+            """() => {
+              const d = document.documentElement, panel = document.querySelector('#avatar-panel-0')
+              const choices = [...panel.querySelectorAll('[id^=avatar-choice-0-]')]
+              const r = panel.getBoundingClientRect()
+              return {choices: choices.length, overX: d.scrollWidth - d.clientWidth,
+                      inside: r.left >= 0 && r.right <= innerWidth,
+                      small: choices.filter(c => { const b = c.getBoundingClientRect(); return b.width < 44 || b.height < 44 }).length,
+                      clipped: panel.querySelectorAll('img').length}
+            }"""
+        )
+        check(f"{name}: all 5 cards are offered, 44px or more, inside the screen, no horizontal overflow",
+              m["choices"] == 5 and m["small"] == 0 and m["inside"] and m["overX"] <= 0, str(m))
+    touch.close()
+
     # The admin form: the attached cards can be moved up and down. Needs an admin login (CI has
     # one from the release's ADMIN_*: SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD), else it is skipped.
     if os.environ.get("SMOKE_ADMIN_USER") and os.environ.get("SMOKE_ADMIN_PASSWORD"):
         print("Admin form (the order of a question's cards)")
         page.set_viewport_size({"width": 1280, "height": 900})
         page.goto(base + "/admin/login")
+        # the form is a LiveView: what is typed before it connects is lost
+        page.wait_for_selector("[data-phx-main].phx-connected")
         page.fill("#login-form input[name='user[username]']", os.environ["SMOKE_ADMIN_USER"])
         page.fill("#login-form input[name='user[password]']", os.environ["SMOKE_ADMIN_PASSWORD"])
         page.click("#login-submit")
         page.wait_for_url("**/admin/formats")
-        page.locator("a:has-text('Layout check')").first.click()
+        page.locator(FIXTURE_LINK).first.click()
         # the question with 4 cards (the fixture's first one), found by its text
         page.locator("li[id^='question-']", has_text="look at four cards").locator("a[id^='edit-question-']").click()
         page.wait_for_selector("#selected-cards li")
@@ -392,6 +501,125 @@ with sync_playwright() as p:
                 if waits("(id) => document.querySelector('#selected-cards > li').id === 'selected-card-' + id", first,
                          f"{w}x{h}: and up again restores the order"):
                     check(f"{w}x{h}: and up again restores the order", card_order() == before, str(card_order()))
+
+        # The profile pictures of a format (the admin page of "Layout check pictures": 5 cards)
+        print("Admin format page (profile pictures)")
+        page.goto(base + "/admin/formats")
+        page.locator(PICTURES_LINK).first.click()
+        page.wait_for_selector("#avatar-card-list")
+        for name, w, h, _, _ in VIEWPORTS:
+            page.set_viewport_size({"width": w, "height": h})
+            page.wait_for_timeout(150)
+            m = page.evaluate(
+                """() => {
+                  const d = document.documentElement
+                  const btns = [...document.querySelectorAll('#avatar-card-list button')]
+                  const sec = document.querySelector('#avatar-cards').getBoundingClientRect()
+                  return {n: btns.length, overX: d.scrollWidth - d.clientWidth,
+                          inside: sec.left >= 0 && sec.right <= innerWidth,
+                          small: btns.filter(b => { const r = b.getBoundingClientRect(); return r.width < 44 || r.height < 44 }).length,
+                          count: document.querySelector('#avatar-count').textContent.trim()}
+                }"""
+            )
+            check(f"{name}: the 5 cards' remove and crop buttons (10) are 44px or more, the section fits, no horizontal overflow",
+                  m["n"] == 10 and m["small"] == 0 and m["inside"] and m["overX"] <= 0 and m["count"].startswith("5 of"), str(m))
+
+        # The crop editor of the first card: opens, fits every viewport, a click on the artwork
+        # moves the focus point, Save changes the picture in the grid and on the new-game page,
+        # Reset puts the fixture back (the fixture's cards must end without crops).
+        print("Admin format page (crop editor)")
+        first_id = page.evaluate("() => document.querySelector('#avatar-card-list li').id.replace('avatar-card-', '')")
+        grid_img = f"#avatar-card-{first_id} img"
+
+        def img_box(selector):
+            st = page.eval_on_selector(selector, "e => e.getAttribute('style')")
+            import re
+            vals = {k: float(v) for k, v in re.findall(r"(width|left|top):(-?[\d.]+)%", st)}
+            return vals
+
+        def reset_crop():
+            page.goto(base + "/admin/formats")
+            page.locator(PICTURES_LINK).first.click()
+            page.wait_for_selector("#avatar-card-list")
+            page.click(f"#crop-avatar-{first_id}")
+            page.wait_for_selector("#crop-editor")
+            page.click("#crop-reset")
+            page.wait_for_selector("#crop-editor", state="detached")
+
+        try:
+            page.set_viewport_size({"width": 1280, "height": 900})
+            check("the grid starts without a crop (width 150%)", img_box(grid_img)["width"] == 150.0, str(img_box(grid_img)))
+            page.click(f"#crop-avatar-{first_id}")
+            page.wait_for_selector("#crop-editor")
+            page.wait_for_function("() => { const i = document.querySelector('#crop-artwork img'); return i.complete && i.naturalWidth > 0 }")
+            for i, (name, w, h, _, _) in enumerate(VIEWPORTS):
+                page.set_viewport_size({"width": w, "height": h})
+                page.wait_for_timeout(200)
+                page.evaluate("() => document.querySelector('#crop-artwork').scrollIntoView({block: 'center'})")
+                m = page.evaluate(
+                    """() => {
+                      const d = document.documentElement
+                      const box = (el) => { const r = el.getBoundingClientRect(); return {w: r.width, h: r.height, l: r.left, r: r.right} }
+                      const art = box(document.querySelector('#crop-artwork'))
+                      const ctl = [...document.querySelectorAll('#crop-form input[type=range], #crop-save, #crop-reset, #crop-cancel')].map(box)
+                      const prev = [...document.querySelectorAll('#crop-previews > span')].map(e => ({...box(e), br: getComputedStyle(e).borderRadius}))
+                      return {overX: d.scrollWidth - d.clientWidth, art, vw: innerWidth, nctl: ctl.length,
+                              short: ctl.filter(b => b.h < 44).length, outside: ctl.filter(b => b.l < 0 || b.r > innerWidth).length,
+                              artLoaded: document.querySelector('#crop-artwork img').naturalWidth > 0,
+                              prev: prev.map(p => [Math.round(p.w * 10) / 10, Math.round(p.h * 10) / 10, p.br])}
+                    }"""
+                )
+                art = m["art"]
+                check(f"{name}: the crop editor fits the width (no horizontal overflow), the artwork is a square of "
+                      f">= 200px inside the screen",
+                      m["overX"] <= 0 and abs(art["w"] - art["h"]) <= 1 and art["w"] >= 200 and art["l"] >= 0
+                      and art["r"] <= m["vw"] and m["artLoaded"], str(m))
+                check(f"{name}: 3 sliders and Save, Reset, Cancel are 44px tall or more and inside the screen",
+                      m["nctl"] == 6 and m["short"] == 0 and m["outside"] == 0, str(m))
+                check(f"{name}: the 3 previews are round (width == height, a radius)",
+                      len(m["prev"]) == 3 and all(abs(p[0] - p[1]) < 0.6 and p[2] != "0px" for p in m["prev"]), str(m["prev"]))
+                # a click at a known point of the artwork moves the sliders (a different point per viewport)
+                fx, fy = 0.15 + (i * 7 % 70) / 100, 0.2 + (i * 11 % 60) / 100
+                bb = page.locator("#crop-artwork").bounding_box()
+                page.mouse.click(bb["x"] + fx * bb["width"], bb["y"] + fy * bb["height"])
+                # at the default zoom of 150 % the circle stops at a focus of 33 and 67, so do the sliders
+                want_x, want_y = (min(67, max(33, round(v * 100))) for v in (fx, fy))
+                try:
+                    page.wait_for_function(
+                        "([x, y]) => Math.abs(document.querySelector('#crop-x').value - x) <= 2 && Math.abs(document.querySelector('#crop-y').value - y) <= 2",
+                        arg=[want_x, want_y], timeout=3000)
+                except PlaywrightTimeout:
+                    pass
+                got = page.evaluate("() => [document.querySelector('#crop-x').value, document.querySelector('#crop-y').value]")
+                check(f"{name}: a click at {round(fx * 100)}%,{round(fy * 100)}% of the artwork sets the sliders to it (within 33..67)",
+                      abs(int(got[0]) - want_x) <= 2 and abs(int(got[1]) - want_y) <= 2, f"{got} wanted {[want_x, want_y]}")
+
+            # zoom to 250 with the slider (the keyboard fallback), then save
+            page.set_viewport_size({"width": 390, "height": 844})
+            page.evaluate(
+                """() => { const z = document.querySelector('#crop-zoom'); z.value = 250
+                          z.dispatchEvent(new Event('input', {bubbles: true})) }""")
+            page.wait_for_function("() => document.querySelector('#crop-previews span:last-child img').getAttribute('style').startsWith('width:250')")
+            page.click("#crop-save")
+            page.wait_for_selector("#crop-editor", state="detached")
+            saved = img_box(grid_img)
+            check("saving changes the grid picture (width 250%, shifted left and up)",
+                  saved["width"] == 250.0 and saved["left"] < 0 and saved["top"] < 0, str(saved))
+
+            # the player page: the picker shows the saved crop
+            page.goto(base + "/")
+            page.locator(PICTURES_LINK).first.click()
+            page.wait_for_selector("#avatar-button-0")
+            page.wait_for_selector("[data-phx-main].phx-connected")
+            page.click("#avatar-button-0")
+            page.wait_for_selector("#avatar-panel-0")
+            shown = img_box(f"#avatar-choice-0-card-{first_id} img")
+            check("the new-game picker shows the saved crop (same width and offsets)",
+                  shown == saved, f"{shown} / {saved}")
+        finally:
+            reset_crop()
+        page.wait_for_selector("#avatar-card-list")
+        check("Reset puts the grid picture back (width 150%)", img_box(grid_img)["width"] == 150.0, str(img_box(grid_img)))
     elif os.environ.get("LAYOUT_REQUIRE_ADMIN"):
         # CI sets it: a section that is skipped for a missing login would leave the run green untested
         print("Admin form")

@@ -361,6 +361,79 @@ defmodule MillenniumQuiz.GameTest do
     assert Enum.all?(game.players, &(&1.avatar in default))
   end
 
+  describe "chosen avatars" do
+    @set MillenniumQuiz.Avatars.for_format(~D[2005-04-01])
+
+    defp avatars_of(opts, names \\ ~w(Ann Bob Cy)) do
+      case Game.new(@format, names, questions(), Keyword.merge(@no_shuffle, opts)) do
+        {:ok, game} -> Enum.map(game.players, & &1.avatar)
+        error -> error
+      end
+    end
+
+    test "chosen ones are kept, the rest differ from them" do
+      [a, b, c, d | _] = @set
+      assert avatars_of(avatars: [c, a, b]) == [c, a, b]
+      assert avatars_of(avatars: [c, nil, nil]) == [c, a, b]
+      assert avatars_of(avatars: [nil, d]) == [a, d, b]
+      assert avatars_of(avatars: ["", c]) == [a, c, b]
+      assert avatars_of(avatars: []) == [a, b, c]
+    end
+
+    test "random ones never take a chosen one" do
+      [a | _] = @set
+
+      for _ <- 1..20 do
+        {:ok, game} =
+          Game.new(@format, ~w(Ann Bob Cy Di), questions(), avatars: [nil, nil, nil, a])
+
+        avatars = Enum.map(game.players, & &1.avatar)
+        assert List.last(avatars) == a
+        assert length(Enum.uniq(avatars)) == 4
+      end
+    end
+
+    test "an avatar must be in the pool, and only once" do
+      [a | _] = @set
+      assert avatars_of(avatars: ["jinzo", nil]) == {:error, :invalid_avatar}
+      assert avatars_of(avatars: ["card-5", nil]) == {:error, :invalid_avatar}
+      assert avatars_of(avatars: [5, nil]) == {:error, :invalid_avatar}
+      assert avatars_of(avatars: "x") == {:error, :invalid_avatar}
+      assert avatars_of(avatars: [a, nil, nil, nil]) == {:error, :invalid_avatar}
+      assert avatars_of(avatars: [a, a]) == {:error, :duplicate_avatars}
+    end
+
+    test "a format with avatar cards uses them, and a card slug survives saving" do
+      format =
+        Map.put(@format, :avatar_cards, [
+          %{card_id: 11},
+          %{card_id: 12},
+          %{card_id: 13},
+          %{card_id: 14}
+        ])
+
+      {:ok, game} =
+        Game.new(format, ~w(Ann Bob), questions(),
+          avatars: ["card-13", nil],
+          shuffle: &Function.identity/1
+        )
+
+      assert Enum.map(game.players, & &1.avatar) == ["card-13", "card-11"]
+
+      saved = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!() |> Game.from_map()
+      assert Enum.map(saved.players, & &1.avatar) == ["card-13", "card-11"]
+
+      assert {:error, :invalid_avatar} =
+               Game.new(format, ~w(Ann Bob), questions(), avatars: [hd(@set), nil])
+    end
+
+    test "a snapshot with an old slug still loads" do
+      map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+      assert [%{avatar: avatar}, _] = Game.from_map(map).players
+      assert MillenniumQuiz.Avatars.name(avatar)
+    end
+  end
+
   test "games saved before the avatars have none" do
     map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
     old = update_in(map["players"], fn ps -> Enum.map(ps, &Map.delete(&1, "avatar")) end)

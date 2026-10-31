@@ -7,7 +7,17 @@ defmodule MillenniumQuiz.Quiz do
   import Ecto.Query, warn: false
 
   alias MillenniumQuiz.Repo
-  alias MillenniumQuiz.Quiz.{Format, Topic, Question, Submission}
+  alias MillenniumQuiz.Cards.Card
+  alias MillenniumQuiz.Avatars
+
+  alias MillenniumQuiz.Quiz.{
+    CardAvatarCrop,
+    Format,
+    FormatAvatarCard,
+    Topic,
+    Question,
+    Submission
+  }
 
   ## Formats
 
@@ -37,10 +47,15 @@ defmodule MillenniumQuiz.Quiz do
     )
   end
 
+  @doc """
+  The format with its topics, their questions and its avatar card links
+  (`avatar_cards`: ids and positions only, no artwork), so a game can pick
+  its pictures with `Avatars.pool/1`.
+  """
   def get_format!(id) do
     Format
     |> Repo.get!(id)
-    |> Repo.preload(topics: :questions)
+    |> Repo.preload([:avatar_cards, topics: :questions])
   end
 
   def create_format(attrs) do
@@ -59,6 +74,206 @@ defmodule MillenniumQuiz.Quiz do
 
   def change_format(%Format{} = format, attrs \\ %{}) do
     Format.changeset(format, attrs)
+  end
+
+  ## Avatar cards
+
+  @max_avatar_cards 40
+
+  @doc "The most cards a format can have as profile pictures."
+  def max_avatar_cards, do: @max_avatar_cards
+
+  @doc """
+  The cards chosen as the profile pictures of the format, in order, as
+  `%Card{id, name, password}` (only those columns: never the artwork).
+  """
+  def avatar_cards(format_id) do
+    Repo.all(
+      from fa in FormatAvatarCard,
+        join: c in Card,
+        on: c.id == fa.card_id,
+        where: fa.format_id == ^format_id,
+        order_by: [asc: fa.position, asc: fa.id],
+        select: struct(c, [:id, :name, :password])
+    )
+  end
+
+  @doc """
+  Adds the card at the end of the format's list. Adding a card that is
+  already there changes nothing.
+
+  Returns `{:ok, %FormatAvatarCard{}}`, `{:error, :limit}` (see
+  `max_avatar_cards/0`), `{:error, :not_released}` (the card came out after
+  the format's date; a card without a release date counts as released, as in
+  `Cards.suggest/2`) or `{:error, :not_found}` (no such format or card).
+  """
+  def add_avatar_card(format_id, card_id) do
+    Repo.transaction(fn ->
+      # the lock keeps two admins from passing the limit together
+      with %Format{} = format <-
+             Repo.one(from f in Format, where: f.id == ^format_id, lock: "FOR UPDATE"),
+           %Card{} = card <-
+             Repo.one(
+               from c in Card,
+                 where: c.id == ^card_id,
+                 select: struct(c, [:id, :tcg_release_date])
+             ),
+           :ok <- check_released(card, format) do
+        insert_avatar_card(format.id, card.id)
+      else
+        nil -> Repo.rollback(:not_found)
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp check_released(%{tcg_release_date: nil}, _format), do: :ok
+  defp check_released(_card, %{date: nil}), do: :ok
+
+  defp check_released(card, format) do
+    if Date.compare(card.tcg_release_date, format.date) == :gt,
+      do: {:error, :not_released},
+      else: :ok
+  end
+
+  defp insert_avatar_card(format_id, card_id) do
+    case Repo.get_by(FormatAvatarCard, format_id: format_id, card_id: card_id) do
+      %FormatAvatarCard{} = existing ->
+        existing
+
+      nil ->
+        {count, max} =
+          Repo.one(
+            from fa in FormatAvatarCard,
+              where: fa.format_id == ^format_id,
+              select: {count(fa.id), max(fa.position)}
+          )
+
+        if count >= @max_avatar_cards do
+          Repo.rollback(:limit)
+        else
+          Repo.insert!(%FormatAvatarCard{
+            format_id: format_id,
+            card_id: card_id,
+            position: (max || -1) + 1
+          })
+        end
+    end
+  end
+
+  @doc "Removes the card from the format's list. Always `:ok`, also when it wasn't there."
+  def remove_avatar_card(format_id, card_id) do
+    Repo.delete_all(
+      from fa in FormatAvatarCard, where: fa.format_id == ^format_id and fa.card_id == ^card_id
+    )
+
+    :ok
+  end
+
+  ## Avatar crops
+
+  @doc """
+  The cards of `avatar_cards/1` with their crops:
+  `[%{card: %Card{id, name, password}, crop: %{x, y, zoom}}]`, the default crop
+  for a card without one.
+  """
+  def avatar_cards_with_crops(format_id) do
+    default = Avatars.default_crop()
+
+    Repo.all(
+      from fa in FormatAvatarCard,
+        join: c in Card,
+        on: c.id == fa.card_id,
+        left_join: cr in CardAvatarCrop,
+        on: cr.card_id == c.id,
+        where: fa.format_id == ^format_id,
+        order_by: [asc: fa.position, asc: fa.id],
+        select: {struct(c, [:id, :name, :password]), cr}
+    )
+    |> Enum.map(fn {card, row} -> %{card: card, crop: crop_of(row, default)} end)
+  end
+
+  @doc "The crop of the card, `Avatars.default_crop/0` when none is stored."
+  def avatar_crop(card_id) when is_integer(card_id) do
+    crop_of(Repo.get(CardAvatarCrop, card_id), Avatars.default_crop())
+  end
+
+  @doc """
+  The crops of the card pictures among `slugs` (any strings; slugs that are not
+  card slugs are ignored) with one query: `%{slug => %{x, y, zoom}}` for the
+  card slugs that have a stored crop. With `defaults: true` every card slug is
+  in the map, `Avatars.default_crop/0` for those without a stored crop (also
+  for cards that do not exist).
+  """
+  def avatar_crops(slugs, opts \\ []) do
+    by_id =
+      slugs
+      |> Enum.flat_map(fn slug -> if id = Avatars.card_id(slug), do: [{id, slug}], else: [] end)
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    stored =
+      if by_id == %{} do
+        %{}
+      else
+        ids = Map.keys(by_id)
+        Map.new(Repo.all(from cr in CardAvatarCrop, where: cr.card_id in ^ids), &{&1.card_id, &1})
+      end
+
+    default = if Keyword.get(opts, :defaults, false), do: Avatars.default_crop()
+
+    for {id, slugs} <- by_id,
+        crop = crop_of(stored[id], default),
+        slug <- slugs,
+        into: %{},
+        do: {slug, crop}
+  end
+
+  defp crop_of(nil, default), do: default
+  defp crop_of(row, _default), do: %{x: row.x, y: row.y, zoom: row.zoom}
+
+  @doc """
+  Stores the crop `%{x:, y:, zoom:}` of the card (integers: `x`, `y` 0..100,
+  `zoom` 100..300; the caller converts form input). Replaces a stored crop; the
+  default crop deletes the row instead, as a card without a row has it.
+
+  Returns `{:ok, %{x, y, zoom}}`, `{:error, :invalid}` or `{:error, :not_found}`
+  (no such card).
+  """
+  def set_avatar_crop(card_id, %{x: x, y: y, zoom: zoom})
+      when is_integer(x) and is_integer(y) and is_integer(zoom) and x in 0..100 and
+             y in 0..100 and zoom in 100..300 do
+    crop = %{x: x, y: y, zoom: zoom}
+
+    cond do
+      not (is_integer(card_id) and card_id in 1..9_223_372_036_854_775_807//1) ->
+        {:error, :not_found}
+
+      not Repo.exists?(from c in Card, where: c.id == ^card_id) ->
+        {:error, :not_found}
+
+      crop == Avatars.default_crop() ->
+        reset_avatar_crop(card_id)
+        {:ok, crop}
+
+      true ->
+        Repo.insert!(struct!(CardAvatarCrop, Map.put(crop, :card_id, card_id)),
+          on_conflict: [set: Map.to_list(crop)],
+          conflict_target: :card_id
+        )
+
+        {:ok, crop}
+    end
+  rescue
+    # the card was deleted between the check and the insert
+    Ecto.ConstraintError -> {:error, :not_found}
+  end
+
+  def set_avatar_crop(_card_id, _crop), do: {:error, :invalid}
+
+  @doc "Deletes the stored crop of the card (it has the default again). Always `:ok`."
+  def reset_avatar_crop(card_id) do
+    Repo.delete_all(from cr in CardAvatarCrop, where: cr.card_id == ^card_id)
+    :ok
   end
 
   ## Questions

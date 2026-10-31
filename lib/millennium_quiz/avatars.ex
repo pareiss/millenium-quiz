@@ -16,7 +16,18 @@ defmodule MillenniumQuiz.Avatars do
   format's date. They are written down here, nothing is asked of that site
   while the app runs. A game saves the slug of each player's picture, so games
   saved before a set existed keep theirs.
+
+  An admin can instead choose cards from the card pool as the pictures of a
+  format (`Quiz.add_avatar_card/2`); when a format has at least `min_cards/0` of
+  them, those are its set and the hardcoded ones are not used (`pool/1`). Such a picture has the slug
+  `"card-<id>"` (`card_slug/1`, `card_id/1`) and is the card's artwork,
+  served at `path/2`. The pure functions here never ask the database: the
+  name of a card picture is `Quiz.avatar_cards/1`'s business, `name/1` is nil
+  for it. If a card leaves the pool, `Games.heal_avatars/1` gives
+  the games that saved its slug a picture of the default pool instead.
   """
+
+  @max_card_id 9_223_372_036_854_775_807
 
   # `password` is the id of the card on YGOPRODeck; `face` is the square
   # `{x, y, size}` around the face in its 624x624 artwork.
@@ -227,12 +238,18 @@ defmodule MillenniumQuiz.Avatars do
       ~w(the-agent-of-mystery-earth master-hyperion gachi-gachi-gantetsu reborn-tengu trishula-dragon-of-the-ice-barrier spore the-fabled-catsith chaos-sorcerer fabled-kushano elemental-hero-neos-alius elemental-hero-the-shining t-g-warwolf t-g-rush-rhino scrap-beast scrap-dragon)
   }
 
+  # As many as the most players of a game (`Game.max_players/0`).
+  @min_cards 4
+
   @pool @default ++ @extra
   @slugs Enum.map(@pool, & &1.slug)
   @default_slugs Enum.map(@default, & &1.slug)
 
   @doc "Every monster of every set: `%{slug, name, password, face}`."
   def all, do: @pool
+
+  @doc "How many cards a format's own list needs before games use it."
+  def min_cards, do: @min_cards
 
   @doc "The slugs of the default pool: what a format without a set of its own uses."
   def default_slugs, do: @default_slugs
@@ -248,19 +265,129 @@ defmodule MillenniumQuiz.Avatars do
   def for_format(_), do: @default_slugs
 
   @doc """
+  The slugs a game of this format picks from: the cards in its `avatar_cards`
+  (a loaded list of structs with a `card_id`, as `Quiz.get_format!/1`
+  preloads it) as card slugs, in order, once there are enough of them for the
+  most players of a game (`min_cards/0`); else `for_format/1` of its date. An
+  unloaded, empty or too short list means the date's set, so that no game is
+  left without a different picture for every player.
+  """
+  def pool(%{avatar_cards: links}) when is_list(links) and length(links) >= @min_cards,
+    do: Enum.map(links, &card_slug(&1.card_id))
+
+  def pool(%{date: date}), do: for_format(date)
+  def pool(_), do: @default_slugs
+
+  @doc """
   `count` different slugs out of `pool` (default: the default pool), chosen
   with `shuffle` (as in `Game.new/4`). With more players than monsters they
   repeat.
+
+  `chosen` has one entry per player, a slug or nil: those players get their
+  slug, the others get different ones out of the pool without the chosen
+  (the pool again if nothing else is left). Missing entries count as nil.
   """
-  def assign(count, shuffle \\ &Enum.shuffle/1, pool \\ @default_slugs)
+  def assign(count, shuffle \\ &Enum.shuffle/1, pool \\ @default_slugs, chosen \\ [])
       when is_integer(count) and count >= 0 do
-    pool |> shuffle.() |> Stream.cycle() |> Enum.take(count)
+    chosen =
+      chosen |> Enum.take(count) |> Enum.concat(List.duplicate(nil, count)) |> Enum.take(count)
+
+    taken = Enum.reject(chosen, &is_nil/1)
+
+    free =
+      case pool -- taken do
+        [] -> pool
+        rest -> rest
+      end
+
+    if free == [] do
+      chosen
+    else
+      {result, _} =
+        Enum.map_reduce(chosen, free |> shuffle.() |> Stream.cycle(), fn
+          nil, rest -> {Enum.at(rest, 0), Stream.drop(rest, 1)}
+          slug, rest -> {slug, rest}
+        end)
+
+      result
+    end
   end
 
-  @doc "The image path of `slug`, or nil for nil or a slug that isn't in the pool."
-  def path(slug) when slug in @slugs, do: "/images/avatars/#{slug}.jpg"
-  def path(_), do: nil
+  @doc "The slug of the pool card with this database id."
+  def card_slug(id) when is_integer(id) and id in 1..@max_card_id, do: "card-#{id}"
 
-  @doc "The monster's name, or nil for an unknown slug."
+  @doc "The database id in a card slug, else nil (`\"card-007\"`, `\"card-\"`, huge ids are no slugs)."
+  def card_id(slug) when is_binary(slug) do
+    with [_, digits] <- Regex.run(~r/\Acard-([1-9][0-9]*)\z/, slug),
+         id when id <= @max_card_id <- String.to_integer(digits) do
+      id
+    else
+      _ -> nil
+    end
+  end
+
+  def card_id(_), do: nil
+
+  @doc """
+  The image path of `slug`: the card's artwork for a card slug (the controller
+  serves widths 200 and 400; CSS squares it), the cropped file for a monster of
+  the pool, nil for nil or anything else.
+  """
+  def path(slug, width \\ 200)
+
+  def path(slug, _width) when slug in @slugs, do: "/images/avatars/#{slug}.jpg"
+
+  def path(slug, width) when width in [200, 400] do
+    if id = card_id(slug), do: "/cards/#{id}/artwork?w=#{width}"
+  end
+
+  def path(slug, _width), do: path(slug, 200)
+
+  @doc """
+  The crop of a card picture that has none stored: the focus point in the
+  centre of the artwork (`x`, `y` in percent, 0..100) at a zoom of 150
+  percent (100..300).
+  """
+  def default_crop, do: %{x: 50, y: 50, zoom: 150}
+
+  @doc """
+  Where to put the artwork of a crop inside its (square) container, all in
+  percent of the container: the image is `size` (the zoom) wide and high and
+  sits at `left`, `top` (zero or negative) so that the focus point lands in the
+  middle of the container. The image is kept covering the container, so a
+  focus point near an edge is moved inwards as far as needed:
+  `left = clamp(50 - x * zoom / 100, 100 - zoom, 0)`, the same for `top`.
+
+      iex> MillenniumQuiz.Avatars.crop_box(%{x: 50, y: 50, zoom: 150})
+      %{size: 150.0, left: -25.0, top: -25.0}
+  """
+  def crop_box(%{x: x, y: y, zoom: zoom}) do
+    %{size: zoom * 1.0, left: offset(x, zoom), top: offset(y, zoom)}
+  end
+
+  @doc """
+  The focus values (whole percents) that still move the picture at `zoom`: the
+  circle can't leave the artwork, so beyond these `crop_box/1` is the same.
+
+      iex> MillenniumQuiz.Avatars.focus_range(150)
+      33..67
+      iex> MillenniumQuiz.Avatars.focus_range(100)
+      50..50
+  """
+  def focus_range(zoom) do
+    trunc(Float.floor(5000 / zoom))..trunc(Float.ceil(100 - 5000 / zoom))
+  end
+
+  @doc "`crop` with x and y moved into `focus_range/1`, so they show what the picture does."
+  def clamp_focus(%{x: x, y: y, zoom: zoom} = crop) do
+    lo..hi//_ = focus_range(zoom)
+    %{crop | x: x |> max(lo) |> min(hi), y: y |> max(lo) |> min(hi)}
+  end
+
+  defp offset(focus, zoom) do
+    (50 - focus * zoom / 100) |> max(100 - zoom) |> min(0) |> Kernel.*(1.0)
+  end
+
+  @doc "The monster's name, or nil for an unknown slug and for a card slug (no database here)."
   def name(slug), do: Enum.find_value(@pool, &(&1.slug == slug && &1.name))
 end

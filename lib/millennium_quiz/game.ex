@@ -159,11 +159,19 @@ defmodule MillenniumQuiz.Game do
     * `:mode` - `:free` (default) or `:ascending`.
     * `:shuffle` - function used for every random decision, defaults to
       `Enum.shuffle/1`. Tests pass `& &1` to make games deterministic.
+    * `:avatars` - one picture slug per player, or nil for a random one
+      (missing entries count as nil). Each must be in the format's pool
+      (`Avatars.pool/1`: its avatar cards if `avatar_cards` is loaded and has at
+      least `Avatars.min_cards/0` cards, else the set of its date) or the game is refused with
+      `{:error, :invalid_avatar}`; two players can't have the same one
+      (`{:error, :duplicate_avatars}`). The others get different random ones.
   """
   def new(format, player_names, questions, opts \\ []) do
     shuffle = Keyword.get(opts, :shuffle, &Enum.shuffle/1)
     names = Enum.map(player_names, &String.trim/1)
     mode = parse_mode(Keyword.get(opts, :mode, :free))
+    pool = MillenniumQuiz.Avatars.pool(format)
+    chosen = chosen_avatars(Keyword.get(opts, :avatars), pool, length(names))
 
     cond do
       mode == {:error, :invalid_mode} ->
@@ -181,7 +189,11 @@ defmodule MillenniumQuiz.Game do
       questions == [] ->
         {:error, :no_questions}
 
+      match?({:error, _}, chosen) ->
+        chosen
+
       true ->
+        {:ok, chosen} = chosen
         {:ok, mode} = mode
         {topics, questions} = build_board(questions, format.date)
 
@@ -193,13 +205,7 @@ defmodule MillenniumQuiz.Game do
            mode: mode,
            players:
              names
-             |> Enum.zip(
-               MillenniumQuiz.Avatars.assign(
-                 length(names),
-                 shuffle,
-                 MillenniumQuiz.Avatars.for_format(format.date)
-               )
-             )
+             |> Enum.zip(MillenniumQuiz.Avatars.assign(length(names), shuffle, pool, chosen))
              |> Enum.map(fn {name, avatar} -> %{name: name, score: 0, avatar: avatar} end),
            topics: topics,
            questions: questions,
@@ -208,6 +214,24 @@ defmodule MillenniumQuiz.Game do
          }}
     end
   end
+
+  # The picked slugs ("" is nobody's choice, as an unselected form field), padded
+  # to one per player.
+  defp chosen_avatars(nil, _pool, _count), do: {:ok, []}
+
+  defp chosen_avatars(avatars, pool, count) when is_list(avatars) do
+    chosen = Enum.map(avatars, &if(&1 == "", do: nil, else: &1))
+    picked = Enum.reject(chosen, &is_nil/1)
+
+    cond do
+      length(chosen) > count -> {:error, :invalid_avatar}
+      Enum.any?(picked, &(&1 not in pool)) -> {:error, :invalid_avatar}
+      length(Enum.uniq(picked)) != length(picked) -> {:error, :duplicate_avatars}
+      true -> {:ok, chosen}
+    end
+  end
+
+  defp chosen_avatars(_other, _pool, _count), do: {:error, :invalid_avatar}
 
   # Columns in topic order, each column from easiest to hardest.
   defp build_board(questions, date) do
