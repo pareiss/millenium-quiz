@@ -9,14 +9,13 @@ defmodule MillenniumQuiz.GameTest do
   @no_shuffle [shuffle: &Function.identity/1]
   @topics %{"A" => {1, 0}, "B" => {2, 1}}
 
-  defp question(id, topic, position, opts \\ []) do
+  defp question(id, topic, position) do
     {topic_id, topic_position} = @topics[topic]
 
     %Question{
       id: id,
       text: "Q#{id}",
       position: position,
-      points: opts[:points],
       topic_id: topic_id,
       topic: %Topic{id: topic_id, name: topic, position: topic_position},
       choices: [%Choice{text: "right", correct: true}, %Choice{text: "wrong", correct: false}]
@@ -28,7 +27,7 @@ defmodule MillenniumQuiz.GameTest do
       question(1, "A", 1),
       question(2, "B", 0),
       question(3, "A", 0),
-      question(4, "B", 1, points: 99)
+      question(4, "B", 1)
     ]
   end
 
@@ -70,7 +69,7 @@ defmodule MillenniumQuiz.GameTest do
       assert Enum.map(game.questions, &{&1.id, &1.column}) == [{3, 0}, {1, 0}, {2, 1}, {4, 1}]
     end
 
-    test "snapshots the damage from the position; a points override is ignored" do
+    test "snapshots the damage from the position; new games carry no points" do
       damage = new_game().questions |> Map.new(&{&1.id, &1.damage})
       assert damage == %{3 => 100, 1 => 400, 2 => 100, 4 => 400}
       assert Enum.all?(new_game().questions, &is_nil(&1.points))

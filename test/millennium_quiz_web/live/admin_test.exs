@@ -134,13 +134,15 @@ defmodule MillenniumQuizWeb.AdminTest do
       assert has_element?(view, "input#question_choices_0_text[aria-describedby=choice-hint]")
     end
 
-    test "creates a question with default points and reorders it", %{conn: conn} do
+    test "creates a question with fixed damage and reorders it", %{conn: conn} do
       format = format_fixture()
       topic = hd(format.topics)
       first = question_fixture(topic)
 
       {:ok, view, _html} = live(conn, ~p"/admin/topics/#{topic.id}/questions/new")
-      assert has_element?(view, "input[name='question[points]'][placeholder^='20']")
+      refute has_element?(view, "input[name='question[points]']")
+      assert has_element?(view, "#question-damage-note", "costs 400 LP")
+      assert has_element?(view, "#question-damage-note", "position (2)")
 
       view
       |> form("#question-form",
@@ -160,8 +162,15 @@ defmodule MillenniumQuizWeb.AdminTest do
       [_, second] = Quiz.get_format!(format.id).topics |> hd() |> Map.fetch!(:questions)
       assert second.text == "Which card draws 2?"
 
+      assert has_element?(show, "#move-up-#{second.id}")
+      assert has_element?(show, "#question-#{first.id} .badge", "100 ATK")
+      assert has_element?(show, "#question-#{second.id} .badge", "400 ATK")
+
       show |> element("#move-up-#{second.id}") |> render_click()
       assert Quiz.get_question!(second.id).position == 0
+      # the badges follow the positions: the moved question now hits for 100
+      assert has_element?(show, "#question-#{second.id} .badge", "100 ATK")
+      assert has_element?(show, "#question-#{first.id} .badge", "400 ATK")
       assert Quiz.get_question!(first.id).position == 1
     end
 
@@ -337,7 +346,6 @@ defmodule MillenniumQuizWeb.AdminTest do
 
       form_params = %{
         text: text,
-        points: "40",
         choices: %{
           "0" => %{text: "Yes", correct: "true"},
           "1" => %{text: "No", correct: "false"},
@@ -355,7 +363,6 @@ defmodule MillenniumQuizWeb.AdminTest do
 
       html = view |> element("#question-form textarea") |> render()
       assert html =~ "Does Monster Reborn work [sic] on monster reborn?"
-      assert has_element?(view, "#question-form input[name='question[points]'][value='40']")
 
       # saving keeps the markup as written and the cards from the list
       render_hook(view, "link_card", %{"id" => to_string(reborn.id)})
@@ -416,7 +423,6 @@ defmodule MillenniumQuizWeb.AdminTest do
       |> form("#question-form",
         question: %{
           text: "Which is first?",
-          points: "40",
           choices: %{
             "0" => %{text: "Yes", correct: "true"},
             "1" => %{text: "No", correct: "false"},
@@ -478,7 +484,6 @@ defmodule MillenniumQuizWeb.AdminTest do
 
       params = %{
         text: "[Monster Reborn] against [Plain Card]",
-        points: "10",
         choices: %{
           "0" => %{text: "Yes", correct: "true"},
           "1" => %{text: "No", correct: "false"},

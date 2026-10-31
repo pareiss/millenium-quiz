@@ -36,7 +36,8 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - the life-point duel (format "LP duel fixture"): the Life Points choice of the new-game page (cards >= 44px), the
     board with 2, 3 and 4 players (life points and bars on screen), the result screen with a K.O., the final ranking,
     and the Level Up! topic buttons with "NEXT ATK" (>= 44px at every width down to 320px)
-  - with SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD: the admin question form has up and down buttons
+  - with SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD: the admin question rows show their ATK badge and the form its
+    fixed-damage note (no points field), on screen at every viewport; the question form has up and down buttons
     for the cards, on screen at every viewport, and they move a card (nothing is saved);
     LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip.
     It logs in on the site it is pointed at, so use the throwaway site of CI or a local fixture, not a real one
@@ -464,9 +465,54 @@ with sync_playwright() as p:
         page.click("#login-submit")
         page.wait_for_url("**/admin/formats")
         page.locator(FIXTURE_LINK).first.click()
+        # the question rows: a damage badge (ATK) that follows the position, nothing runs off the screen
+        def row_state():
+            return page.evaluate(
+                """() => {
+                  const rows = [...document.querySelectorAll('li[id^=question-]')]
+                  const badges = rows.map(li => li.querySelector('.badge')?.textContent.trim())
+                  return {
+                    n: rows.length,
+                    atk: badges.filter(b => /^[0-9]+ ATK$/.test(b || '')).length,
+                    first: badges[0],
+                    overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                    inside: rows.every(li => { const r = li.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth }),
+                  }
+                }"""
+            )
+
+        for name, w, h, _, _ in VIEWPORTS:
+            page.set_viewport_size({"width": w, "height": h})
+            page.wait_for_timeout(150)
+            r = row_state()
+            check(f"{name}: admin question rows show an ATK badge each, on screen, no horizontal overflow",
+                  r["n"] > 0 and r["atk"] == r["n"] and r["first"] == "100 ATK" and r["overX"] <= 0 and r["inside"], str(r))
+        page.set_viewport_size({"width": 1280, "height": 900})
+
         # the question with 4 cards (the fixture's first one), found by its text
         page.locator("li[id^='question-']", has_text="look at four cards").locator("a[id^='edit-question-']").click()
         page.wait_for_selector("#selected-cards li")
+
+        # the fixed damage is a note, there is no points field any more
+        for name, w, h, _, _ in VIEWPORTS:
+            page.set_viewport_size({"width": w, "height": h})
+            page.wait_for_timeout(100)
+            f = page.evaluate(
+                """() => {
+                  const n = document.querySelector('#question-damage-note')
+                  const r = n && n.getBoundingClientRect()
+                  return {
+                    note: n ? n.textContent.trim().replace(/[ \\n]+/g, ' ') : null,
+                    points: document.querySelectorAll("input[name='question[points]']").length,
+                    inside: !!r && r.left >= 0 && r.right <= innerWidth,
+                    overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                  }
+                }"""
+            )
+            check(f"{name}: admin question form has the fixed-damage note (no points field), on screen, no horizontal overflow",
+                  f["note"] is not None and "LP, fixed by the question's position" in f["note"] and f["points"] == 0
+                  and f["inside"] and f["overX"] <= 0, str(f))
+        page.set_viewport_size({"width": 1280, "height": 900})
 
         def card_order():
             return page.evaluate("() => [...document.querySelectorAll('#selected-cards > li')].map(li => li.id)")

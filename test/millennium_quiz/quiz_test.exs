@@ -87,22 +87,22 @@ defmodule MillenniumQuiz.QuizTest do
       assert %{choices: ["exactly one answer must be marked as correct"]} = errors_on(cs)
     end
 
-    test "are appended and default points follow the position", %{topic: topic} do
+    test "are appended and the damage follows the position", %{topic: topic} do
       q1 = question_fixture(topic)
       q2 = question_fixture(topic)
-      q3 = question_fixture(topic, %{"points" => 55})
+      q3 = question_fixture(topic)
 
       assert Enum.map([q1, q2, q3], & &1.position) == [0, 1, 2]
-      assert Enum.map([q1, q2, q3], &Question.effective_points/1) == [10, 20, 55]
+      assert Enum.map([q1, q2, q3], &Question.damage(&1.position)) == [100, 400, 900]
     end
 
-    test "can be moved, which changes the default points", %{topic: topic} do
+    test "can be moved, which changes the damage", %{topic: topic} do
       q1 = question_fixture(topic)
       q2 = question_fixture(topic)
 
       {:ok, _} = Quiz.move_question(q2, :up)
       assert Quiz.get_question!(q2.id).position == 0
-      assert Question.effective_points(Quiz.get_question!(q1.id)) == 20
+      assert Question.damage(Quiz.get_question!(q1.id).position) == 400
 
       # moving past the edge is a no-op
       {:ok, _} = Quiz.move_question(Quiz.get_question!(q2.id), :up)

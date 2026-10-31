@@ -330,7 +330,7 @@ defmodule MillenniumQuiz.Quiz do
 
   @doc """
   Moves a question one step easier (`:up`) or harder (`:down`) by swapping
-  it with its neighbour. Default points follow automatically.
+  it with its neighbour. The damage follows the position automatically.
   """
   def move_question(%Question{} = question, direction) when direction in [:up, :down] do
     Repo.transaction(fn ->
