@@ -105,7 +105,7 @@ defmodule MillenniumQuizWeb.GameLpTest do
 
       assert has_element?(view, "#lp-0", "4000")
       assert has_element?(view, "#lp-bar-0[role=progressbar][aria-valuenow='4000']")
-      assert has_element?(view, "#lp-bar-0 div[style*='width: 100%']")
+      assert has_element?(view, "#lp-bar-0 div[style*='width:100.0%']")
       assert has_element?(view, "button#question-#{@hit_3000}", "3000")
 
       view |> element("#question-#{@hit_3000}") |> render_click()
@@ -119,7 +119,7 @@ defmodule MillenniumQuizWeb.GameLpTest do
 
       assert has_element?(view, "#lp-0", "4000")
       assert has_element?(view, "#lp-1", "1000")
-      assert has_element?(view, "#lp-bar-1 div[style*='width: 25%']")
+      assert has_element?(view, "#lp-bar-1 div[style*='width:25.0%']")
       refute has_element?(view, "#eliminated-1")
       # the chooser rotates to Bob
       assert has_element?(view, "#current-player", "Bob")
@@ -160,7 +160,7 @@ defmodule MillenniumQuizWeb.GameLpTest do
 
       assert has_element?(view, "#lp-0", "6400")
       assert has_element?(view, "#lp-1", "6400")
-      assert has_element?(view, "#lp-bar-0 div[style*='width: 80%']")
+      assert has_element?(view, "#lp-bar-0 div[style*='width:80.0%']")
     end
 
     test "the last two players dropping to 0 together is a draw", %{conn: conn, format: format} do
