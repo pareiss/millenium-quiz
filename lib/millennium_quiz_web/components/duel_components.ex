@@ -39,8 +39,10 @@ defmodule MillenniumQuizWeb.DuelComponents do
   def lp_gauge(assigns) do
     lp = max(assigns.lp, 0)
     start = max(assigns.start_lp, 1)
-    status = if lp == 0 and assigns.status == :alive, do: :eliminated, else: assigns.status
-    damage = assigns.damage
+    # 0 LP is K.O., whatever the caller passed (a player knocked out by this
+    # very hit arrives as :hit); the ghost still shows the final hit
+    status = if lp == 0, do: :eliminated, else: assigns.status
+    damage = if assigns.damage && assigns.damage > 0, do: assigns.damage, else: nil
     # a living player always shows a sliver of bar
     lp_pct = if lp > 0, do: max(pct(lp, start), 3.0), else: 0.0
 
@@ -51,8 +53,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
       |> assign(:number, number(lp, start))
       |> assign(:lp_value, lp)
       |> assign(:lp_pct, lp_pct)
-      |> assign(:damage, damage && max(damage, 0))
-      |> assign(:ghost_pct, damage && min(pct(max(damage, 0), start), 100 - lp_pct))
+      |> assign(:damage, damage)
+      |> assign(:ghost_pct, damage && min(pct(damage, start), 100 - lp_pct))
 
     ~H"""
     <div
@@ -78,7 +80,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
           <span :if={@status == :eliminated} class="duel-gauge-ko">
             <span aria-hidden="true">✕</span> K.O.
           </span>
-          <span :if={@status != :eliminated and @damage} class="duel-gauge-dmg">
+          <span :if={@status == :hit and @damage} class="duel-gauge-dmg">
             <span aria-hidden="true">▼</span> −{@damage}
           </span>
           <span :if={@status == :hit and !@damage} class="duel-gauge-dmg">

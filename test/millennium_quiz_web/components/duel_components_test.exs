@@ -71,6 +71,10 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
                ["left:75.0%;width:25.0%"]
 
       assert text(gauge(status: :hit), ".duel-gauge-dmg") =~ "HIT"
+      # no damage text without a hit, and none for zero damage
+      assert count(gauge(lp: 3000, damage: 500), ".duel-gauge-dmg") == 0
+      assert count(gauge(lp: 3000, status: :hit, damage: 0), ".duel-gauge-ghost") == 0
+      refute text(gauge(lp: 3000, status: :hit, damage: 0), ".duel-gauge-dmg") =~ "−0"
       assert count(gauge(), ".duel-gauge-ghost") == 0
     end
 
@@ -80,8 +84,13 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
       assert text(html, ".duel-gauge-num") == "00000"
       assert attr(html, ".duel-gauge-fill", "style") == ["width:0.0%"]
       assert attr(html, ".duel-gauge", "data-status") == ["eliminated"]
-      # 0 LP is K.O. even if the caller forgot the status
+      # 0 LP is K.O. even if the caller forgot the status, or passed :hit for
+      # the very hit that knocked the player out (the ghost still shows it)
       assert text(gauge(lp: 0), ".duel-gauge-ko") =~ "K.O."
+      knocked_out = gauge(lp: 0, status: :hit, damage: 500)
+      assert text(knocked_out, ".duel-gauge-ko") =~ "K.O."
+      assert attr(knocked_out, ".duel-gauge", "data-status") == ["eliminated"]
+      assert count(knocked_out, ".duel-gauge-ghost") == 1
       assert count(gauge(), ".duel-gauge-ko") == 0
     end
 
@@ -203,7 +212,9 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
               fg <- [t["num"], t["ko"], t["p1"], t["p2"], t["p3"], t["p4"], c["error"]],
               do: {fg, c[bg]}
 
-        # the LP number (large display font) must also hold up on a hit panel
+        # the K.O. badge text on its own background
+        text_pairs = [{c["error-content"], c["error"]} | text_pairs]
+
         for {fg, bg} <- text_pairs do
           assert ratio(fg, bg) >= 4.5, "#{fg} on #{bg}: #{Float.round(ratio(fg, bg), 2)}:1"
         end
