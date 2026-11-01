@@ -102,7 +102,7 @@ defmodule MillenniumQuiz.Release do
 
   @doc """
   Writes a backup of the quiz content (formats, topics, questions, choices,
-  card links) to `path`. See `MillenniumQuiz.Quiz.Export`.
+  card links, profile pictures with their crops) to `path`. See `MillenniumQuiz.Quiz.Export`.
   """
   def export_quiz(path) do
     with_repo(fn ->
@@ -135,7 +135,8 @@ defmodule MillenniumQuiz.Release do
       "Formats created: #{s.formats_created}, skipped (name exists): #{length(s.formats_skipped)}, " <>
         "failed: #{length(s.formats_failed)}",
       "Topics: #{s.topics}, questions: #{s.questions}",
-      "Card links: #{s.cards_linked} linked, #{s.cards_missing} missing"
+      "Card links: #{s.cards_linked} linked, #{s.cards_missing} missing",
+      "Profile pictures: #{Map.get(s, :avatars, 0)} restored, #{Map.get(s, :avatars_missing, 0)} missing"
     ] ++
       Enum.map(s.formats_skipped, &"Skipped: #{&1}") ++
       Enum.map(s.formats_failed, fn {name, msg} -> "Failed: #{name}: #{msg}" end) ++

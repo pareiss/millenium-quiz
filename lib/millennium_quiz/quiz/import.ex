@@ -47,6 +47,8 @@ defmodule MillenniumQuiz.Quiz.Import do
           questions: non_neg_integer,
           cards_linked: non_neg_integer,
           cards_missing: non_neg_integer,
+          avatars: non_neg_integer,
+          avatars_missing: non_neg_integer,
           warnings: [String.t()]
         }
 
@@ -257,6 +259,8 @@ defmodule MillenniumQuiz.Quiz.Import do
     questions: 0,
     cards_linked: 0,
     cards_missing: 0,
+    avatars: 0,
+    avatars_missing: 0,
     warnings: []
   }
 
@@ -374,6 +378,8 @@ defmodule MillenniumQuiz.Quiz.Import do
         questions: summary.questions + counts.questions,
         cards_linked: summary.cards_linked + counts.linked,
         cards_missing: summary.cards_missing + counts.missing,
+        avatars: summary.avatars + counts.avatars,
+        avatars_missing: summary.avatars_missing + counts.avatars_missing,
         warnings: Enum.reverse(counts.warnings, summary.warnings)
     }
   end
@@ -452,23 +458,35 @@ defmodule MillenniumQuiz.Quiz.Import do
   # After the transaction: a card that can't be a picture (not fetched, newer
   # than the format) costs a warning, not the format.
   defp add_avatar_cards(created, format, pool, counts) do
-    warnings =
-      Enum.flat_map(format.avatars, fn card ->
+    {added, warnings} =
+      Enum.reduce(format.avatars, {0, []}, fn card, {added, warnings} ->
         name = card.name || "card #{card.password}"
 
-        case Map.get(pool, card.password) do
-          {:ok, id, _name} ->
-            case Quiz.add_avatar_card(created.id, id) do
-              {:ok, _} -> apply_crop(card, id, created.name, name)
-              {:error, reason} -> [avatar_warning(format.name, name, card.password, reason)]
-            end
+        result =
+          case Map.get(pool, card.password) do
+            {:ok, id, _name} ->
+              case Quiz.add_avatar_card(created.id, id) do
+                {:ok, _} -> {:ok, apply_crop(card, id, created.name, name)}
+                {:error, reason} -> {:error, reason}
+              end
 
-          _missing ->
-            [avatar_warning(format.name, name, card.password, :missing)]
+            _missing ->
+              {:error, :missing}
+          end
+
+        case result do
+          {:ok, crop_warnings} ->
+            {added + 1, warnings ++ crop_warnings}
+
+          {:error, reason} ->
+            {added, warnings ++ [avatar_warning(format.name, name, card.password, reason)]}
         end
       end)
 
-    %{counts | warnings: counts.warnings ++ warnings}
+    counts
+    |> Map.put(:warnings, counts.warnings ++ warnings)
+    |> Map.put(:avatars, added)
+    |> Map.put(:avatars_missing, length(format.avatars) - added)
   end
 
   # A crop already stored for the card is kept: the local one wins, silently.

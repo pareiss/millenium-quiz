@@ -12,7 +12,6 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
 - **Board states / gameplay:** the open-source engine is ygopro-core / EDOPro (Project Ignis), C++ and Lua under the AGPL. A first step is questions with a board state stored as JSON and rendered by a component. The engine itself would run as its own container next to the app. A card in a board state also needs to say where it sits (hand, field, graveyard); the owner of a card (player 1 or 2, see Features) is already there.
 - `Game` is not tied to a question type. A `kind` field on questions (`:multiple_choice`, `:card_image`, `:board_state`) would only change rendering and answer checking.
 - **Pictures, still open:** the crop picker is built (admins set where the face sits, per card, in "Profile pictures" on the format page). Still open: the built-in sets of Edison, Goat and Tengu could move into the table too, so that admins own them. The game snapshot keeps the chosen avatar (the crop is looked up from the card when a page is drawn), so old games must keep loading.
-- **Backup should include the profile pictures:** the quiz backup (`/admin/backup`, `Release.export_quiz`) does not yet carry each format's chosen profile-picture cards and their crops (`format_avatar_cards`, `card_avatar_crops`). Add them to the export and the import, keep old backup files importable, and restore the cards the same way question cards are fetched again.
 - **Redesign, still open:** the life-point duel and the 5D's "duel" look are built and live (player pages, game screens and admin pages). Still open: testing phones and tablets on real devices (crop editor, duel board, admin), and the sideways and 320 px-phone scrolling left over from the tablet/phone layout work.
 - **Public deployment:** the hardening and the deploy repository are written, but the domain, certificate (Let's Encrypt) and cert-manager steps are not done yet.
 
@@ -168,8 +167,9 @@ the components at several widths.
 
 The only data that cannot be fetched again is the quiz you wrote. A backup is
 one JSON file with the formats (name, description, date), their topics, the
-questions (text, order), the choices with their correct flag
-and the cards linked to each question (by YGOPRODeck id and name). It does
+questions (text, order), the choices with their correct flag,
+the cards linked to each question and each format's profile pictures with their
+crops (all cards by YGOPRODeck id and name). It does
 not contain games, accounts or the card pool: admins come from `ADMIN_*`, and
 cards are fetched again by their id when a backup is restored.
 
@@ -201,7 +201,7 @@ would be gone, so take a backup regularly.
 2. Under **Restore from a backup file**, choose the file from your device (tap or click **Choose file**) and wait until its name appears.
 3. Click **Restore** and confirm.
 4. Wait. The pictures and texts of all cards are fetched again, which can take several minutes. Stay on the page to see the result; if you leave, the restore keeps going in the background.
-5. Read the result list. "Formats created" is what came back. A format that already exists is skipped (nothing is ever overwritten or doubled), so restoring twice is safe. If a card could not be found, the question still comes back without that card picture; open it in the admin and add the card again.
+5. Read the result list. "Formats created" is what came back, "Profile pictures" are the chosen picture cards of each format. A format that already exists is skipped (nothing is ever overwritten or doubled), so restoring twice is safe. If a card could not be found, the question still comes back without that card picture; open it in the admin and add the card again.
 6. Check your formats in the admin to be sure everything is there.
 
 The technical details follow.
@@ -221,6 +221,14 @@ The technical details follow.
   mix quiz.import path
   ```
 
+- **Profile pictures** (`"avatar_cards"` of a format, each with an optional
+  `"crop"`) come back like question cards: missing cards are fetched one at a
+  time, a card that cannot be fetched (or came out after the format's date) is
+  reported as a warning and is not a picture, the rest still comes through. A
+  crop never replaces one that is already stored for the card. The result list
+  says `Profile pictures: N restored, M missing`. Backups made before this
+  existed have no such key and import with no pictures (the format version
+  stays 1; `backups/*.json` are imported in the tests).
 - **Restoring** never overwrites: a format whose name already exists is
   skipped, so importing the same file twice is harmless. Each format is created
   on its own; one that breaks a rule (for example fewer than 2 topics) is
