@@ -98,6 +98,28 @@ defmodule MillenniumQuiz.Quiz.BoardTest do
                p1
     end
 
+    test "reveal_all: true and false are kept, a missing one becomes false" do
+      assert {:ok, %{"reveal_all" => true}} = Board.cast(board(%{}, %{}, %{"reveal_all" => true}))
+
+      assert {:ok, %{"reveal_all" => false}} =
+               Board.cast(board(%{}, %{}, %{"reveal_all" => false}))
+
+      assert {:ok, %{"reveal_all" => false}} = Board.cast(board())
+      assert {:ok, %{"reveal_all" => false}} = Board.cast(board(%{}, %{}, %{"reveal_all" => nil}))
+    end
+
+    test "reveal_all must be a boolean and the message names the field" do
+      for bad <- ["true", 1, 0, [], %{}] do
+        assert {:error, issues} = Board.cast(board(%{}, %{}, %{"reveal_all" => bad}))
+        assert ["board reveal_all: must be true or false"] = messages(issues)
+      end
+    end
+
+    test "reveal_all survives a JSON round trip" do
+      {:ok, cast} = Board.cast(board(%{}, %{}, %{"reveal_all" => true}))
+      assert {:ok, ^cast} = cast |> Jason.encode!() |> Board.cast()
+    end
+
     test "accepts pasted JSON" do
       assert {:ok, %{"players" => [_, _]}} = Board.cast(Jason.encode!(board()))
       assert {:error, [%{message: "is not a JSON object"}]} = Board.cast("[1")
@@ -480,6 +502,16 @@ defmodule MillenniumQuiz.Quiz.BoardTest do
 
       # a game stores it as JSON
       assert resolved == resolved |> Jason.encode!() |> Jason.decode!()
+    end
+
+    test "reveal_all is passed through, false by default, nil board stays nil" do
+      {:ok, on} = Board.cast(board(%{}, %{}, %{"reveal_all" => true}))
+      {:ok, off} = Board.cast(board())
+      assert %{"reveal_all" => true} = r = Board.resolve(on, @goat)
+      assert r == r |> Jason.encode!() |> Jason.decode!()
+      assert %{"reveal_all" => false} = Board.resolve(off, @goat)
+      assert %{"reveal_all" => false} = Board.resolve(board(), @goat)
+      assert Board.resolve(nil, @goat) == nil
     end
 
     test "art width option" do

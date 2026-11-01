@@ -20,6 +20,7 @@ defmodule MillenniumQuiz.Quiz.Board do
         "phase" => "main1",            # optional: draw standby main1 battle main2 end
         "turnPlayer" => 1,             # optional, 1 or 2
         "emz" => [card | nil, card | nil],       # optional, [nil, nil] if missing
+        "reveal_all" => true | false,  # optional boolean, false if missing
         "players" => [player, player]  # player 1 and player 2
       }
 
@@ -57,6 +58,7 @@ defmodule MillenniumQuiz.Quiz.Board do
         "turn" => integer | nil,
         "phase" => "draw" | "standby" | "main1" | "battle" | "main2" | "end" | nil,
         "turn_player" => 1 | 2 | nil,
+        "reveal_all" => true | false,
         "emz" => [card | nil, card | nil],
         "players" => [player, player]
       }
@@ -163,7 +165,7 @@ defmodule MillenniumQuiz.Quiz.Board do
     {players, player_errors} = cast_players(Map.get(map, "players"))
 
     errors =
-      unknown_keys(map, ~w(v turn phase turnPlayer emz players), "board") ++
+      unknown_keys(map, ~w(v turn phase turnPlayer emz players reveal_all), "board") ++
         check(map, "v", "board v", &(&1 == 1), "must be 1") ++
         check(
           map,
@@ -186,11 +188,23 @@ defmodule MillenniumQuiz.Quiz.Board do
           &(is_nil(&1) or &1 in [1, 2]),
           "must be 1 or 2"
         ) ++
+        check(
+          map,
+          "reveal_all",
+          "board reveal_all",
+          &(is_nil(&1) or is_boolean(&1)),
+          "must be true or false"
+        ) ++
         emz_errors ++ player_errors
 
     if errors == [] do
       board =
-        %{"v" => 1, "emz" => emz, "players" => players}
+        %{
+          "v" => 1,
+          "emz" => emz,
+          "players" => players,
+          "reveal_all" => map["reveal_all"] == true
+        }
         |> put_unless_nil("turn", map["turn"])
         |> put_unless_nil("phase", map["phase"])
         |> put_unless_nil("turnPlayer", map["turnPlayer"])
@@ -638,6 +652,7 @@ defmodule MillenniumQuiz.Quiz.Board do
       "turn" => board["turn"],
       "phase" => board["phase"],
       "turn_player" => board["turnPlayer"],
+      "reveal_all" => board["reveal_all"] == true,
       "emz" => board |> Map.get("emz") |> pad(2) |> Enum.map(&resolve_card(&1, :emz, ctx)),
       "players" => players
     }
