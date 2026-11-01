@@ -1,0 +1,86 @@
+{
+ "v": 1,
+ "turn": 1,
+ "phase": "main1",
+ "turnPlayer": 1,
+ "emz": [
+  null,
+  null
+ ],
+ "players": [
+  {
+   "lp": 4000,
+   "monsters": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "spells": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "field": null,
+   "pendulum": [
+    null,
+    {
+     "code": 20409757
+    }
+   ],
+   "hand": [
+    {
+     "code": 94415058
+    },
+    {
+     "code": 16178681
+    },
+    {
+     "code": 44944304
+    }
+   ],
+   "grave": [],
+   "banished": [],
+   "extra": [
+    {
+     "code": 67808837,
+     "up": true
+    }
+   ],
+   "deck": 0
+  },
+  {
+   "lp": 2600,
+   "monsters": [
+    null,
+    null,
+    {
+     "code": 74069667,
+     "pos": "atk"
+    },
+    null,
+    null
+   ],
+   "spells": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "field": null,
+   "pendulum": [
+    null,
+    null
+   ],
+   "hand": [],
+   "grave": [],
+   "banished": [],
+   "extra": [],
+   "deck": 0
+  }
+ ]
+}
