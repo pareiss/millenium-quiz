@@ -630,6 +630,8 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
     color: var(--color-primary);
     clip-path: polygon(0.4rem 0, 100% 0, calc(100% - 0.4rem) 100%, 0 100%);
   }
+  /* the tags of a question may wrap on a narrow screen: they grow instead of clipping (the small tags of the home page keep their size) */
+  .duel-tag--wrap { height: auto; min-height: 1.5rem; padding-block: 0.15rem; }
   .duel-tag--atk { background: var(--color-secondary); color: var(--color-secondary-content); }
 
   /* the board: slanted tiles; an open question glows cyan, an answered or a later one is dim */
@@ -1858,6 +1860,9 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
   [data-phx-theme] { min-height: 2.75rem; min-width: 2.75rem; align-items: center; justify-content: center; }
   input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"]), textarea, select { font-size: 16px; }
   .mq-suggestion { min-height: 2.75rem; }
+  /* text fields of the public pages (player names, suggestions) and the logo link */
+  .input, .select { min-height: 2.75rem; }
+  #brand-link { min-height: 2.75rem; min-width: 2.75rem; justify-content: center; }
   /* the label of a checkbox is its tap area */
   .fieldset .label:has(input[type="checkbox"]) { min-height: 2.75rem; }
 }
