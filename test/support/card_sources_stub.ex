@@ -33,6 +33,74 @@ defmodule MillenniumQuiz.CardSourcesStub do
     Req.Test.stub(MillenniumQuiz.Cards, &handle/1)
   end
 
+  @doc """
+  Like `stub!/0`, and additionally knows one more monster card, found by its
+  password (YGOPRODeck id): `%{password: integer, name: String.t(), date: "2002-03-08"}`;
+  an optional `:before_fetch` function is called when the card is looked up by its id.
+  For tests that must fetch a card of a fixed password (e.g. a profile-picture set).
+  """
+  def stub_with_card!(%{password: password} = extra) do
+    Req.Test.stub(MillenniumQuiz.Cards, fn conn -> handle_extra(conn, extra, password) end)
+  end
+
+  defp handle_extra(%Plug.Conn{host: "db.ygoprodeck.com"} = conn, extra, password) do
+    params = Plug.Conn.fetch_query_params(conn).query_params
+
+    if params["id"] == to_string(password) or params["name"] == extra.name do
+      if params["id"] && extra[:before_fetch], do: extra.before_fetch.()
+
+      json(conn, 200, %{
+        data: [
+          %{
+            "id" => password,
+            "name" => extra.name,
+            "type" => "Effect Monster",
+            "humanReadableCardType" => "Effect Monster",
+            "frameType" => "effect",
+            "card_images" => [%{"id" => password}],
+            "misc_info" => [%{"konami_id" => password + 1, "tcg_date" => extra.date}]
+          }
+        ]
+      })
+    else
+      handle(conn)
+    end
+  end
+
+  defp handle_extra(
+         %Plug.Conn{host: "cdn.jsdelivr.net", request_path: path} = conn,
+         extra,
+         password
+       ) do
+    if String.ends_with?(path, "/#{password}.json") do
+      json(
+        conn,
+        200,
+        yaml_yugi(
+          %{password: password, konami_id: password + 1, page_id: password + 2},
+          extra.name,
+          extra.name,
+          "Some text."
+        )
+        |> Map.merge(%{card_type: "Monster", monster_type_line: "Warrior / Effect"})
+      )
+    else
+      handle(conn)
+    end
+  end
+
+  defp handle_extra(%Plug.Conn{host: "yugipedia.com"} = conn, extra, password) do
+    params = Plug.Conn.fetch_query_params(conn).query_params
+
+    if params["pageids"] == to_string(password + 2) do
+      json(conn, 200, %{query: %{pages: [%{pageid: password + 2, title: extra.name}]}})
+    else
+      handle(conn)
+    end
+  end
+
+  defp handle_extra(conn, _extra, _password), do: handle(conn)
+
   def handle(%Plug.Conn{host: "db.ygoprodeck.com"} = conn) do
     params = Plug.Conn.fetch_query_params(conn).query_params
 

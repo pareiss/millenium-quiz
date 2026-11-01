@@ -26,9 +26,15 @@ defmodule MillenniumQuiz.Quiz.AvatarSets do
   Options: `:fetch` (default true; false uses the pool only, no network) and
   `:pause_ms` (between remote fetches, default as `Cards.refresh_all/0`).
 
-  Returns one `%{format: name, status: status, missing: [names]}` per format
-  with a set, `status` being `:adopted`, `:already` (it has cards of its own)
-  or `:incomplete` (`missing` says which cards could not be had).
+  The list is checked again, under a lock on the format, right before the
+  links are written (fetching can take minutes, an admin may have added a
+  picture meanwhile): then the result is `:already` and nothing is written.
+
+  Returns one `%{format: name, status: status, missing: [names], late: [names]}`
+  per format with a set, `status` being `:adopted`, `:already` (it has cards of
+  its own) or `:incomplete`: `missing` says which cards could not be had (worth
+  running again), `late` which came out after the format's date (running again
+  changes nothing).
   """
   import Ecto.Query, only: [from: 2]
 
@@ -39,7 +45,8 @@ defmodule MillenniumQuiz.Quiz.AvatarSets do
   @type result :: %{
           format: String.t(),
           status: :adopted | :already | :incomplete,
-          missing: [String.t()]
+          missing: [String.t()],
+          late: [String.t()]
         }
 
   @spec adopt(keyword) :: [result]
@@ -62,7 +69,7 @@ defmodule MillenniumQuiz.Quiz.AvatarSets do
     {results, _state} =
       Enum.map_reduce(formats, %{fetches: 0}, fn format, state ->
         if has_cards?(format) do
-          {%{format: format.name, status: :already, missing: []}, state}
+          {%{format: format.name, status: :already, missing: [], late: []}, state}
         else
           adopt_format(format, fetch?, pause, state)
         end
@@ -83,11 +90,20 @@ defmodule MillenniumQuiz.Quiz.AvatarSets do
         {{monster, card}, state}
       end)
 
-    case for({monster, nil} <- found, do: monster.name) do
-      [] -> {link(format, found), state}
-      missing -> {%{format: format.name, status: :incomplete, missing: missing}, state}
+    missing = for {monster, nil} <- found, do: monster.name
+    late = for {monster, card} <- found, card && late?(card, format), do: monster.name
+
+    if missing == [] and late == [] do
+      {link(format, found), state}
+    else
+      {%{format: format.name, status: :incomplete, missing: missing, late: late}, state}
     end
   end
+
+  # As `Quiz.add_avatar_card/2`: no date on either side counts as released.
+  defp late?(%{tcg_release_date: nil}, _format), do: false
+  defp late?(_card, %{date: nil}), do: false
+  defp late?(card, format), do: Date.compare(card.tcg_release_date, format.date) == :gt
 
   # The pool first; the sources only for what it lacks, one at a time.
   defp resolve(password, fetch?, pause, state) do
@@ -111,7 +127,7 @@ defmodule MillenniumQuiz.Quiz.AvatarSets do
 
   defp fetch(password) do
     case Cards.import(password) do
-      {:ok, card} -> %Card{id: card.id}
+      {:ok, card} -> %Card{id: card.id, tcg_release_date: card.tcg_release_date}
       {:error, _} -> nil
     end
   rescue
@@ -121,6 +137,10 @@ defmodule MillenniumQuiz.Quiz.AvatarSets do
   defp link(format, found) do
     result =
       Repo.transaction(fn ->
+        # the same lock as Quiz.add_avatar_card/2: an admin's edit waits for us
+        Repo.one!(from f in Format, where: f.id == ^format.id, lock: "FOR UPDATE", select: f.id)
+        if has_cards?(format), do: Repo.rollback(:already)
+
         for {monster, card} <- found do
           case Quiz.add_avatar_card(format.id, card.id) do
             {:ok, _} -> :ok
@@ -135,8 +155,14 @@ defmodule MillenniumQuiz.Quiz.AvatarSets do
       end)
 
     case result do
-      {:ok, _} -> %{format: format.name, status: :adopted, missing: []}
-      {:error, name} -> %{format: format.name, status: :incomplete, missing: [name]}
+      {:ok, _} ->
+        %{format: format.name, status: :adopted, missing: [], late: []}
+
+      {:error, :already} ->
+        %{format: format.name, status: :already, missing: [], late: []}
+
+      {:error, name} ->
+        %{format: format.name, status: :incomplete, missing: [name], late: []}
     end
   end
 end

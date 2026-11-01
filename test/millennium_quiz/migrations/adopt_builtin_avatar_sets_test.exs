@@ -18,9 +18,31 @@ defmodule MillenniumQuiz.Repo.Migrations.AdoptBuiltinAvatarSetsTest do
     :ok
   end
 
+  # Runs only this migration (not the later ones, which `to:` would roll back
+  # as well): the module is loaded from its file, then `up`/`down` go through
+  # the migrator with just that one {version, module}.
+  defp migration_module do
+    [{module, _}] =
+      migrations()
+      |> Path.join("#{@version}_*.exs")
+      |> Path.wildcard()
+      |> hd()
+      |> Code.compile_file()
+
+    module
+  end
+
+  defp run(direction) do
+    Ecto.Migrator.run(Repo, [{@version, migration_module()}], direction,
+      all: true,
+      log: false,
+      migration_lock: false
+    )
+  end
+
   defp migrate_up do
-    Ecto.Migrator.run(Repo, migrations(), :down, to: @version, log: false, migration_lock: false)
-    Ecto.Migrator.run(Repo, migrations(), :up, to: @version, log: false, migration_lock: false)
+    run(:down)
+    run(:up)
   end
 
   defp format!(name, date) do
@@ -70,16 +92,22 @@ defmodule MillenniumQuiz.Repo.Migrations.AdoptBuiltinAvatarSetsTest do
     assert Repo.aggregate(CardAvatarCrop, :count) == 0
   end
 
-  test "links a complete set in order, with crops, and does it only once" do
-    edison = format!("Edison", ~D[2010-04-24])
+  for date <- Avatars.set_dates() do
+    test "links the complete set of #{date} in order, with crops, and does it only once" do
+      check_complete_set(unquote(Macro.escape(date)))
+    end
+  end
+
+  defp check_complete_set(date) do
+    format = format!("Format #{date}", date)
     other = format!("Other", ~D[2020-01-01])
-    for pw <- set_passwords(~D[2010-04-24]), do: card!(pw)
+    for pw <- set_passwords(date), do: card!(pw)
 
     migrate_up()
-    assert links(edison) == set_passwords(~D[2010-04-24])
+    assert links(format) == set_passwords(date)
     assert links(other) == []
 
-    for m <- Avatars.set_for(~D[2010-04-24]) do
+    for m <- Avatars.set_for(date) do
       c = Avatars.face_crop(m.face)
 
       assert %{rows: [[x, y, zoom]]} =
@@ -143,7 +171,7 @@ defmodule MillenniumQuiz.Repo.Migrations.AdoptBuiltinAvatarSetsTest do
     edison = format!("Edison", ~D[2010-04-24])
     for pw <- set_passwords(~D[2010-04-24]), do: card!(pw)
     migrate_up()
-    Ecto.Migrator.run(Repo, migrations(), :down, to: @version, log: false, migration_lock: false)
+    run(:down)
     assert length(links(edison)) == length(set_passwords(~D[2010-04-24]))
   end
 end

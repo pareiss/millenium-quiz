@@ -116,9 +116,22 @@ defmodule MillenniumQuiz.Release do
       %{status: :already, format: name} ->
         "#{name}: has profile pictures of its own, left alone"
 
-      %{status: :incomplete, format: name, missing: missing} ->
-        "#{name}: not adopted, could not get #{Enum.join(missing, ", ")}. Run it again."
+      %{status: :incomplete, format: name} = result ->
+        incomplete_line(name, result)
     end)
+  end
+
+  defp incomplete_line(name, result) do
+    missing = result.missing
+    late = Map.get(result, :late, [])
+
+    [
+      missing != [] && "could not get #{Enum.join(missing, ", ")}. Run it again.",
+      late != [] &&
+        "Released after the format's date (it cannot be one of its pictures): #{Enum.join(late, ", ")}."
+    ]
+    |> Enum.filter(& &1)
+    |> then(&"#{name}: not adopted, #{Enum.join(&1, " ")}")
   end
 
   @doc "Fetches every card in the card pool again (new errata, stats, artworks)."

@@ -2,6 +2,8 @@ defmodule MillenniumQuiz.Quiz.AvatarSetsTest do
   # Deletes all formats (the test database holds a seeded one): not async.
   use MillenniumQuiz.DataCase, async: false
 
+  @moduletag :capture_log
+
   import MillenniumQuiz.QuizFixtures
 
   alias MillenniumQuiz.{Avatars, CardSourcesStub, Quiz, Release}
@@ -125,9 +127,85 @@ defmodule MillenniumQuiz.Quiz.AvatarSetsTest do
     pool_card!(late, %{tcg_release_date: ~D[2020-01-01]})
     for m <- rest, do: pool_card!(m)
 
-    assert [%{status: :incomplete, missing: [name]}] = AvatarSets.adopt(fetch: false)
+    assert [%{status: :incomplete, missing: [], late: [name]}] = AvatarSets.adopt(fetch: false)
     assert name == late.name
     assert Quiz.avatar_cards(format.id) == []
+  end
+
+  test "every late card is named, next to the missing ones" do
+    format = edison!()
+    [missing, late1, late2 | rest] = Avatars.set_for(@edison)
+    pool_card!(late1, %{tcg_release_date: ~D[2020-01-01]})
+    pool_card!(late2, %{tcg_release_date: ~D[2011-01-01]})
+    for m <- rest, do: pool_card!(m)
+
+    assert [%{status: :incomplete, missing: [m], late: late}] = AvatarSets.adopt(fetch: false)
+    assert m == missing.name
+    assert Enum.sort(late) == Enum.sort([late1.name, late2.name])
+    assert Quiz.avatar_cards(format.id) == []
+  end
+
+  test "fetches a card the pool lacks, one at a time, and adopts the set" do
+    format = edison!()
+    [first | _] = set = Avatars.set_for(@edison)
+    fill_pool!(@edison, [first.password])
+
+    CardSourcesStub.stub_with_card!(%{
+      password: first.password,
+      name: first.name,
+      date: "2002-03-08"
+    })
+
+    assert [%{status: :adopted, missing: [], late: []}] = AvatarSets.adopt(pause_ms: 0)
+    assert Enum.map(Quiz.avatar_cards(format.id), & &1.password) == Enum.map(set, & &1.password)
+    assert %{} = Quiz.avatar_crop(hd(Quiz.avatar_cards(format.id)).id)
+  end
+
+  test "a card that was fetched but came out after the format's date is reported as late" do
+    format = edison!()
+    [first | _] = Avatars.set_for(@edison)
+    fill_pool!(@edison, [first.password])
+
+    CardSourcesStub.stub_with_card!(%{
+      password: first.password,
+      name: first.name,
+      date: "2020-01-01"
+    })
+
+    assert [%{status: :incomplete, missing: [], late: [name]}] = AvatarSets.adopt(pause_ms: 0)
+    assert name == first.name
+    assert Quiz.avatar_cards(format.id) == []
+  end
+
+  test "a picture an admin adds while the cards are fetched is not buried under the set" do
+    format = edison!()
+    [first | _] = Avatars.set_for(@edison)
+    fill_pool!(@edison, [first.password])
+    own = pool_card!(%{password: 99_999_001, name: "Own pick"})
+
+    CardSourcesStub.stub_with_card!(%{
+      password: first.password,
+      name: first.name,
+      date: "2002-03-08",
+      before_fetch: fn -> {:ok, _} = Quiz.add_avatar_card(format.id, own.id) end
+    })
+
+    assert [%{status: :already, missing: [], late: []}] = AvatarSets.adopt(pause_ms: 0)
+    assert Enum.map(Quiz.avatar_cards(format.id), & &1.id) == [own.id]
+  end
+
+  test "Release.adopt_avatar_sets/0 and mix avatars.adopt print the report" do
+    edison!()
+    fill_pool!(@edison)
+
+    out = ExUnit.CaptureIO.capture_io(fn -> Release.adopt_avatar_sets() end)
+    assert out =~ "Edison: the built-in profile pictures are now the format's own"
+
+    Mix.shell(Mix.Shell.Process)
+    on_exit(fn -> Mix.shell(Mix.Shell.IO) end)
+    Mix.Tasks.Avatars.Adopt.run([])
+    assert_received {:mix_shell, :info, [line]}
+    assert line =~ "Edison: has profile pictures of its own"
   end
 
   test "a crop that is stored already is kept" do
@@ -164,11 +242,15 @@ defmodule MillenniumQuiz.Quiz.AvatarSetsTest do
       Release.adopt_report([
         %{format: "A", status: :adopted, missing: []},
         %{format: "B", status: :already, missing: []},
-        %{format: "C", status: :incomplete, missing: ["Jinzo"]}
+        %{format: "C", status: :incomplete, missing: ["Jinzo"], late: []},
+        %{format: "D", status: :incomplete, missing: [], late: ["Spore"]}
       ])
 
     assert Enum.at(lines, 0) =~ "A: the built-in"
     assert Enum.at(lines, 1) =~ "left alone"
-    assert Enum.at(lines, 2) =~ "Jinzo"
+    assert Enum.at(lines, 2) =~ "could not get Jinzo. Run it again."
+    assert Enum.at(lines, 3) =~ "Released after the format's date"
+    assert Enum.at(lines, 3) =~ "Spore"
+    refute Enum.at(lines, 3) =~ "Run it again"
   end
 end
