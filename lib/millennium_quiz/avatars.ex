@@ -17,6 +17,13 @@ defmodule MillenniumQuiz.Avatars do
   while the app runs. A game saves the slug of each player's picture, so games
   saved before a set existed keep theirs.
 
+  The sets are also copied into the table (`Quiz.AvatarSets`, the migration
+  `AdoptBuiltinAvatarSets`): the cards become the format's own pictures, so
+  admins can change them and the backup carries them, and `set_for/1` and
+  `face_crop/1` are what is copied. The committed images and the entries here
+  stay: a game saved with a built-in slug (`"jinzo"`) keeps its image, and a
+  format with fewer than `min_cards/0` cards of its own still gets its set.
+
   An admin can instead choose cards from the card pool as the pictures of a
   format (`Quiz.add_avatar_card/2`); when a format has at least `min_cards/0` of
   them, those are its set and the hardcoded ones are not used (`pool/1`). Such a picture has the slug
@@ -250,6 +257,37 @@ defmodule MillenniumQuiz.Avatars do
 
   @doc "How many cards a format's own list needs before games use it."
   def min_cards, do: @min_cards
+
+  @doc """
+  The monsters of the built-in set of the format with this `date`, in order
+  (`%{slug, name, password, face}`), `[]` for a date without a set. These are
+  what `Quiz.AvatarSets.adopt/1` copies into the table.
+  """
+  def set_for(%Date{} = date) do
+    by_slug = Map.new(@pool, &{&1.slug, &1})
+    for slug <- Map.get(@sets, date, []), do: Map.fetch!(by_slug, slug)
+  end
+
+  def set_for(_), do: []
+
+  @doc "The dates of the formats that have a built-in set (Edison, Goat, Tengu)."
+  def set_dates, do: Map.keys(@sets)
+
+  @doc """
+  The crop (`default_crop/0`'s shape) that shows the same square as `face`, a
+  `{x, y, size}` in the 624x624 artwork: the focus is the square's centre, the
+  zoom is 624 / size (at most 300, so a face smaller than 208 pixels shows a
+  little more than itself), then moved into `focus_range/1`.
+
+      iex> MillenniumQuiz.Avatars.face_crop({135, 45, 190})
+      %{x: 37, y: 22, zoom: 300}
+  """
+  def face_crop({x, y, size}) do
+    zoom = (624 / size * 100) |> round() |> max(100) |> min(300)
+
+    %{x: round((x + size / 2) / 624 * 100), y: round((y + size / 2) / 624 * 100), zoom: zoom}
+    |> clamp_focus()
+  end
 
   @doc "The slugs of the default pool: what a format without a set of its own uses."
   def default_slugs, do: @default_slugs
