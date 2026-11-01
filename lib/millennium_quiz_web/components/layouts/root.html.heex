@@ -53,13 +53,13 @@
         const aliases = {light: "duel-light", dark: "duel-dark", system: "duel"};
         const fixed = ["duel-light", "duel-dark", "millennium-light", "millennium-dark"];
         const known = ["system", "duel", "light", "dark", ...fixed];
-        const resolve = (theme) => "duel-" + systemTheme();
+        const resolve = () => "duel-" + systemTheme();
         const setTheme = (theme) => {
           theme = known.includes(theme) ? (aliases[theme] || theme) : "duel";
           const root = document.documentElement;
           if (theme === "duel") {
             localStorage.removeItem("phx:theme");
-            root.setAttribute("data-theme", resolve(theme));
+            root.setAttribute("data-theme", resolve());
             root.setAttribute("data-theme-family", theme);
             root.setAttribute("data-theme-source", "system");
           } else {
@@ -79,7 +79,7 @@
 
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
           if (document.documentElement.getAttribute("data-theme-source") === "system") {
-            document.documentElement.setAttribute("data-theme", resolve(document.documentElement.getAttribute("data-theme-family")));
+            document.documentElement.setAttribute("data-theme", resolve());
             paintBar();
           }
         });

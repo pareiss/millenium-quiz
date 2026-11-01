@@ -865,9 +865,9 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   }
   .duel-toggle-btn { position: relative; justify-content: center; }
   /* the icon on the thumb */
-  [data-theme-source=system] .duel-toggle-btn[data-phx-theme=system],
-  [data-theme-source=user][data-theme=duel-light] .duel-toggle-btn[data-phx-theme=duel-light],
-  [data-theme-source=user][data-theme=duel-dark] .duel-toggle-btn[data-phx-theme=duel-dark] {
+  &[data-theme-source=system] .duel-toggle-btn[data-phx-theme=system],
+  &[data-theme-source=user][data-theme=duel-light] .duel-toggle-btn[data-phx-theme=duel-light],
+  &[data-theme-source=user][data-theme=duel-dark] .duel-toggle-btn[data-phx-theme=duel-dark] {
     color: var(--color-primary-content);
   }
 

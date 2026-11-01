@@ -90,6 +90,18 @@ defmodule MillenniumQuizWeb.DuelThemeTest do
         r = ratio(c[fg], bg)
         assert r >= 4.5, "#{fg} on primary tint #{tint}: #{Float.round(r, 2)}:1"
       end
+
+      # the muted description on the chosen option card (13%) and the format hover (7%)
+      for tint <- [0.13, 0.07] do
+        bg = blend(c["primary"], c["base-100"], tint)
+        text = blend(c["base-content"], bg, 0.7)
+        r = ratio(text, bg)
+        assert r >= 4.5, "base-content at 0.7 on primary tint #{tint}: #{Float.round(r, 2)}:1"
+      end
+
+      # the active icon on the primary toggle thumb
+      r = ratio(c["primary-content"], c["primary"])
+      assert r >= 4.5, "primary-content on primary: #{Float.round(r, 2)}:1"
     end
   end
 
@@ -124,6 +136,11 @@ defmodule MillenniumQuizWeb.DuelThemeTest do
     assert @css =~ "--duel-p4"
   end
 
+  test "the active toggle icon rule is nested with & (same element as the theme attributes)" do
+    assert @css =~ "&[data-theme-source=system] .duel-toggle-btn[data-phx-theme=system]"
+    refute @css =~ ~r/^\s+\[data-theme-source=system\] \.duel-toggle-btn/m
+  end
+
   test "the light token block does not beat the dark one on <html>" do
     # the theme attribute sits on <html>, which is also :root: a plain :root selector
     # would out-rank [data-theme=duel-dark] by order and paint the dark theme light
@@ -137,11 +154,11 @@ defmodule MillenniumQuizWeb.DuelThemeTest do
 
     test "the server sets no fixed data-theme, the script does", %{html: html} do
       refute html =~ ~r/<html[^>]*data-theme/
-      assert html =~ ~s|root.setAttribute("data-theme", resolve(theme))|
+      assert html =~ ~s|root.setAttribute("data-theme", resolve())|
     end
 
     test "no stored choice and system follow the system's light or dark as duel", %{html: html} do
-      assert html =~ ~s|const resolve = (theme) => "duel-" + systemTheme();|
+      assert html =~ ~s|const resolve = () => "duel-" + systemTheme();|
       assert html =~ ~s|system: "duel"|
       assert html =~ ~s|localStorage.getItem("phx:theme")|
       # a live change of the system is followed while the choice is "system"
