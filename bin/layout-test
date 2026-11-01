@@ -691,18 +691,11 @@ with sync_playwright() as p:
         # (the site's top bar is the player-facing chrome and not counted; a checkbox counts by its label),
         # no text is cut off (no ellipsis, no clamp, no clipped box).
         print("Admin pages (tap targets, wrapping, no horizontal overflow)")
-        touch_ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
-        mouse_ctx = browser.new_context(viewport={"width": 1280, "height": 900})
-        ctxs = {}
-        for key, ctx in (("touch", touch_ctx), ("mouse", mouse_ctx)):
-            pg = ctx.new_page()
-            pg.goto(base + "/admin/login")
-            pg.wait_for_selector("[data-phx-main].phx-connected")
-            pg.fill("#login-form input[name='user[username]']", os.environ["SMOKE_ADMIN_USER"])
-            pg.fill("#login-form input[name='user[password]']", os.environ["SMOKE_ADMIN_PASSWORD"])
-            pg.click("#login-submit")
-            pg.wait_for_url("**/admin/formats")
-            ctxs[key] = pg
+        # log in once (the login is rate limited) and reuse the session in both contexts
+        admin_state = page.context.storage_state()
+        touch_ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True, storage_state=admin_state)
+        mouse_ctx = browser.new_context(viewport={"width": 1280, "height": 900}, storage_state=admin_state)
+        ctxs = {"touch": touch_ctx.new_page(), "mouse": mouse_ctx.new_page()}
         # the URLs of the fixture format and of its four-card question
         pg = ctxs["mouse"]
         pg.goto(base + "/admin/formats")

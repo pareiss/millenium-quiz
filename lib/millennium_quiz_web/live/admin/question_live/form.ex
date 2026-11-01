@@ -162,7 +162,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
           >
             <li :for={result <- @results} class="flex items-center gap-3 px-3 py-2">
               <div class="flex-1 min-w-0">
-                <p class="font-medium truncate">{result.name}</p>
+                <p class="font-medium break-words">{result.name}</p>
                 <p class="text-xs text-base-content/60">
                   {result.card_type} · {display_date(result.tcg_release_date)}
                   <span :if={result.in_pool} class="badge badge-ghost badge-xs ml-1">in card pool</span>

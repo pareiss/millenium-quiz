@@ -827,8 +827,8 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
 .duel-qrow > p { overflow-wrap: anywhere; }
 @media (pointer: coarse), (max-width: 39.99rem) {
   .duel-admin :is(.input, .select, .file-input, .tab) { min-height: 2.75rem; }
-  .duel-admin :is(.duel-back, .duel-summary) { min-height: 2.75rem; }
-  .duel-admin .duel-summary { display: list-item; padding-block: 0.6rem; }
+  .duel-admin .duel-back { min-height: 2.75rem; }
+  .duel-summary { min-height: 2.75rem; display: list-item; padding-block: 0.6rem; }
   .duel-admin .duel-back { padding-inline-end: 0.75rem; }
 }
 
