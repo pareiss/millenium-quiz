@@ -2,7 +2,7 @@ defmodule MillenniumQuiz.Quiz.Question do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias MillenniumQuiz.Quiz.{Choice, QuestionCard}
+  alias MillenniumQuiz.Quiz.{Board, Choice, QuestionCard}
 
   @min_choices 2
   @max_choices 6
@@ -15,6 +15,8 @@ defmodule MillenniumQuiz.Quiz.Question do
     field :position, :integer, default: 0
     # Name of the player who suggested the question, if it came from one.
     field :submitted_by, :string
+    # A read-only board shown with the question (`Quiz.Board`), or nil.
+    field :board, :map
 
     embeds_many :choices, Choice, on_replace: :delete
 
@@ -55,6 +57,59 @@ defmodule MillenniumQuiz.Quiz.Question do
       drop_param: :choices_drop
     )
     |> validate_choices()
+    |> cast_board(attrs)
+  end
+
+  @doc """
+  Validates the question's board against its format: every card in the pool and
+  released by the format's date, no zone the Master Rule lacks. `date` is the
+  format's date (or nil). Adds one error on `:board` per problem, each naming
+  the zone. Use `Board.validate/2` and `Board.missing_passwords/1` for the
+  cards an importer could fetch.
+  """
+  def validate_board_for_format(changeset, date) do
+    case get_field(changeset, :board) do
+      nil ->
+        changeset
+
+      board ->
+        case Board.validate(board, date) do
+          :ok -> changeset
+          {:error, issues} -> add_board_errors(changeset, issues)
+        end
+    end
+  end
+
+  # The board comes from the admin form as a map (or pasted JSON); the key may
+  # be an atom or a string. A missing key leaves the board as it is, null or an
+  # empty string removes it.
+  defp cast_board(changeset, attrs) do
+    case fetch_board(attrs) do
+      :error ->
+        changeset
+
+      {:ok, empty} when empty in [nil, ""] ->
+        put_change(changeset, :board, nil)
+
+      {:ok, input} ->
+        case Board.cast(input) do
+          {:ok, board} -> put_change(changeset, :board, board)
+          {:error, issues} -> add_board_errors(changeset, issues)
+        end
+    end
+  end
+
+  defp fetch_board(attrs) do
+    case Map.fetch(attrs, "board") do
+      :error -> Map.fetch(attrs, :board)
+      found -> found
+    end
+  end
+
+  defp add_board_errors(changeset, issues) do
+    Enum.reduce(issues, changeset, fn issue, acc ->
+      add_error(acc, :board, "#{issue.path}: #{issue.message}", kind: issue.kind)
+    end)
   end
 
   @doc """
