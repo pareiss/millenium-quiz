@@ -151,8 +151,7 @@ defmodule MillenniumQuiz.GamesTest do
                p1["monsters"]
 
       assert %{"name" => "Board Card 1007"} = p2["field"]
-      # the card that is not in the pool is a placeholder without details
-      assert [%{"password" => 1004}, %{"name" => "Unknown card"}] = p1["grave"]
+      assert [%{"password" => 1004}] = p1["grave"]
 
       # 8 cards in the pool, 1004 is on the board twice: one entry each
       in_pool = codes |> Map.delete(:missing) |> Map.values() |> Enum.sort()
@@ -203,6 +202,42 @@ defmodule MillenniumQuiz.GamesTest do
       assert again == game
       assert Repo.get!(GameRecord, id).state == stored
       assert again.board_cards["1001"].name == "Board Card 1001"
+    end
+
+    test "a board that does not validate is left out: no board, the game still plays", %{
+      format: format,
+      question: question,
+      codes: codes
+    } do
+      # a card that is not in the pool
+      board = MillenniumQuiz.BoardGameFixtures.stored_board()
+      bad = put_in(board, ["players", Access.at(0), "grave"], [%{"code" => codes.missing}])
+      question |> Ecto.Changeset.change(board: bad) |> Repo.update!()
+
+      assert {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, %{game: game}} = Games.fetch_game(id)
+
+      assert board_question(game, question).board == nil
+      assert game.board_cards == %{}
+    end
+
+    test "a board that no longer fits the format date is left out too", %{
+      format: format,
+      question: question
+    } do
+      # an overlay unit before Xyz Monsters existed is refused by Board.validate/2
+      board = MillenniumQuiz.BoardGameFixtures.stored_board()
+
+      bad =
+        put_in(board, ["players", Access.at(0), "monsters", Access.at(1), "overlay"], [
+          1001
+        ])
+
+      question |> Ecto.Changeset.change(board: bad) |> Repo.update!()
+
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, %{game: game}} = Games.fetch_game(id)
+      assert board_question(game, question).board == nil
     end
 
     test "the board survives the game process being restarted", %{

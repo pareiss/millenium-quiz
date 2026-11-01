@@ -51,9 +51,14 @@ defmodule MillenniumQuiz.Games do
   # The boards of the questions, resolved on the format's date, with the cards on
   # them loaded once for all boards (`Game.new/4`, option `:boards`). The game
   # keeps this copy: a later edit of a question or of a card changes nothing.
+  # A board that does not pass `Board.validate/2` on that date (a card that is
+  # not in the pool, a card released later, a zone the rule lacks) is left out:
+  # the question is played without a board and shows no Board button.
   defp board_snapshots(questions, date) do
     resolved =
-      for %{board: %{} = stored} = q <- questions, into: %{} do
+      for %{board: %{} = stored} = q <- questions,
+          Board.validate(stored, date) == :ok,
+          into: %{} do
         {q.id, Board.resolve(stored, date)}
       end
 
