@@ -267,7 +267,7 @@ with sync_playwright() as p:
         m = metrics(page)
         check(f"{name}: no horizontal overflow", m["overX"] <= 0, f"{m['overX']}px")
         check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
-        if w >= 640 and h <= 512:  # a phone or small tablet on its side: the cards shrink so all 4 fit a row
+        if 640 <= w < 800 and h <= 512:  # a phone on its side, one column: the cards shrink so all 4 fit a row (wider: two columns)
             check(f"{name}: all 4 cards in one row (short landscape)", m["perRow"] >= 4, f"{m['perRow']}")
         large = is_large(w, h)
         check(f"{name}: {'player list with the question' if large else 'no score line'}", m["score"] == large,
@@ -396,6 +396,8 @@ with sync_playwright() as p:
                 choices: choices.length,
                 smallest: choices.length ? Math.round(Math.min(...choices.map(c => Math.min(rect(c).width, rect(c).height)))) : null,
                 inputIn: (() => { const i = document.querySelector('#player-name-0').getBoundingClientRect(); return i.width >= 100 && i.right <= innerWidth })(),
+                inputH: Math.round(document.querySelector('#player-name-0').getBoundingClientRect().height),
+                brandH: Math.round(document.querySelector('#brand-link').getBoundingClientRect().height),
               }
             }"""
         )
@@ -407,6 +409,8 @@ with sync_playwright() as p:
         check(f"{name}: picture buttons are at least 44x44, the name field keeps room, no horizontal overflow",
               len(closed["buttons"]) == 2 and all(bw >= 44 and bh >= 44 for bw, bh in closed["buttons"])
               and closed["inputIn"] and closed["overX"] <= 0, str(closed))
+        check(f"{name}: the name fields and the logo link are at least 44px high on touch",
+              closed["inputH"] >= 44 and closed["brandH"] >= 44, f"{closed['inputH']} / {closed['brandH']}")
         tpage.click("#avatar-button-0")
         tpage.wait_for_selector("#avatar-panel-0")
         opened = picture_metrics(tpage)
@@ -884,13 +888,17 @@ with sync_playwright() as p:
               const ko = document.querySelector('#damage-result-1'), tag = document.querySelector('#ko-1')
               const inside = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth }
               const bar = document.querySelector('#next-round').getBoundingClientRect()
-              return {overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+              const tags = [...document.querySelectorAll('#reveal .duel-tag')]
+              return {tagsOk: tags.length >= 2 && tags.every(t => t.scrollHeight <= t.clientHeight + 1 && t.getBoundingClientRect().right <= innerWidth),
+                      overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
                       ko: !!ko && inside(ko) && ko.textContent.includes('K.O.'), tag: !!tag && inside(tag),
                       button: bar.height >= 44, safe: document.querySelector('#damage-result-0').textContent.includes('No damage')}
             }"""
         )
         check(f"{name}: the K.O. result is on screen with its Eliminated tag, the next button is >= 44px, no horizontal overflow",
               m["ko"] and m["tag"] and m["button"] and m["safe"] and m["overX"] <= 0, str(m))
+        check(f"{name}: the topic and ATK tags of the result are not clipped",
+              m["tagsOk"], str(m))
     dpage.set_viewport_size({"width": 390, "height": 844})
     dpage.click("#next-round")
     dpage.wait_for_selector("#final")
@@ -900,6 +908,15 @@ with sync_playwright() as p:
         check(f"{name}: the final ranking shows the winner and the eliminated player, no horizontal overflow",
               dpage.locator("#winner").inner_text().endswith("wins!") and dpage.locator("#final-eliminated-1").count() == 1
               and sideways(dpage) <= 0, str(sideways(dpage)))
+        rank = dpage.evaluate(
+            """() => [...document.querySelectorAll('#final-standings > li')].map(li => {
+              const l = li.getBoundingClientRect(), n = li.querySelector('.font-medium').getBoundingClientRect()
+              const lp = li.querySelector('[id^=final-lp-], [id^=final-eliminated-]').getBoundingClientRect()
+              return {name: Math.round(n.width), plateIn: lp.right <= l.right + 0.5 && lp.left >= l.left, nameH: Math.round(n.height)}
+            })"""
+        )
+        check(f"{name}: in the final ranking the names keep room (no letter-by-letter wrapping) and the plates stay inside",
+              len(rank) == 2 and all(r["name"] >= 48 and r["plateIn"] and r["nameH"] <= 60 for r in rank), str(rank))
 
     # Level Up!: the topic buttons say what the next question costs
     dpage.set_viewport_size({"width": 390, "height": 844})

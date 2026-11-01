@@ -620,6 +620,9 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
 
   /* tabs: the topic and the damage of a question */
   .duel-tag {
+    height: auto;
+    min-height: 1.5rem;
+    padding-block: 0.15rem;
     border: 0;
     border-radius: 0;
     padding-inline: 0.9rem;
@@ -1858,6 +1861,9 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
   [data-phx-theme] { min-height: 2.75rem; min-width: 2.75rem; align-items: center; justify-content: center; }
   input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"]), textarea, select { font-size: 16px; }
   .mq-suggestion { min-height: 2.75rem; }
+  /* text fields of the public pages (player names, suggestions) and the logo link */
+  .input, .select { min-height: 2.75rem; }
+  #brand-link { min-height: 2.75rem; min-width: 2.75rem; justify-content: center; }
   /* the label of a checkbox is its tap area */
   .fieldset .label:has(input[type="checkbox"]) { min-height: 2.75rem; }
 }

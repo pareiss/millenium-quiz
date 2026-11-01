@@ -587,7 +587,7 @@ defmodule MillenniumQuizWeb.GameLive do
     ~H"""
     <div
       id={@id}
-      class="duel-foot sticky bottom-0 z-10 -mx-4 -mb-4 rounded-b-box border-t border-base-300 bg-base-100 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:-mb-6 sm:px-6"
+      class="duel-foot sticky bottom-0 z-10 -mx-4 -mb-4 rounded-b-box border-t border-base-300 bg-base-100 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] [@media(max-height:32rem)]:pt-1.5 [@media(max-height:32rem)]:pb-[calc(0.375rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:-mb-6 sm:px-6"
     >
       {render_slot(@inner_block)}
     </div>
@@ -906,7 +906,7 @@ defmodule MillenniumQuizWeb.GameLive do
 
   defp question_meta(assigns) do
     ~H"""
-    <div class="flex items-center gap-2 text-sm">
+    <div class="flex flex-wrap items-center gap-2 text-sm">
       <span class="duel-tag badge badge-outline">{@question.topic}</span>
       <span class="duel-tag duel-tag--atk badge badge-primary" id="question-points">
         {@question.damage} ATK
@@ -1094,13 +1094,17 @@ defmodule MillenniumQuizWeb.GameLive do
           data-rank={rank}
           data-player={index + 1}
           class={[
-            "duel-plate duel-rank flex items-center gap-3 rounded-field border px-4 py-3",
+            "duel-plate duel-rank flex items-center gap-2 rounded-field border px-3 py-3 sm:gap-3 sm:px-4",
             if(rank == 1, do: "border-primary bg-primary/10", else: "border-base-300")
           ]}
         >
-          <span class="duel-rank-no w-6 text-base-content/60 tabular-nums">{rank}.</span>
-          <.avatar slug={player.avatar} crop={@crops[player.avatar]} class="size-12 sm:size-16" />
-          <span class="min-w-0 flex-1">
+          <span class="duel-rank-no w-5 shrink-0 text-base-content/60 tabular-nums sm:w-6">{rank}.</span>
+          <.avatar
+            slug={player.avatar}
+            crop={@crops[player.avatar]}
+            class="size-10 shrink-0 sm:size-16"
+          />
+          <span class="min-w-[3.5rem] flex-1">
             <span class="block font-medium break-words">{player.name}</span>
             <span
               :if={player.lp && Game.alive?(@game, index)}
@@ -1113,7 +1117,7 @@ defmodule MillenniumQuizWeb.GameLive do
           <span
             :if={Game.alive?(@game, index)}
             id={"final-lp-#{index}"}
-            class="duel-rank-lp font-semibold tabular-nums"
+            class="duel-rank-lp shrink-0 text-sm font-semibold tabular-nums sm:text-base"
           >
             {player.lp || player.score}{if player.lp, do: " LP"}
           </span>
