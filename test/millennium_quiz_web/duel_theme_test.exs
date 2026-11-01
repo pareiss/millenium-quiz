@@ -223,5 +223,8 @@ defmodule MillenniumQuizWeb.DuelThemeTest do
           "transition-[left]"
         ],
         do: assert(t in tokens, "missing class token #{t}")
+
+    for t <- ["[[data-theme=light]_&]:left-1/3", "[[data-theme=dark]_&]:left-2/3"],
+        do: refute(t in tokens, "class token of a removed theme: #{t}")
   end
 end
