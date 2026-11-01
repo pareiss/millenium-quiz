@@ -87,6 +87,7 @@ defmodule MillenniumQuizWeb.Router do
 
       live_dashboard "/dashboard", metrics: MillenniumQuizWeb.Telemetry
       live "/duel", MillenniumQuizWeb.Dev.DuelLive
+      live "/board", MillenniumQuizWeb.Dev.BoardLive
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end
