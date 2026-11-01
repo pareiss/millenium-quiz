@@ -400,6 +400,31 @@ defmodule MillenniumQuiz.Quiz.BoardTest do
     end
   end
 
+  describe "resolve_valid/3" do
+    test "resolves a board that validates, with the same result as resolve/3" do
+      insert_card(111)
+      b = board(%{"monsters" => monsters([%{"code" => 111, "pos" => "atk"}])})
+
+      assert {:ok, resolved} = Board.resolve_valid(b, @goat)
+      assert resolved == Board.resolve(b, @goat)
+    end
+
+    test "returns the issues of a board that does not validate" do
+      b = board(%{"monsters" => monsters([%{"code" => 999}])})
+
+      assert {:error, issues} = Board.resolve_valid(b, @goat)
+      assert Board.missing_passwords(issues) == [999]
+    end
+
+    test "looks the cards up once" do
+      insert_card(111)
+      b = board(%{"monsters" => monsters([%{"code" => 111, "pos" => "atk"}])})
+
+      {queries, {:ok, _}} = count_queries(fn -> Board.resolve_valid(b, @goat) end)
+      assert queries == 1
+    end
+  end
+
   describe "resolve/3" do
     test "maps cards from the pool: kind, stats, position, counters, art, in one query" do
       art_card =

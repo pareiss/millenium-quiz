@@ -151,8 +151,7 @@ defmodule MillenniumQuiz.GamesTest do
                p1["monsters"]
 
       assert %{"name" => "Board Card 1007"} = p2["field"]
-      # the card that is not in the pool is a placeholder without details
-      assert [%{"password" => 1004}, %{"name" => "Unknown card"}] = p1["grave"]
+      assert [%{"password" => 1004}] = p1["grave"]
 
       # 8 cards in the pool, 1004 is on the board twice: one entry each
       in_pool = codes |> Map.delete(:missing) |> Map.values() |> Enum.sort()
@@ -203,6 +202,64 @@ defmodule MillenniumQuiz.GamesTest do
       assert again == game
       assert Repo.get!(GameRecord, id).state == stored
       assert again.board_cards["1001"].name == "Board Card 1001"
+    end
+
+    @tag capture_log: true
+    test "a board that does not validate is left out and the game still plays", %{
+      format: format,
+      question: question,
+      codes: codes
+    } do
+      # a card that is not in the pool
+      board = MillenniumQuiz.BoardGameFixtures.stored_board()
+      bad = put_in(board, ["players", Access.at(0), "grave"], [%{"code" => codes.missing}])
+      question |> Ecto.Changeset.change(board: bad) |> Repo.update!()
+
+      assert {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, %{game: game}} = Games.fetch_game(id)
+
+      assert board_question(game, question).board == nil
+      assert game.board_cards == %{}
+      assert {:ok, _} = Games.choose(id, 0)
+    end
+
+    @tag capture_log: true
+    test "a board that stops fitting after a Master Rule date change is left out", %{
+      format: format,
+      question: question,
+      codes: codes
+    } do
+      # An overlay unit on an Xyz monster, in a format after Xyz Monsters exist.
+      format |> Ecto.Changeset.change(date: ~D[2012-06-01]) |> Repo.update!()
+
+      Repo.update_all(from(c in MillenniumQuiz.Cards.Card, where: c.password == ^codes.p1_up),
+        set: [frame_type: "xyz"]
+      )
+
+      board = MillenniumQuiz.BoardGameFixtures.stored_board()
+
+      with_overlay =
+        put_in(board, ["players", Access.at(0), "monsters", Access.at(1), "overlay"], [
+          codes.hand
+        ])
+
+      question |> Ecto.Changeset.change(board: with_overlay) |> Repo.update!()
+
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, %{game: game}} = Games.fetch_game(id)
+      assert %{"rule" => "mr1_2"} = board_question(game, question).board
+
+      # Xyz Monsters now come out after the format's date
+      assert {:ok, _} =
+               MillenniumQuiz.Quiz.MasterRules.save(%{
+                 "mr3" => "2014-01-01",
+                 "mr4" => "2017-04-01",
+                 "xyz" => "2013-01-01"
+               })
+
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, %{game: game}} = Games.fetch_game(id)
+      assert board_question(game, question).board == nil
     end
 
     test "the board survives the game process being restarted", %{
