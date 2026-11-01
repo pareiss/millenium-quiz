@@ -44,6 +44,11 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
     (up to 1180px wide), a long question text in the format page's rows wraps;
     LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip.
     It logs in on the site it is pointed at, so use the throwaway site of CI or a local fixture, not a real one
+  - the board view, on the dev preview page /dev/board (five fixture boards, only with a server that has dev routes, so
+    not on a release; LAYOUT_ONLY=board runs only these, LAYOUT_REQUIRE_BOARD=1 makes a missing page a failure):
+    at every viewport no horizontal overflow, tiles 66px at 390, 54px at 320, 96px on a desktop, close button, chips,
+    hand tiles and list items of 44px or more, the card panel only from 900px, Extra Monster Zones only on the modern
+    board, a chip's list sheet on screen, the close button on screen when the board is scrolled
 Exit code: 0 all passed, 1 at least one check failed.
 """
 import os
@@ -214,6 +219,155 @@ with sync_playwright() as p:
         return ctx
 
     browser.new_context = themed_context
+
+    # ---- the board view (the dev preview page /dev/board; docs: DuelComponents.duel_board/1) ----
+    # Needs a server with dev routes (mix phx.server); a release has none: the page is a 404 and the checks
+    # are skipped, unless LAYOUT_REQUIRE_BOARD=1. LAYOUT_ONLY=board runs only these checks.
+    BOARD_FIXTURES = ["goat", "edison", "pendulum", "modern", "empty"]
+    BOARD_JS = """() => {
+      const r = (e) => e.getBoundingClientRect()
+      const dlg = document.querySelector('#board-dialog')
+      const sheet = document.querySelector('.duel-board-sheet')
+      const main = document.querySelector('.duel-board-main')
+      const close = document.querySelector('#board-dialog-close')
+      const tiles = [...document.querySelectorAll('.duel-zones .duel-tile-btn, .duel-stackrow .duel-tile-btn')]
+      const hand = [...document.querySelectorAll('.duel-hand .duel-tile-btn')]
+      const chips = [...document.querySelectorAll('.duel-chip')]
+      const stat = document.querySelector('.duel-tile-stat')
+      const panel = document.querySelector('.duel-board-panel')
+      const root = parseFloat(getComputedStyle(document.documentElement).fontSize)
+      const inside = (b) => b.left >= -0.5 && b.right <= innerWidth + 0.5
+      return {
+        root,
+        docOverX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        dlgOverX: dlg.scrollWidth - dlg.clientWidth,
+        sheetIn: inside(r(sheet)),
+        closeW: r(close).width, closeH: r(close).height,
+        closeIn: r(close).top >= -0.5 && r(close).bottom <= innerHeight + 0.5 && inside(r(close)),
+        mainW: main.clientWidth,
+        tileN: tiles.length,
+        tileW: tiles.length ? r(tiles[0]).width : 0,
+        tileH: tiles.length ? r(tiles[0]).height : 0,
+        tilesIn: tiles.every((t) => inside(r(t))),
+        tilesSame: new Set(tiles.map((t) => Math.round(r(t).width))).size <= 1,
+        handN: hand.length,
+        handMinW: hand.length ? Math.min(...hand.map((t) => r(t).width)) : 99,
+        handMinH: hand.length ? Math.min(...hand.map((t) => r(t).height)) : 99,
+        handIn: hand.every((t) => inside(r(t))),
+        chipN: chips.length,
+        chipMinH: chips.length ? Math.min(...chips.map((c) => r(c).height)) : 99,
+        chipMinW: chips.length ? Math.min(...chips.map((c) => r(c).width)) : 99,
+        chipsIn: chips.every((c) => inside(r(c))),
+        statFont: stat ? parseFloat(getComputedStyle(stat).fontSize) : 99,
+        emz: document.querySelectorAll('#board-dialog-emz .duel-cell[data-emz=true]').length,
+        panelShown: getComputedStyle(panel).display !== 'none',
+        sides: [...document.querySelectorAll('.duel-side')].map((s) => s.dataset.seat),
+      }
+    }"""
+
+    def board_tile_expected(m, w, h):
+        """What the CSS promises: 54px under 360px of board, 66px up to 560px, 96px above, times the root font
+        size over 16px, never wider than the board holds and, on a short screen, no lower than 54px."""
+        k = m["root"] / 16
+        cw = m["mainW"]
+        cap, gap = (54, 3) if cw < 360 else (66, 4) if cw < 560 else (96, 6)
+        wide = (cw - 2.125 * m["root"] - 4 * gap) / 5
+        tall = max(3.375 * m["root"], (h - 11 * m["root"]) / 4.4)
+        return min(cap * k, wide, tall)
+
+    def board_checks():
+        probe = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
+        resp = probe.goto(base + "/dev/board?board=goat")
+        if resp is None or resp.status != 200:
+            probe.context.close()
+            if os.environ.get("LAYOUT_REQUIRE_BOARD"):
+                check("the board preview page /dev/board is served", False, f"status {resp and resp.status}")
+            else:
+                print("Board view (dev preview): skipped, /dev/board is not served (a release has no dev routes)")
+            return
+        probe.context.close()
+        print("Board view (dev preview /dev/board, five fixture boards)")
+        touch = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True).new_page()
+        desk = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+        for name, w, h, _, _ in VIEWPORTS:
+            pg = touch if w <= 1180 else desk
+            pg.set_viewport_size({"width": w, "height": h})
+            for fx in BOARD_FIXTURES:
+                pg.goto(f"{base}/dev/board?board={fx}")
+                pg.wait_for_selector("#board-dialog")
+                pg.wait_for_timeout(100)
+                m = pg.evaluate(BOARD_JS)
+                label = f"{name} {fx}"
+                check(f"{label}: no horizontal overflow in the page or the dialog, the dialog fits the width",
+                      m["docOverX"] <= 0 and m["dlgOverX"] <= 0 and m["sheetIn"], str(m))
+                check(f"{label}: player 2 on top, player 1 below; every tile, hand tile and chip is on screen sideways",
+                      m["sides"] == ["2", "1"] and m["tilesIn"] and m["handIn"] and m["chipsIn"], str(m))
+                want = board_tile_expected(m, w, h)
+                check(f"{label}: the tiles are {want:.0f}px wide, all the same size, touch targets of 44px or more",
+                      m["tileN"] > 0 and m["tilesSame"] and abs(m["tileW"] - want) <= 1.0
+                      and m["tileW"] >= 44 and m["tileH"] >= 44, str(m))
+                check(f"{label}: close button 44px or more and on screen, chips 44px or more, hand tiles 44px wide",
+                      m["closeW"] >= 43.5 and m["closeH"] >= 43.5 and m["closeIn"]
+                      and m["chipN"] == 8 and m["chipMinH"] >= 43.5 and m["chipMinW"] >= 43.5
+                      and m["handMinW"] >= 43.5 and m["handMinH"] >= 43.5, str(m))
+                check(f"{label}: the ATK strip text is {m['statFont']:.0f}px (9px or more), the card panel only from 900px",
+                      m["statFont"] >= 8.9 and m["panelShown"] == (w >= 900), str(m))
+                check(f"{label}: Extra Monster Zones only on the modern board, a hand only where it has cards",
+                      m["emz"] == (2 if fx == "modern" else 0) and (m["handN"] > 0) == (fx in ("edison", "modern")), str(m))
+            # exact sizes the design promises
+            pg.goto(f"{base}/dev/board?board=goat")
+            pg.wait_for_selector("#board-dialog")
+            m = pg.evaluate(BOARD_JS)
+            if (w, h) in ((390, 844), (412, 915)):
+                check(f"{name}: tiles are 66px wide", abs(m["tileW"] - 66) <= 1.0, f"{m['tileW']}")
+            if (w, h) in ((320, 568),):
+                check(f"{name}: tiles are 54px wide", abs(m["tileW"] - 54) <= 1.0, f"{m['tileW']}")
+            if w >= 1024 and h >= 750 and w < 1600:
+                check(f"{name}: tiles are 96px wide", abs(m["tileW"] - 96) <= 1.0, f"{m['tileW']}")
+            # the list of a chip: a sheet over the board, items of 44px or more, close puts the focus back
+            pg.goto(f"{base}/dev/board?board=edison")
+            pg.wait_for_selector("#board-dialog")
+            pg.click("#board-dialog-chip-1-grave")
+            pg.wait_for_selector("#board-dialog-sheet-1-grave", state="visible")
+            s = pg.evaluate(
+                """() => {
+                  const r = (e) => e.getBoundingClientRect()
+                  const sheet = document.querySelector('#board-dialog-sheet-1-grave-panel')
+                  const items = [...sheet.querySelectorAll('.duel-list-item')]
+                  const close = sheet.querySelector('.duel-board-close')
+                  return {n: items.length, minW: Math.min(...items.map((i) => r(i).width)), minH: Math.min(...items.map((i) => r(i).height)),
+                          closeW: r(close).width, closeH: r(close).height,
+                          panelIn: r(sheet).left >= -0.5 && r(sheet).right <= innerWidth + 0.5 && r(sheet).bottom <= innerHeight + 0.5 && r(sheet).top >= -0.5,
+                          itemsIn: items.every((i) => r(i).left >= -0.5 && r(i).right <= innerWidth + 0.5),
+                          overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                          focus: document.activeElement.className}
+                }"""
+            )
+            check(f"{name}: a chip's list: sheet on screen, 3 items of 44px or more, close button 44px, no sideways scroll",
+                  s["n"] == 3 and s["minW"] >= 43.5 and s["minH"] >= 43.5 and s["closeW"] >= 43.5 and s["closeH"] >= 43.5
+                  and s["panelIn"] and s["itemsIn"] and s["overX"] <= 0, str(s))
+            pg.click("#board-dialog-sheet-1-grave .duel-board-close")
+            pg.wait_for_timeout(100)
+            check(f"{name}: closing the list hides it and puts the focus back on its chip",
+                  not pg.is_visible("#board-dialog-sheet-1-grave")
+                  and pg.evaluate("document.activeElement.id") == "board-dialog-chip-1-grave")
+            # a tall board scrolls inside the dialog and the close button stays reachable (sticky)
+            pg.evaluate("document.querySelector('#board-dialog').scrollTo(0, 99999)")
+            pg.wait_for_timeout(100)
+            c = pg.evaluate("""() => { const b = document.querySelector('#board-dialog-close').getBoundingClientRect()
+                                      return {top: b.top, bottom: b.bottom, h: innerHeight} }""")
+            check(f"{name}: scrolled to the bottom, the close button is still on screen",
+                  c["top"] >= -0.5 and c["bottom"] <= c["h"] + 0.5, str(c))
+        touch.context.close()
+        desk.context.close()
+
+    board_checks()
+    if os.environ.get("LAYOUT_ONLY") == "board":
+        browser.close()
+        print()
+        print(f"{passed} passed, {failed} failed")
+        sys.exit(1 if failed else 0)
+
     page = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
 
     start_game(page)

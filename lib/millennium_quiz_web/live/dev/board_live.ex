@@ -7,6 +7,11 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
     | pendulum | modern | empty`; the dialog opens by itself (`?open=0` keeps it
     closed). Open it with `?theme=duel-dark` or `?theme=duel-light`.
 
+    The fixtures: Goat (Master Rule 1/2, no Extra Monster Zones), Edison (hand and
+    graveyard cards), Pendulum (Master Rule 3, scales), Modern (Master Rule 4: both
+    Extra Monster Zones, an Xyz monster with overlay units, counters) and a nearly
+    empty board.
+
     The fixtures use the artwork crops in `priv/static/images/avatars` where a card
     has one and no artwork (the frame and an initial) otherwise.
     """
@@ -17,11 +22,11 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
     @names %{1 => "Mika", 2 => "Tobias"}
 
     @fixtures [
-      {"goat", "Goat (no Extra Monster Zones)"},
-      {"edison", "Edison (hand, graveyard)"},
-      {"pendulum", "Pendulum era (scales)"},
-      {"modern", "Modern (Extra Monster Zones, Xyz, counters)"},
-      {"empty", "Nearly empty"}
+      {"goat", "Goat"},
+      {"edison", "Edison"},
+      {"pendulum", "Pendulum"},
+      {"modern", "Modern"},
+      {"empty", "Empty"}
     ]
 
     def mount(_params, _session, socket) do
@@ -62,7 +67,7 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
             :for={{key, label} <- @fixtures}
             id={"fixture-#{key}"}
             patch={~p"/dev/board?board=#{key}"}
-            class={["btn btn-sm", if(key == @key, do: "btn-primary", else: "btn-outline")]}
+            class={["btn min-h-11", if(key == @key, do: "btn-primary", else: "btn-outline")]}
           >
             {label}
           </.link>
