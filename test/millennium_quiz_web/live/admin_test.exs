@@ -361,7 +361,7 @@ defmodule MillenniumQuizWeb.AdminTest do
         text: "Does Monster Reborn work [sic] on monster reborn?"
       })
 
-      html = view |> element("#question-form textarea") |> render()
+      html = view |> element("#question-form textarea#question_text") |> render()
       assert html =~ "Does Monster Reborn work [sic] on monster reborn?"
 
       # saving keeps the markup as written and the cards from the list
