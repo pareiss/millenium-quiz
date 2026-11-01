@@ -10,16 +10,21 @@ defmodule MillenniumQuizWeb.NewGameLive do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.link
         navigate={~p"/"}
-        class="inline-flex items-center text-sm text-base-content/60 hover:text-base-content pointer-coarse:min-h-11"
+        class="duel-back inline-flex items-center text-sm text-base-content/70 hover:text-base-content pointer-coarse:min-h-11"
       >
         <span aria-hidden="true">&larr;</span> All formats
       </.link>
 
-      <div class="rounded-box border border-base-300 bg-base-100 p-6 sm:p-8 shadow-sm space-y-6">
+      <div
+        id="new-game-panel"
+        class="duel-plate duel-sheet duel-surface rounded-box border border-base-300 bg-base-100 p-4 sm:p-8 shadow-sm space-y-6"
+      >
         <div>
-          <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">New game</p>
-          <h1 class="text-3xl font-bold tracking-tight">{@format.name}</h1>
-          <p class="text-sm text-base-content/60">Card texts as of {display_date(@format.date)}</p>
+          <p class="duel-eyebrow text-sm font-medium uppercase tracking-[0.2em] text-primary">
+            New game
+          </p>
+          <h1 class="duel-title text-3xl font-bold tracking-tight">{@format.name}</h1>
+          <p class="text-sm text-base-content/70">Card texts as of {display_date(@format.date)}</p>
           <p class="mt-1 text-base-content/70">
             {length(@format.topics)} topics: {Enum.map_join(@format.topics, ", ", & &1.name)}
           </p>
@@ -33,9 +38,9 @@ defmodule MillenniumQuizWeb.NewGameLive do
           phx-submit="start"
           class="space-y-3"
         >
-          <p class="font-medium">Who is playing? ({@min}–{@max} players)</p>
+          <p class="duel-legend font-medium">Who is playing? ({@min}–{@max} players)</p>
           <div :for={{name, i} <- Enum.with_index(@names)} id={"player-row-#{i}"}>
-            <div class="flex items-start gap-2">
+            <div class="flex items-center gap-2">
               <button
                 type="button"
                 id={"avatar-button-#{i}"}
@@ -44,15 +49,17 @@ defmodule MillenniumQuizWeb.NewGameLive do
                 aria-label={"Player #{i + 1}'s picture: #{avatar_label(@labels, Enum.at(@avatars, i))}, change"}
                 aria-expanded={to_string(@open == i)}
                 aria-controls={"avatar-panel-#{i}"}
-                class="relative mt-0.5 shrink-0 cursor-pointer rounded-full size-11 transition hover:ring-2 hover:ring-primary/60 hover:ring-offset-2 hover:ring-offset-base-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                class="duel-avatar-btn relative shrink-0 cursor-pointer rounded-full size-14 transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
-                <.avatar
-                  slug={Enum.at(@avatars, i)}
-                  title={avatar_label(@labels, Enum.at(@avatars, i))}
-                  crop={@crops[Enum.at(@avatars, i)]}
-                  class="size-11"
-                />
-                <span class="absolute -bottom-0.5 -right-0.5 grid place-items-center size-5 rounded-full bg-secondary text-secondary-content text-xs font-semibold">
+                <.synchro_ring class="size-14">
+                  <.avatar
+                    slug={Enum.at(@avatars, i)}
+                    title={avatar_label(@labels, Enum.at(@avatars, i))}
+                    crop={@crops[Enum.at(@avatars, i)]}
+                    class="size-full"
+                  />
+                </.synchro_ring>
+                <span class="duel-avatar-no absolute -bottom-0.5 -right-0.5 grid place-items-center size-5 rounded-full bg-secondary text-secondary-content text-xs font-semibold">
                   {i + 1}
                 </span>
               </button>
@@ -74,7 +81,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
               <button
                 :if={length(@names) > @min}
                 type="button"
-                class="btn btn-ghost btn-square mt-0.5 pointer-coarse:size-11"
+                class="btn btn-ghost btn-square pointer-coarse:size-11"
                 phx-click="remove"
                 phx-value-index={i}
                 id={"remove-player-#{i}"}
@@ -89,10 +96,10 @@ defmodule MillenniumQuizWeb.NewGameLive do
               id={"avatar-panel-#{i}"}
               phx-window-keydown="close_avatar"
               phx-key="Escape"
-              class="mt-2 rounded-box border border-base-300 bg-base-200/50 p-2 space-y-2"
+              class="duel-plate duel-picker mt-2 rounded-box border border-base-300 bg-base-200/50 p-2 space-y-2"
             >
               <div class="flex items-center justify-between gap-2">
-                <p class="text-sm font-medium">Pick a picture for player {i + 1}</p>
+                <p class="duel-legend text-sm font-medium">Pick a picture for player {i + 1}</p>
                 <button
                   type="button"
                   id={"avatar-random-#{i}"}
@@ -123,8 +130,8 @@ defmodule MillenniumQuizWeb.NewGameLive do
                   }
                   class={
                     [
-                      "aspect-square min-h-11 rounded-full p-0.5 transition",
-                      Enum.at(@avatars, i) == slug && "ring-2 ring-primary bg-primary/20",
+                      "duel-avatar-choice relative aspect-square min-h-11 rounded-full p-0.5 transition",
+                      Enum.at(@avatars, i) == slug && "duel-picked ring-2 ring-primary bg-primary/20",
                       # a free picture lights up under the mouse; a taken one shows "not allowed"
                       not taken_by_other?(@avatars, i, slug) &&
                         "cursor-pointer hover:bg-primary/20 hover:ring-2 hover:ring-primary/60 hover:scale-105",
@@ -132,12 +139,23 @@ defmodule MillenniumQuizWeb.NewGameLive do
                     ]
                   }
                 >
+                  <%!-- the chosen picture wears the Synchro ring (the duel themes hide the
+                       plain ring); in the other themes the plain ring stays --%>
                   <.avatar
                     slug={slug}
                     title={avatar_label(@labels, slug)}
                     crop={@crops[slug]}
                     class="size-full"
                   />
+                  <svg
+                    :if={Enum.at(@avatars, i) == slug}
+                    viewBox="0 0 64 64"
+                    class="duel-picked-ring pointer-events-none absolute -inset-[0.3rem] size-[calc(100%+0.6rem)] overflow-visible"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <use href="#duel-ring" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -146,7 +164,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
           <div :if={length(@names) < @max} class="flex">
             <button
               type="button"
-              class="btn btn-ghost"
+              class="duel-btn btn btn-ghost"
               phx-click="add"
               id="add-player"
             >
@@ -155,12 +173,12 @@ defmodule MillenniumQuizWeb.NewGameLive do
           </div>
 
           <fieldset id="mode-choice" class="space-y-2 pt-3">
-            <legend class="font-medium mb-2">Game mode</legend>
+            <legend class="duel-legend font-medium mb-2">Game mode</legend>
             <div class="grid gap-3 sm:grid-cols-2">
               <label
                 :for={mode <- @modes}
                 id={"mode-#{mode}"}
-                class="flex cursor-pointer items-start gap-3 rounded-field border border-base-300 p-4 transition hover:border-primary/60 has-checked:border-primary has-checked:bg-primary/5"
+                class="duel-plate duel-option flex cursor-pointer items-start gap-3 rounded-field border border-base-300 p-4 transition hover:border-primary/60 has-checked:border-primary has-checked:bg-primary/5"
               >
                 <input
                   type="radio"
@@ -169,8 +187,8 @@ defmodule MillenniumQuizWeb.NewGameLive do
                   checked={@mode == to_string(mode)}
                   class="radio radio-primary radio-sm mt-0.5"
                 />
-                <span>
-                  <span class="block font-semibold">{Game.mode_name(mode)}</span>
+                <span class="min-w-0">
+                  <span class="duel-title block font-semibold">{Game.mode_name(mode)}</span>
                   <span class="block text-sm text-base-content/70">{Game.mode_description(mode)}</span>
                 </span>
               </label>
@@ -178,12 +196,12 @@ defmodule MillenniumQuizWeb.NewGameLive do
           </fieldset>
 
           <fieldset class="space-y-2 pt-3" id="lp-choice">
-            <legend class="font-medium mb-2">Life Points</legend>
+            <legend class="duel-legend font-medium mb-2">Life Points</legend>
             <div class="grid gap-3 sm:grid-cols-2">
               <label
                 :for={lp <- @start_lps}
                 id={"lp-choice-#{lp}"}
-                class="flex cursor-pointer items-start gap-3 rounded-field border border-base-300 p-4 transition hover:border-primary/60 has-checked:border-primary has-checked:bg-primary/5 pointer-coarse:min-h-11"
+                class="duel-plate duel-option flex cursor-pointer items-start gap-3 rounded-field border border-base-300 p-4 transition hover:border-primary/60 has-checked:border-primary has-checked:bg-primary/5 pointer-coarse:min-h-11"
               >
                 <input
                   type="radio"
@@ -192,8 +210,8 @@ defmodule MillenniumQuizWeb.NewGameLive do
                   checked={@start_lp == to_string(lp)}
                   class="radio radio-primary radio-sm mt-0.5"
                 />
-                <span>
-                  <span class="block font-semibold tabular-nums">{lp} LP</span>
+                <span class="min-w-0">
+                  <span class="duel-title block font-semibold tabular-nums">{lp} LP</span>
                   <span class="block text-sm text-base-content/70">{lp_description(lp)}</span>
                 </span>
               </label>
@@ -207,7 +225,7 @@ defmodule MillenniumQuizWeb.NewGameLive do
           <div class="flex justify-end pt-2">
             <button
               type="submit"
-              class="btn btn-primary"
+              class="duel-btn btn btn-primary"
               id="start-game"
               phx-disable-with="Shuffling…"
             >

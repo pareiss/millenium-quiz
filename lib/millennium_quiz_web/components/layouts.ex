@@ -41,7 +41,7 @@ defmodule MillenniumQuizWeb.Layouts do
          header would take a fifth of the screen and cover the page behind it --%>
     <header
       id="site-header"
-      class="border-b border-base-300 bg-base-100 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] [@media(min-width:40rem)_and_(min-height:32rem)]:sticky [@media(min-width:40rem)_and_(min-height:32rem)]:top-0 z-40"
+      class="duel-header border-b border-base-300 bg-base-100 pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] [@media(min-width:40rem)_and_(min-height:32rem)]:sticky [@media(min-width:40rem)_and_(min-height:32rem)]:top-0 z-40"
     >
       <nav class="mx-auto max-w-5xl min-[1600px]:max-w-[96rem] px-4 sm:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-3">
         <.link
@@ -50,12 +50,12 @@ defmodule MillenniumQuizWeb.Layouts do
           id="brand-link"
           aria-label="Millennium Quiz"
         >
-          <span class="grid place-items-center size-9 rounded-xl bg-primary text-primary-content shadow-sm transition-transform motion-safe:group-hover:rotate-6">
+          <span class="duel-brand-mark grid place-items-center size-9 rounded-xl bg-primary text-primary-content shadow-sm transition-transform motion-safe:group-hover:rotate-6">
             <.icon name="hero-eye" class="size-5" />
           </span>
           <%!-- an admin's bar has six more items: the name waits for 1024px --%>
           <span class={[
-            "hidden font-semibold tracking-tight text-lg",
+            "duel-brand-name hidden font-semibold tracking-tight text-lg",
             if(@current_scope, do: "lg:inline", else: "sm:inline")
           ]}>
             Millennium Quiz
@@ -137,7 +137,7 @@ defmodule MillenniumQuizWeb.Layouts do
       </nav>
     </header>
 
-    <main class="px-4 py-6 sm:px-6 sm:py-10 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))]">
+    <main class="duel-main px-4 py-6 sm:px-6 sm:py-10 pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))]">
       <div class={[
         "mx-auto space-y-6",
         if(@width == "lg", do: "max-w-5xl min-[1600px]:max-w-[96rem]", else: "max-w-2xl")
@@ -200,17 +200,21 @@ defmodule MillenniumQuizWeb.Layouts do
   end
 
   @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
-
-  See <head> in root.html.heex which applies the theme before page load.
+  The theme toggle: system, light, dark. All three are variants of the duel theme
+  (light and dark select `duel-light` and `duel-dark`); the old Millennium themes have
+  no button. See the script in root.html.heex, which also applies the theme before the
+  page is painted.
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme=duel-light]_&]:left-1/3 [[data-theme=duel-dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
+    <div
+      id="theme-toggle"
+      class="duel-toggle card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full"
+    >
+      <div class="duel-toggle-thumb absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme=duel-light]_&]:left-1/3 [[data-theme=duel-dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="duel-toggle-btn flex p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
         aria-label="Use the system theme"
@@ -220,9 +224,9 @@ defmodule MillenniumQuizWeb.Layouts do
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="duel-toggle-btn flex p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="light"
+        data-phx-theme="duel-light"
         aria-label="Light theme"
         title="Light theme"
       >
@@ -230,9 +234,9 @@ defmodule MillenniumQuizWeb.Layouts do
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="duel-toggle-btn flex p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="dark"
+        data-phx-theme="duel-dark"
         aria-label="Dark theme"
         title="Dark theme"
       >

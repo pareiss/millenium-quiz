@@ -17,15 +17,20 @@ defmodule MillenniumQuizWeb.SuggestLive do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.link
         navigate={~p"/"}
-        class="inline-flex items-center text-sm text-base-content/60 hover:text-base-content pointer-coarse:min-h-11"
+        class="duel-back inline-flex items-center text-sm text-base-content/70 hover:text-base-content pointer-coarse:min-h-11"
       >
         <span aria-hidden="true">&larr;</span> All formats
       </.link>
 
-      <div class="rounded-box border border-base-300 bg-base-100 p-6 sm:p-8 shadow-sm space-y-6">
+      <div
+        id="suggest-panel"
+        class="duel-plate duel-sheet duel-surface rounded-box border border-base-300 bg-base-100 p-4 sm:p-8 shadow-sm space-y-6"
+      >
         <div>
-          <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">Your turn</p>
-          <h1 class="text-3xl font-bold tracking-tight">Suggest a question</h1>
+          <p class="duel-eyebrow text-sm font-medium uppercase tracking-[0.2em] text-primary">
+            Your turn
+          </p>
+          <h1 class="duel-title text-3xl font-bold tracking-tight">Suggest a question</h1>
           <p class="mt-1 text-base-content/70">
             An admin reads every suggestion and may change it before it goes into a format. Your name, if you give one, is shown with the question.
           </p>
@@ -33,7 +38,7 @@ defmodule MillenniumQuizWeb.SuggestLive do
 
         <p :if={@error} class="alert alert-error" id="suggest-error" role="alert">{@error}</p>
 
-        <p :if={@formats == []} class="text-base-content/60" id="no-formats">
+        <p :if={@formats == []} class="text-base-content/70" id="no-formats">
           There is no format to suggest a question for yet.
         </p>
 
@@ -103,9 +108,9 @@ defmodule MillenniumQuizWeb.SuggestLive do
           <.card_markup_help audience={:player} />
 
           <fieldset class="space-y-2">
-            <legend class="font-medium mb-1">
+            <legend class="duel-legend font-medium mb-1">
               Answers
-              <span class="text-sm text-base-content/60">
+              <span class="text-sm text-base-content/70">
                 ({Question.min_choices()}–{Question.max_choices()}, tick the correct one)
               </span>
             </legend>
@@ -113,7 +118,7 @@ defmodule MillenniumQuizWeb.SuggestLive do
             <.inputs_for :let={choice} field={@form[:choices]}>
               <div class="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
                 <input type="hidden" name="submission[choices_sort][]" value={choice.index} />
-                <span class="mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-base-200 text-sm font-semibold">
+                <span class="duel-letter mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-base-200 text-sm font-semibold">
                   {<<?A + choice.index>>}
                 </span>
                 <div>
@@ -159,7 +164,7 @@ defmodule MillenniumQuizWeb.SuggestLive do
               name="submission[choices_sort][]"
               value="new"
               phx-click={JS.dispatch("change")}
-              class="btn btn-ghost btn-sm"
+              class="duel-btn btn btn-ghost btn-sm"
               id="add-choice"
               disabled={length(@form[:choices].value || []) >= Question.max_choices()}
             >
