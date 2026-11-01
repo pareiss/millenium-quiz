@@ -13,16 +13,22 @@ defmodule MillenniumQuizWeb.SuggestStatusLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-xl rounded-box border border-base-300 bg-base-100 p-6 sm:p-8 shadow-sm space-y-4">
-        <h1 class="text-2xl font-bold tracking-tight">Thank you!</h1>
+      <div
+        id="suggest-thanks-panel"
+        class="duel-plate duel-sheet duel-surface mx-auto max-w-xl rounded-box border border-base-300 bg-base-100 p-6 sm:p-8 shadow-sm space-y-4"
+      >
+        <h1 class="duel-title text-2xl font-bold tracking-tight">Thank you!</h1>
 
         <%= if @submission do %>
           <p id="suggestion-status" class="flex items-center gap-2">
             <.icon name={status_icon(@submission.status)} class="size-5 shrink-0" />
             {status_text(@submission.status)}
           </p>
-          <div class="rounded-field border border-base-300 p-3 space-y-1" id="suggestion-copy">
-            <p class="text-sm text-base-content/60">
+          <div
+            class="duel-copy rounded-field border border-base-300 p-3 space-y-1"
+            id="suggestion-copy"
+          >
+            <p class="text-sm text-base-content/70">
               {@submission.topic.format.name} · {@submission.topic.name}
             </p>
             <p class="font-semibold">
@@ -34,7 +40,7 @@ defmodule MillenniumQuizWeb.SuggestStatusLive do
               </li>
             </ol>
           </div>
-          <p class="text-sm text-base-content/60">
+          <p class="text-sm text-base-content/70">
             Keep this page's address to check back later. Anyone with the link can see it.
           </p>
         <% else %>

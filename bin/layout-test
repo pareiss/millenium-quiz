@@ -52,7 +52,8 @@ import sys
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from playwright.sync_api import sync_playwright
 
-# LAYOUT_THEME=duel-dark (or duel-light, light, dark) runs everything under that theme
+# LAYOUT_THEME=duel-dark (or duel-light; light and dark mean the same; millennium-light and
+# millennium-dark are the old themes) runs everything under that theme
 # (the choice a visitor keeps in localStorage 'phx:theme'); unset is the site's default.
 THEME = os.environ.get("LAYOUT_THEME", "")
 

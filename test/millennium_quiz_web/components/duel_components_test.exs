@@ -194,7 +194,7 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
             "[data-theme=dark], [data-theme=duel-dark]"
 
           t when t in ["duel-light", "light"] ->
-            ":root, [data-theme=light], [data-theme=duel-light]"
+            ":where(:root), [data-theme=light], [data-theme=duel-light]"
         end
 
       [_, block] = Regex.run(~r/^#{Regex.escape(selector)} \{(.*?)\n\}/ms, @css)

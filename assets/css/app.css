@@ -18,11 +18,13 @@
   themes: false;
 }
 
-/* daisyUI themes: "Millennium" gold on deep indigo (dark) and parchment (light). */
+/* daisyUI themes "dark" and "light": the former "Millennium" look (gold on deep indigo,
+   parchment). No longer reachable from the toggle (only by ?theme=millennium-dark or
+   -light); kept because the shared token blocks below and some tests still name them. */
 @plugin "daisyui/packages/bundle/daisyui-theme" {
   name: "dark";
   default: false;
-  prefersdark: true;
+  prefersdark: false;
   color-scheme: "dark";
   --color-base-100: oklch(22% 0.035 285);
   --color-base-200: oklch(18% 0.03 285);
@@ -56,7 +58,7 @@
 
 @plugin "daisyui/packages/bundle/daisyui-theme" {
   name: "light";
-  default: true;
+  default: false;
   prefersdark: false;
   color-scheme: "light";
   --color-base-100: oklch(98.5% 0.008 85);
@@ -90,13 +92,14 @@
 }
 
 /* daisyUI themes "duel-dark" and "duel-light": the Neo Domino / 5D's look (metal,
-   neon cyan, red, Synchro green). Opt-in only (?theme=duel, duel-dark or duel-light,
-   remembered in localStorage; see root.html.heex), never the default. Colours are
+   neon cyan, red, Synchro green): the site's default look (duel-light is the plain default,
+   duel-dark the one for a dark system; the toggle and ?theme= are in root.html.heex).
+   Colours are
    hex so test/millennium_quiz_web/duel_theme_test.exs can check their contrast. */
 @plugin "daisyui/packages/bundle/daisyui-theme" {
   name: "duel-dark";
   default: false;
-  prefersdark: false;
+  prefersdark: true;
   color-scheme: "dark";
   --color-base-100: #121a26;
   --color-base-200: #0b0f16;
@@ -130,7 +133,7 @@
 
 @plugin "daisyui/packages/bundle/daisyui-theme" {
   name: "duel-light";
-  default: false;
+  default: true;
   prefersdark: false;
   color-scheme: "light";
   --color-base-100: #ffffff;
@@ -261,7 +264,8 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
 
 /* Duel theme fonts (SIL OFL, licences next to the files). Orbitron is one
    variable file; Rajdhani has no 400, so body text uses its 500. Latin subset.
-   Only the duel themes use them (below); nothing preloads them. */
+   The duel themes (the site's default) use them (below); the root layout preloads
+   Orbitron and Rajdhani 500. */
 @font-face {
   font-family: "Orbitron";
   src: url("/fonts/Orbitron.woff2") format("woff2");
@@ -304,7 +308,9 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   --duel-ko: #8393a6;
   --duel-ko-text: #1a0507;
 }
-:root, [data-theme=light], [data-theme=duel-light] {
+/* :where(): the theme attribute sits on <html> itself, so a plain :root (same
+   specificity, later in the file) would beat the dark block above */
+:where(:root), [data-theme=light], [data-theme=duel-light] {
   --duel-p1: #076f96;
   --duel-p2: #c9202f;
   --duel-p3: #8a5a00;
@@ -693,7 +699,7 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    background: color-mix(in oklab, var(--color-primary) 16%, var(--color-base-100));
+    background: color-mix(in oklab, var(--color-primary) 12%, var(--color-base-100));
     color: var(--color-primary);
     clip-path: polygon(0.4rem 0, 100% 0, calc(100% - 0.4rem) 100%, 0 100%);
   }
@@ -930,6 +936,169 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
   .duel-admin .checkbox { border-radius: 0; }
 }
 [data-theme=duel-dark] .duel-admin > header h1 { text-shadow: 0 0 1rem color-mix(in oklab, currentColor 45%, transparent); }
+
+/* The player-facing chrome (header, home, new game, suggest pages). Plain daisyUI
+   classes everywhere; the "duel-" hook classes are dressed up by the duel themes only. */
+.duel-picked-ring { display: none; }
+
+[data-theme=duel-dark], [data-theme=duel-light] {
+  /* the page: a faint scan grid on the metal ground */
+  body {
+    background-color: var(--color-base-200);
+    background-image:
+      repeating-linear-gradient(0deg, transparent 0 3px, color-mix(in oklab, var(--color-primary) 5%, transparent) 3px 4px),
+      repeating-linear-gradient(90deg, transparent 0 63px, color-mix(in oklab, var(--color-primary) 4%, transparent) 63px 64px);
+  }
+
+  /* header: a hairline of neon under the bar, the brand as a cut tile */
+  .duel-header {
+    border-bottom-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
+    box-shadow: 0 1px 0 color-mix(in oklab, var(--color-primary) 12%, transparent);
+  }
+  .duel-brand-mark {
+    border-radius: 0;
+    clip-path: polygon(0.5rem 0, 100% 0, 100% calc(100% - 0.5rem), calc(100% - 0.5rem) 100%, 0 100%, 0 0.5rem);
+    box-shadow: none;
+  }
+  .duel-brand-name {
+    font-family: var(--duel-font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .duel-toggle {
+    border-width: 0;
+    border-radius: 0;
+    clip-path: polygon(0.5rem 0, 100% 0, calc(100% - 0.5rem) 100%, 0 100%);
+  }
+  .duel-toggle-thumb {
+    border-width: 0;
+    border-radius: 0;
+    filter: none;
+    background: var(--color-primary);
+    clip-path: polygon(0.5rem 0, 100% 0, calc(100% - 0.5rem) 100%, 0 100%);
+  }
+  .duel-toggle-btn { position: relative; justify-content: center; }
+  /* the icon on the thumb */
+  &[data-theme-source=system] .duel-toggle-btn[data-phx-theme=system],
+  &[data-theme-source=user][data-theme=duel-light] .duel-toggle-btn[data-phx-theme=duel-light],
+  &[data-theme-source=user][data-theme=duel-dark] .duel-toggle-btn[data-phx-theme=duel-dark] {
+    color: var(--color-primary-content);
+  }
+
+  /* buttons: slanted; a focus ring inside the shape, because the clip would cut an outline */
+  .duel-btn, .duel-surface .btn {
+    border-radius: 0;
+    clip-path: polygon(0.5rem 0, 100% 0, calc(100% - 0.5rem) 100%, 0 100%);
+    padding-inline: 1.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: normal;
+    text-wrap: balance;
+  }
+  .duel-btn.btn-sm, .duel-surface .btn-sm { padding-inline: 1rem; font-size: 0.75rem; }
+  .duel-btn:focus-visible, .duel-surface .btn:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-base-100), inset 0 0 0 4px var(--color-base-content);
+  }
+  .btn-square.duel-btn, .duel-surface .btn-square { clip-path: none; padding-inline: 0; }
+
+  /* headings and small labels */
+  .duel-eyebrow, .duel-legend {
+    font-family: var(--duel-font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+  /* a hint inside a legend is plain text again */
+  .duel-legend > span {
+    font-family: var(--duel-font-body);
+    font-size: 0.875rem;
+    letter-spacing: 0;
+    text-transform: none;
+    color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+  }
+  .duel-hero {
+    font-size: clamp(1.6rem, 7.2vw, 3.1rem);
+    line-height: 1.1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+  }
+  .duel-title { overflow-wrap: anywhere; }
+  .duel-back { font-weight: 600; letter-spacing: 0.04em; }
+
+  /* sheets and cards */
+  .duel-sheet { --plate-border: color-mix(in oklab, var(--color-primary) 55%, transparent); }
+  .duel-format {
+    --plate-border: color-mix(in oklab, var(--color-primary) 35%, transparent);
+    box-shadow: none;
+  }
+  .duel-format:hover { --plate-border: var(--color-primary); --plate-fill: color-mix(in oklab, var(--color-primary) 7%, var(--color-base-100)); box-shadow: none; }
+  .duel-format:focus-visible { --plate-border: var(--color-primary); outline: 2px solid var(--color-primary); outline-offset: 3px; }
+  .duel-deco { display: none; }
+  .duel-play { color: var(--color-secondary); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .duel-continue { --plate-border: var(--color-primary); --plate-fill: color-mix(in oklab, var(--color-primary) 8%, var(--color-base-100)); }
+  .duel-empty { border-radius: 0; }
+  .duel-footer {
+    border-top-color: color-mix(in oklab, var(--color-primary) 55%, transparent);
+    box-shadow: 0 -1px 0 color-mix(in oklab, var(--color-primary) 12%, transparent);
+  }
+
+  /* forms: square fields with a neon edge */
+  .duel-surface :is(.input, .textarea, .select) {
+    border-radius: 0;
+    border-color: color-mix(in oklab, var(--color-primary) 38%, transparent);
+    font-weight: 500;
+  }
+  .duel-surface :is(.input, .textarea, .select):focus,
+  .duel-surface :is(.input, .textarea, .select):focus-within {
+    border-color: var(--color-primary);
+    outline: 2px solid color-mix(in oklab, var(--color-primary) 55%, transparent);
+    outline-offset: 1px;
+  }
+  .duel-surface .fieldset-label, .duel-surface .label {
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: color-mix(in oklab, var(--color-base-content) 75%, transparent);
+  }
+  .duel-copy { border-radius: 0; border-color: color-mix(in oklab, var(--color-primary) 35%, transparent); }
+
+  /* the mode and life point cards: cut corners, neon when chosen */
+  .duel-option {
+    --plate-clip: polygon(0 0, calc(100% - 0.7rem) 0, 100% 0.7rem, 100% 100%, 0.7rem 100%, 0 calc(100% - 0.7rem));
+    --plate-border: color-mix(in oklab, var(--color-base-content) 22%, transparent);
+    --plate-fill: var(--color-base-100);
+  }
+  .duel-option:hover { --plate-border: color-mix(in oklab, var(--color-primary) 70%, transparent); }
+  .duel-option:has(input:checked) {
+    --plate-border: var(--color-primary);
+    --plate-fill: color-mix(in oklab, var(--color-primary) 13%, var(--color-base-100));
+  }
+  .duel-option:has(input:focus-visible) { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+  .duel-option .duel-title { letter-spacing: 0.06em; font-size: 0.95rem; }
+
+  /* the player rows: the picture in its Synchro ring, the number as a small cut tag */
+  .duel-avatar-no {
+    border-radius: 0;
+    clip-path: polygon(0.25rem 0, 100% 0, calc(100% - 0.25rem) 100%, 0 100%);
+    width: 1.25rem;
+  }
+  .duel-picker { --plate-border: color-mix(in oklab, var(--color-primary) 40%, transparent); --plate-fill: var(--color-base-200); }
+  .duel-avatar-choice.duel-picked { box-shadow: none; background: transparent; }
+  .duel-avatar-choice.duel-picked .duel-picked-ring { display: block; }
+  .duel-avatar-choice:not(:disabled):hover { box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-primary) 70%, transparent); background: transparent; }
+}
+/* the neon glow of the dark variant */
+[data-theme=duel-dark] {
+  .duel-hero { text-shadow: 0 0 1.2rem color-mix(in oklab, var(--color-primary) 45%, transparent); }
+  .duel-option:has(input:checked) { filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--color-primary) 40%, transparent)); }
+  .duel-sheet { filter: drop-shadow(0 0 1rem color-mix(in oklab, var(--color-primary) 10%, transparent)); }
+}
 
 /* Old paper, after real cards: soft, round clouds of lighter and darker
    colour (isotropic noise in a fixed-size tile, never stretched) and a fine
