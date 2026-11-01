@@ -7,6 +7,7 @@ defmodule MillenniumQuiz.Release do
       bin/millennium_quiz eval "MillenniumQuiz.Release.seed()"
       bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_cards()"
       bin/millennium_quiz eval "MillenniumQuiz.Release.refresh_card_names()"
+      bin/millennium_quiz eval "MillenniumQuiz.Release.adopt_avatar_sets()"
       bin/millennium_quiz eval 'MillenniumQuiz.Release.export_quiz("quiz-backup.json")'
       bin/millennium_quiz eval 'MillenniumQuiz.Release.import_quiz("quiz-backup.json")'
   """
@@ -89,6 +90,50 @@ defmodule MillenniumQuiz.Release do
       "Card names: stopped after #{count} names fetched: #{inspect(reason)}. " <>
         "Nothing was written. Run it again."
 
+  @doc """
+  Copies the built-in profile-picture sets of Edison, Goat and Tengu into the
+  table (`MillenniumQuiz.Quiz.AvatarSets`), fetching the cards the pool lacks
+  one at a time. Safe to run again: a format that has picture cards of its own
+  is left alone, a set with a card that cannot be fetched is skipped whole.
+  """
+  def adopt_avatar_sets do
+    {:ok, _} = Application.ensure_all_started(:req)
+
+    with_repo(fn ->
+      :ok = start_gate()
+      MillenniumQuiz.Quiz.AvatarSets.adopt() |> adopt_report() |> Enum.each(&IO.puts/1)
+    end)
+  end
+
+  @doc "The lines that describe the result of `Quiz.AvatarSets.adopt/1`."
+  def adopt_report([]), do: ["No format has a built-in set of profile pictures (by its date)."]
+
+  def adopt_report(results) do
+    Enum.map(results, fn
+      %{status: :adopted, format: name} ->
+        "#{name}: the built-in profile pictures are now the format's own"
+
+      %{status: :already, format: name} ->
+        "#{name}: has profile pictures of its own, left alone"
+
+      %{status: :incomplete, format: name} = result ->
+        incomplete_line(name, result)
+    end)
+  end
+
+  defp incomplete_line(name, result) do
+    missing = result.missing
+    late = Map.get(result, :late, [])
+
+    [
+      missing != [] && "could not get #{Enum.join(missing, ", ")}. Run it again.",
+      late != [] &&
+        "Released after the format's date (it cannot be one of its pictures): #{Enum.join(late, ", ")}."
+    ]
+    |> Enum.filter(& &1)
+    |> then(&"#{name}: not adopted, #{Enum.join(&1, " ")}")
+  end
+
   @doc "Fetches every card in the card pool again (new errata, stats, artworks)."
   def refresh_cards do
     {:ok, _} = Application.ensure_all_started(:req)
@@ -102,7 +147,7 @@ defmodule MillenniumQuiz.Release do
 
   @doc """
   Writes a backup of the quiz content (formats, topics, questions, choices,
-  card links) to `path`. See `MillenniumQuiz.Quiz.Export`.
+  card links, profile pictures with their crops) to `path`. See `MillenniumQuiz.Quiz.Export`.
   """
   def export_quiz(path) do
     with_repo(fn ->
@@ -135,7 +180,8 @@ defmodule MillenniumQuiz.Release do
       "Formats created: #{s.formats_created}, skipped (name exists): #{length(s.formats_skipped)}, " <>
         "failed: #{length(s.formats_failed)}",
       "Topics: #{s.topics}, questions: #{s.questions}",
-      "Card links: #{s.cards_linked} linked, #{s.cards_missing} missing"
+      "Card links: #{s.cards_linked} linked, #{s.cards_missing} missing",
+      "Profile pictures: #{Map.get(s, :avatars, 0)} restored, #{Map.get(s, :avatars_missing, 0)} missing"
     ] ++
       Enum.map(s.formats_skipped, &"Skipped: #{&1}") ++
       Enum.map(s.formats_failed, fn {name, msg} -> "Failed: #{name}: #{msg}" end) ++

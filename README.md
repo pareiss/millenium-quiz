@@ -11,8 +11,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
 
 - **Board states / gameplay:** the open-source engine is ygopro-core / EDOPro (Project Ignis), C++ and Lua under the AGPL. A first step is questions with a board state stored as JSON and rendered by a component. The engine itself would run as its own container next to the app. A card in a board state also needs to say where it sits (hand, field, graveyard); the owner of a card (player 1 or 2, see Features) is already there.
 - `Game` is not tied to a question type. A `kind` field on questions (`:multiple_choice`, `:card_image`, `:board_state`) would only change rendering and answer checking.
-- **Pictures, still open:** the crop picker is built (admins set where the face sits, per card, in "Profile pictures" on the format page). Still open: the built-in sets of Edison, Goat and Tengu could move into the table too, so that admins own them. The game snapshot keeps the chosen avatar (the crop is looked up from the card when a page is drawn), so old games must keep loading.
-- **Backup should include the profile pictures:** the quiz backup (`/admin/backup`, `Release.export_quiz`) does not yet carry each format's chosen profile-picture cards and their crops (`format_avatar_cards`, `card_avatar_crops`). Add them to the export and the import, keep old backup files importable, and restore the cards the same way question cards are fetched again.
+- **Pictures, still open:** the built-in sets of Edison, Goat and Tengu are adopted into the table by a migration only where the card pool already holds the whole set; on a database whose pool lacks cards, `Release.adopt_avatar_sets/0` (or `mix avatars.adopt`) must be run once, and Gigalixir's free tier has no shell for it. A button for it on the admin backup or format page is the missing piece.
 - **Redesign, still open:** the life-point duel and the 5D's "duel" look are built and live (player pages, game screens and admin pages). Still open: testing phones and tablets on real devices (crop editor, duel board, admin), and the sideways and 320 px-phone scrolling left over from the tablet/phone layout work.
 - **Public deployment:** the hardening and the deploy repository are written, but the domain, certificate (Let's Encrypt) and cert-manager steps are not done yet.
 
@@ -27,7 +26,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
   - a player on 0 LP is eliminated and skipped from then on; the scoreboard shows each player's LP with a drain bar, the reveal shows `LP before - damage = LP after` ("Direct hit!") or "K.O."
   - the game ends when one player is left or the board is empty; the most LP wins, eliminated players rank last, and if the last players drop to 0 in the same round the game is a draw
   - games saved before the life points were score games: they open as finished results and cannot be continued
-  - every player gets a random monster face as a picture: from the monsters of the format's popular decks for Edison, Goat and Tengu (e.g. Blackwings and Lightsworn for Edison), from a default pool of eight for other formats; the 46 images are cropped from card artwork by `mix avatars.fetch` and committed (the sets and how they were made are in `MillenniumQuiz.Avatars`); a format whose admin has chosen at least 4 cards (see Admin) uses those cards' artwork instead. A card that has left the card pool is replaced, when the game is loaded, by a picture of the default pool (a different one for each such player)
+  - every player gets a random monster face as a picture: from the monsters of the format's popular decks for Edison, Goat and Tengu (e.g. Blackwings and Lightsworn for Edison), from a default pool of eight for other formats; the 46 images are cropped from card artwork by `mix avatars.fetch` and committed (the sets and how they were made are in `MillenniumQuiz.Avatars`); a format whose admin has chosen at least 4 cards (see Admin) uses those cards' artwork instead. The sets of Edison, Goat and Tengu are copied into that table too (`Quiz.AvatarSets`: a data migration for cards the pool has, `mix avatars.adopt` / `Release.adopt_avatar_sets/0` fetching the rest, one at a time), so admins can change them and the backup carries them. The committed images stay: games saved with a built-in picture (slugs like `jinzo`) keep their image, and a format whose list is shorter than 4 cards falls back to the set in code. The crop of an adopted card is worked out from the face square of the committed image (`Avatars.face_crop/1`), the focus in the square's centre and a zoom of at most 300 percent. A card that has left the card pool is replaced, when the game is loaded, by a picture of the default pool (a different one for each such player)
   - players can choose their picture on the new-game page: each name has a round picture button (random, different defaults), which opens an inline grid of the format's pictures (pictures of other players are disabled, "Another one" draws a free one, Escape closes); what is shown is what the game gets
 - **Modes**:
   - **Heart of the Cards** (free selection): choose any open question on the board
@@ -168,8 +167,9 @@ the components at several widths.
 
 The only data that cannot be fetched again is the quiz you wrote. A backup is
 one JSON file with the formats (name, description, date), their topics, the
-questions (text, order), the choices with their correct flag
-and the cards linked to each question (by YGOPRODeck id and name). It does
+questions (text, order), the choices with their correct flag,
+the cards linked to each question and each format's profile pictures with their
+crops (all cards by YGOPRODeck id and name). It does
 not contain games, accounts or the card pool: admins come from `ADMIN_*`, and
 cards are fetched again by their id when a backup is restored.
 
@@ -201,7 +201,7 @@ would be gone, so take a backup regularly.
 2. Under **Restore from a backup file**, choose the file from your device (tap or click **Choose file**) and wait until its name appears.
 3. Click **Restore** and confirm.
 4. Wait. The pictures and texts of all cards are fetched again, which can take several minutes. Stay on the page to see the result; if you leave, the restore keeps going in the background.
-5. Read the result list. "Formats created" is what came back. A format that already exists is skipped (nothing is ever overwritten or doubled), so restoring twice is safe. If a card could not be found, the question still comes back without that card picture; open it in the admin and add the card again.
+5. Read the result list. "Formats created" is what came back, "Profile pictures" are the chosen picture cards of each format. A format that already exists is skipped (nothing is ever overwritten or doubled), so restoring twice is safe. If a card could not be found, the question still comes back without that card picture; open it in the admin and add the card again.
 6. Check your formats in the admin to be sure everything is there.
 
 The technical details follow.
@@ -221,6 +221,14 @@ The technical details follow.
   mix quiz.import path
   ```
 
+- **Profile pictures** (`"avatar_cards"` of a format, each with an optional
+  `"crop"`) come back like question cards: missing cards are fetched one at a
+  time, a card that cannot be fetched (or came out after the format's date) is
+  reported as a warning and is not a picture, the rest still comes through. A
+  crop never replaces one that is already stored for the card. The result list
+  says `Profile pictures: N restored, M missing`. Backups made before this
+  existed have no such key and import with no pictures (the format version
+  stays 1; `backups/*.json` are imported in the tests).
 - **Restoring** never overwrites: a format whose name already exists is
   skipped, so importing the same file twice is harmless. Each format is created
   on its own; one that breaks a rule (for example fewer than 2 topics) is

@@ -578,4 +578,53 @@ defmodule MillenniumQuiz.Quiz.ExportImportTest do
                Import.run(valid_second)
     end
   end
+
+  describe "the backup files committed in backups/" do
+    # Made before profile pictures were part of the backup: no "avatar_cards"
+    # key anywhere. They must stay importable (cards come from the stub, the
+    # ones it does not know are reported as missing, never fatal).
+    for file <- Path.wildcard(Path.expand("../../../backups/*.json", __DIR__)) do
+      @backup file
+
+      test "#{Path.basename(file)} still imports" do
+        json = File.read!(@backup)
+        refute json =~ "avatar_cards"
+
+        assert {:ok, summary} = Import.run(json, pause_ms: 0)
+        assert summary.formats_failed == []
+        assert summary.formats_created > 0
+        assert summary.avatars == 0
+        assert summary.avatars_missing == 0
+
+        # the second time everything is skipped, nothing is overwritten
+        assert {:ok, %{formats_created: 0, formats_skipped: skipped}} =
+                 Import.run(json, pause_ms: 0)
+
+        assert length(skipped) == summary.formats_created
+      end
+    end
+  end
+
+  test "the summary counts the profile pictures that came back and those that did not" do
+    avatar_quiz()
+    export = Export.build()
+
+    # one card the stub cannot fetch
+    extra = %{"password" => 424_242, "name" => "Nobody"}
+
+    export =
+      update_in(export, ["formats", Access.at(0), "avatar_cards"], &(&1 ++ [extra]))
+
+    clear_quiz()
+    assert {:ok, summary} = Import.run(export, pause_ms: 0)
+    assert summary.avatars == 2
+    assert summary.avatars_missing == 1
+    assert [w] = summary.warnings
+    assert w =~ "Nobody" and w =~ "not a profile picture"
+
+    assert Enum.any?(
+             MillenniumQuiz.Release.import_report({:ok, summary}),
+             &(&1 == "Profile pictures: 2 restored, 1 missing")
+           )
+  end
 end
