@@ -400,8 +400,11 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
                   Valid for {display_date(@topic.format.date)}.
                 </p>
                 <div :if={@board_state.issues != []} id="board-issues" class="space-y-1 text-error">
-                  <p :if={@board_blocked} class="font-medium" id="board-blocked">
-                    The board has problems, so the question was not saved.
+                  <p :if={@board_state.board == nil} class="font-medium" id="board-unsaved">
+                    This is not a valid board: saving the question leaves it out.
+                  </p>
+                  <p :if={@board_state.board != nil} class="font-medium" id="board-unfit">
+                    Saving keeps this board, but it is not shown in games until these are fixed.
                   </p>
                   <p class="flex items-center gap-2">
                     <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
@@ -569,7 +572,6 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     socket
     |> assign(:board_text, text)
     |> assign(:board_state, state)
-    |> assign(:board_blocked, false)
     |> assign(:board_selected, nil)
     |> assign(:board_card, nil)
     |> assign(:missing_codes, Board.missing_passwords(state.issues))
@@ -665,17 +667,17 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     socket =
       if Map.has_key?(params, "board"), do: assign_board(socket, params["board"]), else: socket
 
-    if socket.assigns.board_state.issues == [] do
-      save(socket, Map.put(params, "board", socket.assigns.board_text))
-    else
-      changeset = Quiz.change_question(socket.assigns.question, params)
+    # A board is optional: one that does not cast is left out (the stored one stays),
+    # one that casts is kept even when it does not fit the format's date.
+    %{board: board, issues: issues} = socket.assigns.board_state
+    text = socket.assigns.board_text
 
-      {:noreply,
-       socket
-       |> assign(:board_open, true)
-       |> assign(:board_blocked, true)
-       |> assign(:form, to_form(changeset, action: :validate))
-       |> assign_unlinked_names()}
+    cond do
+      not Map.has_key?(params, "board") -> save(socket, params, nil)
+      text == "" -> save(socket, params, nil)
+      board == nil -> save(socket, Map.delete(params, "board"), :not_saved)
+      issues == [] -> save(socket, Map.put(params, "board", text), nil)
+      true -> save(socket, Map.put(params, "board", text), :problems)
     end
   end
 
@@ -932,7 +934,25 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     end
   end
 
-  defp save(socket, params) do
+  defp put_board_flash(socket, nil), do: put_flash(socket, :info, "Question saved.")
+
+  defp put_board_flash(socket, :problems) do
+    put_flash(
+      socket,
+      :info,
+      "Saved. The board has problems, so it will not be shown in games until they are fixed."
+    )
+  end
+
+  defp put_board_flash(socket, :not_saved) do
+    put_flash(
+      socket,
+      :error,
+      "The question was saved, but the board was not: it is not a valid board. Edit the question to try again."
+    )
+  end
+
+  defp save(socket, params, board_note) do
     cards = card_entries(socket)
 
     result =
@@ -951,7 +971,7 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
       {:ok, _question} ->
         {:noreply,
          socket
-         |> put_flash(:info, "Question saved.")
+         |> put_board_flash(board_note)
          |> push_navigate(
            to:
              if(socket.assigns.submission,

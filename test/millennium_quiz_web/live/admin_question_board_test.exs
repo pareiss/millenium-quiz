@@ -113,22 +113,58 @@ defmodule MillenniumQuizWeb.AdminQuestionBoardTest do
     refute has_element?(view, "#board-preview")
   end
 
-  test "bad JSON shows its issues and blocks the save", %{conn: conn, topic: topic} do
+  test "a board of the wrong shape shows its issues; saving leaves it out", %{
+    conn: conn,
+    topic: topic
+  } do
     view = new_form(conn, topic)
     bad = board() |> Map.put("phase", "dinner") |> Map.put("turn", 0) |> Jason.encode!()
 
     view |> form("#question-form", params(bad)) |> render_change()
     assert has_element?(view, "#board-issues", "board turn")
     assert has_element?(view, "#board-issues", "board phase")
+    assert has_element?(view, "#board-unsaved")
     refute has_element?(view, "#board-valid")
     refute has_element?(view, "#board-preview-button")
 
     view |> form("#question-form", params(bad)) |> render_submit()
-    assert has_element?(view, "#board-blocked", "not saved")
-    assert questions(topic) == []
+    {path, flash} = assert_redirect(view)
+    assert path =~ "/admin/formats/"
+    assert flash["error"] =~ "board was not"
+    assert [%{board: nil}] = questions(topic)
 
+    view = new_form(conn, topic)
     view |> form("#question-form", params("{not json")) |> render_change()
     assert has_element?(view, "#board-issues")
+  end
+
+  test "editing with a broken board keeps the stored board", %{conn: conn, topic: topic} do
+    q = question_fixture(topic, %{"board" => board()})
+    stored = Quiz.get_question!(q.id).board
+    {:ok, view, _} = live(conn, ~p"/admin/questions/#{q.id}/edit")
+
+    view
+    |> form("#question-form", %{question: %{text: "Edited?", board: "{oops"}})
+    |> render_submit()
+
+    {_path, flash} = assert_redirect(view)
+    assert flash["error"] =~ "board was not"
+    updated = Quiz.get_question!(q.id)
+    assert updated.text == "Edited?"
+    assert updated.board == stored
+  end
+
+  test "a board that casts but does not fit the date is saved with a warning", %{
+    conn: conn,
+    topic: topic
+  } do
+    view = new_form(conn, topic)
+    json = Jason.encode!(board(999))
+
+    view |> form("#question-form", params(json)) |> render_submit()
+    {_path, flash} = assert_redirect(view)
+    assert flash["info"] =~ "board has problems"
+    assert [%{board: %{"players" => [_, _]}}] = questions(topic)
   end
 
   test "cards missing from the pool are reported, at most a handful of issues", %{
