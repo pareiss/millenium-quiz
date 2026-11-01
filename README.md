@@ -117,20 +117,32 @@ current app; its data (texts, stats) is fixed when a game starts.
 
 ### Themes and fonts
 
-The site has a light and a dark "Millennium" theme (gold on parchment or
-indigo; the toggle offers system, light and dark). An opt-in "duel" theme in the
-5D's / Neo Domino style (metal greys, neon cyan, red, Synchro green) exists as
-the daisyUI themes `duel-dark` and `duel-light` in `assets/css/app.css`. It is
-never the default: open any page with `?theme=duel` (follows the system's light
-or dark), `?theme=duel-dark` or `?theme=duel-light`; the choice is kept in
-`localStorage` (`phx:theme`) until the toggle or `?theme=system` replaces it.
-Only under these themes do Orbitron (headings, buttons, badges) and Rajdhani
-(body) apply, and the CSS variables `--duel-p1`..`--duel-p4` (player colours,
-darker in the light variant), `--duel-cut`, `--duel-clip-cut` and
-`--duel-clip-tab` (cut-corner shapes) are defined. The duel fonts are latin
-subsets in `priv/static/fonts` (SIL OFL, licence files next to them, from
-Google Fonts) and are not preloaded. `test/millennium_quiz_web/duel_theme_test.exs`
-checks the WCAG contrast of the key colour pairs (4.5:1) of both variants.
+The site's look is the "duel" theme in the 5D's / Neo Domino style (metal greys,
+neon cyan, red, Synchro green), the daisyUI themes `duel-dark` and `duel-light` in
+`assets/css/app.css`. It is the default: with no stored choice, or "system" (the
+first toggle button), the site follows the system's light or dark (`duel-light` is
+the plain default, `duel-dark` applies under a dark system, also when it changes
+while the page is open). The toggle's sun and moon select `duel-light` and
+`duel-dark`; the choice is kept in `localStorage` (`phx:theme`) until the toggle
+or `?theme=system` replaces it. The theme script in `root.html.heex` applies it
+before the first paint (the server sets no `data-theme`), and a stored `light` or
+`dark` from before the redesign counts as `duel-light` or `duel-dark`. `?theme=duel`,
+`duel-dark`, `duel-light` and `system` work on any page. The former "Millennium"
+themes `light` and `dark` (gold on parchment or indigo) are still defined in
+`app.css` (the shared token blocks and some tests name them) but have no button;
+`?theme=millennium-light` or `?theme=millennium-dark` shows them for debugging.
+Orbitron (headings, buttons, badges) and Rajdhani (body) apply under the duel
+themes, and the CSS variables `--duel-p1`..`--duel-p4` (player colours, darker in
+the light variant), `--duel-cut`, `--duel-clip-cut` and `--duel-clip-tab` (cut-corner
+shapes) are defined. The fonts are latin subsets in `priv/static/fonts` (SIL OFL,
+licence files next to them, from Google Fonts); the root layout preloads Orbitron
+and Rajdhani 500. The chrome (header, home, new game, suggest pages) has `duel-*`
+hook classes that only the duel themes dress up (plates with cut corners, slanted
+buttons, the Synchro ring on the chosen picture, neon option cards). The `.duel-btn`
+shapes are clipped, so their focus ring is drawn inside.
+`test/millennium_quiz_web/duel_theme_test.exs` checks the WCAG contrast of the key
+colour pairs (4.5:1) of both variants, the muted text of the chrome included, and the
+theme script.
 
 Building blocks of the duel look live in `components/duel_components.ex` (imported
 with the core components; their CSS in `app.css` uses the daisyUI colours and the

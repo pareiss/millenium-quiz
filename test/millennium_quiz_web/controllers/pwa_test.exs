@@ -15,7 +15,7 @@ defmodule MillenniumQuizWeb.PwaTest do
     doc = page(conn)
 
     # one meta; the theme script repaints it on every theme change (checked in a browser)
-    assert attrs(doc, "meta[name=theme-color]", "content") == ["#fdfaf4"]
+    assert attrs(doc, "meta[name=theme-color]", "content") == ["#eef2f7"]
     assert attrs(doc, "meta[name=theme-color]", "media") == []
 
     assert attrs(doc, "meta[name=color-scheme]", "content") == ["light dark"]
@@ -24,15 +24,17 @@ defmodule MillenniumQuizWeb.PwaTest do
     assert viewport =~ "interactive-widget=resizes-content"
   end
 
-  test "the card fonts are preloaded as woff2", %{conn: conn} do
+  test "the site and card fonts are preloaded as woff2", %{conn: conn} do
     doc = page(conn)
 
     assert attrs(doc, "link[rel=preload][as=font]", "href") == [
+             "/fonts/Orbitron.woff2",
+             "/fonts/Rajdhani-500.woff2",
              "/fonts/Cinzel.woff2",
              "/fonts/CrimsonPro.woff2"
            ]
 
-    assert attrs(doc, "link[rel=preload][as=font]", "crossorigin") == ["", ""]
+    assert attrs(doc, "link[rel=preload][as=font]", "crossorigin") == ["", "", "", ""]
   end
 
   test "the manifest is served and valid", %{conn: conn} do

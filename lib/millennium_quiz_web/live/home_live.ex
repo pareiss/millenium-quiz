@@ -8,8 +8,10 @@ defmodule MillenniumQuizWeb.HomeLive do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} width="lg">
       <section class="text-center space-y-3 pt-4 pb-2">
-        <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary">Yu-Gi-Oh! Trivia</p>
-        <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">Choose your format</h1>
+        <p class="duel-eyebrow text-sm font-medium uppercase tracking-[0.2em] text-primary">
+          Yu-Gi-Oh! Trivia
+        </p>
+        <h1 class="duel-hero text-4xl sm:text-5xl font-bold tracking-tight">Choose your format</h1>
         <p class="text-base-content/70 max-w-xl mx-auto">
           2 to 4 players, one device. A duel of life points: take turns choosing questions from the board. A wrong answer costs damage, and harder questions hit harder. Be the last one standing.
         </p>
@@ -18,16 +20,16 @@ defmodule MillenniumQuizWeb.HomeLive do
       <section
         :if={@unfinished_games != []}
         id="unfinished-games"
-        class="rounded-box border border-primary/40 bg-primary/5 p-4 space-y-3"
+        class="duel-plate duel-continue rounded-box border border-primary/40 bg-primary/5 p-4 space-y-3"
       >
-        <h2 class="font-semibold flex items-center gap-2">
+        <h2 class="duel-title font-semibold flex items-center gap-2">
           <.icon name="hero-pause-circle" class="size-5 text-primary" /> Continue a game
         </h2>
         <ul class="divide-y divide-base-300">
           <li :for={g <- @unfinished_games} class="py-2 flex items-center gap-3">
             <div class="flex-1 min-w-0">
               <p class="font-medium truncate">{g.game.format_name}</p>
-              <p class="text-sm text-base-content/60 truncate">
+              <p class="text-sm text-base-content/70 truncate">
                 {Enum.map_join(g.game.players, ", ", & &1.name)} · question {g.game.round}/{Game.total_rounds(
                   g.game
                 )}
@@ -35,7 +37,7 @@ defmodule MillenniumQuizWeb.HomeLive do
             </div>
             <.link
               navigate={~p"/games/#{g.id}"}
-              class="btn btn-sm btn-primary"
+              class="duel-btn btn btn-sm btn-primary"
               id={"continue-#{g.id}"}
             >
               Continue
@@ -53,18 +55,20 @@ defmodule MillenniumQuizWeb.HomeLive do
           :for={%{format: format, topics: topics, questions: questions} <- @formats}
           navigate={~p"/formats/#{format.id}/play"}
           id={"format-#{format.id}"}
-          class="group relative overflow-hidden rounded-box border border-base-300 bg-base-100 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
+          class="duel-plate duel-format group relative overflow-hidden rounded-box border border-base-300 bg-base-100 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
         >
-          <div class="absolute -right-6 -top-6 size-24 rounded-full bg-primary/10 transition motion-safe:group-hover:scale-125" />
-          <h2 class="relative text-xl font-semibold">{format.name}</h2>
+          <div class="duel-deco absolute -right-6 -top-6 size-24 rounded-full bg-primary/10 transition motion-safe:group-hover:scale-125" />
+          <h2 class="duel-title relative text-xl font-semibold">{format.name}</h2>
           <p :if={format.description} class="relative mt-1 text-sm text-base-content/70 line-clamp-3">
             {format.description}
           </p>
-          <div class="relative mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-base-content/60">
-            <span class="badge badge-ghost badge-sm whitespace-nowrap">{display_date(format.date)}</span>
-            <span class="badge badge-ghost badge-sm whitespace-nowrap">{topics} topics</span>
-            <span class="badge badge-ghost badge-sm whitespace-nowrap">{questions} questions</span>
-            <span class="ml-auto whitespace-nowrap text-primary font-medium motion-safe:group-hover:translate-x-0.5 transition">
+          <div class="relative mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-base-content/70">
+            <span class="duel-tag badge badge-ghost badge-sm whitespace-nowrap">{display_date(
+              format.date
+            )}</span>
+            <span class="duel-tag badge badge-ghost badge-sm whitespace-nowrap">{topics} topics</span>
+            <span class="duel-tag badge badge-ghost badge-sm whitespace-nowrap">{questions} questions</span>
+            <span class="duel-play ml-auto whitespace-nowrap text-primary font-medium motion-safe:group-hover:translate-x-0.5 transition">
               Play <span aria-hidden="true">&rarr;</span>
             </span>
           </div>
@@ -72,7 +76,7 @@ defmodule MillenniumQuizWeb.HomeLive do
 
         <div
           :if={@formats == []}
-          class="sm:col-span-2 lg:col-span-3 rounded-box border border-dashed border-base-300 p-10 text-center text-base-content/60"
+          class="sm:col-span-2 lg:col-span-3 duel-empty rounded-box border border-dashed border-base-300 p-10 text-center text-base-content/70"
         >
           No playable formats yet. An admin needs to add a format with at least two topics and one question.
         </div>
@@ -91,7 +95,7 @@ defmodule MillenniumQuizWeb.HomeLive do
       <%!-- fixed to the bottom of the window; the spacer keeps the last row of formats clear of it --%>
       <div class="h-28 sm:h-20" aria-hidden="true"></div>
       <footer
-        class="fixed inset-x-0 bottom-0 z-30 border-t border-primary/30 bg-base-100 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgb(0_0_0/0.08)]"
+        class="duel-footer fixed inset-x-0 bottom-0 z-30 border-t border-primary/30 bg-base-100 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_12px_rgb(0_0_0/0.08)]"
         id="suggest-footer"
       >
         <div class="mx-auto flex max-w-5xl flex-col items-center gap-2 px-4 py-3 text-center sm:flex-row sm:justify-between sm:px-6 sm:text-left">
@@ -99,7 +103,7 @@ defmodule MillenniumQuizWeb.HomeLive do
             <.icon name="hero-light-bulb" class="size-5 align-text-bottom text-primary" />
             Got a good question? Send it in and see it in a game.
           </p>
-          <.link navigate={~p"/suggest"} class="btn btn-primary btn-sm" id="suggest-link">
+          <.link navigate={~p"/suggest"} class="duel-btn btn btn-primary btn-sm" id="suggest-link">
             Suggest a question
           </.link>
         </div>
