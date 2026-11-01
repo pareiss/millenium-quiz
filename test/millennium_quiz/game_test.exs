@@ -295,6 +295,75 @@ defmodule MillenniumQuiz.GameTest do
     end
   end
 
+  describe "the board of a question" do
+    @board %{
+      "rule" => "mr1_2",
+      "turn" => 2,
+      "phase" => "main1",
+      "turn_player" => 1,
+      "reveal_all" => false,
+      "emz" => [nil, nil],
+      "players" => []
+    }
+
+    defp board_game do
+      card = %Card{
+        id: 7,
+        name: "Jinzo",
+        password: 77_585_513,
+        card_texts: [],
+        texts: %{"en" => "T"}
+      }
+
+      boards = %{3 => %{board: @board, cards: [card]}}
+      new_game(boards: boards)
+    end
+
+    test "is copied into the question; questions without one have none" do
+      game = board_game()
+      with_board = Enum.find(game.questions, &(&1.id == 3))
+      assert with_board.board == @board
+      assert %{name: "Jinzo", text: "T", id: 7} = with_board.board_cards["77585513"]
+
+      for q <- game.questions, q.id != 3 do
+        assert q.board == nil
+        assert q.board_cards == %{}
+      end
+
+      assert Enum.all?(new_game().questions, &(&1.board == nil and &1.board_cards == %{}))
+    end
+
+    test "survives a JSON roundtrip" do
+      game = board_game()
+      json = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+      assert Game.from_map(json) == game
+    end
+
+    test "a snapshot from before boards loads without one" do
+      map = board_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+
+      old =
+        update_in(map, ["questions"], fn qs ->
+          Enum.map(qs, &Map.drop(&1, ["board", "board_cards"]))
+        end)
+
+      game = Game.from_map(old)
+      assert Enum.all?(game.questions, &(&1.board == nil and &1.board_cards == %{}))
+      assert game.phase == :choosing
+
+      # and a null board, as a game that was saved by this version holds it
+      nulls =
+        update_in(map, ["questions"], fn qs ->
+          Enum.map(qs, &Map.merge(&1, %{"board" => nil, "board_cards" => nil}))
+        end)
+
+      assert Enum.all?(
+               Game.from_map(nulls).questions,
+               &(&1.board == nil and &1.board_cards == %{})
+             )
+    end
+  end
+
   test "the submitter name is kept in a snapshot; older snapshots load without it" do
     map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
 

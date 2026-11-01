@@ -20,6 +20,7 @@ defmodule MillenniumQuiz.Games do
   require Logger
 
   alias MillenniumQuiz.{Avatars, Cards.Card, Game, Quiz, Repo}
+  alias MillenniumQuiz.Quiz.Board
   alias MillenniumQuiz.Games.{GameRecord, Server}
 
   @pubsub MillenniumQuiz.PubSub
@@ -33,6 +34,8 @@ defmodule MillenniumQuiz.Games do
     format = Quiz.get_format!(format_id)
     questions = Quiz.questions_for_format(format.id)
 
+    opts = Keyword.put_new(opts, :boards, board_snapshots(questions, format.date))
+
     with {:ok, game} <- Game.new(format, player_names, questions, opts),
          :ok <- ensure_room() do
       insert_record(format, game)
@@ -43,6 +46,48 @@ defmodule MillenniumQuiz.Games do
     error in [DBConnection.ConnectionError, Postgrex.Error] ->
       Logger.error("Could not save a new game: #{Exception.message(error)}")
       {:error, :insert_failed}
+  end
+
+  # The boards of the questions, resolved on the format's date, with the cards on
+  # them loaded once for all boards (`Game.new/4`, option `:boards`). The game
+  # keeps this copy: a later edit of a question or of a card changes nothing.
+  defp board_snapshots(questions, date) do
+    resolved =
+      for %{board: %{} = stored} = q <- questions, into: %{} do
+        {q.id, Board.resolve(stored, date)}
+      end
+
+    passwords =
+      resolved |> Map.values() |> Enum.flat_map(&displayed_passwords/1) |> Enum.uniq()
+
+    cards =
+      if passwords == [],
+        do: %{},
+        else:
+          Repo.all(from c in Card, where: c.password in ^passwords, preload: :card_texts)
+          |> Map.new(&{&1.password, &1})
+
+    Map.new(resolved, fn {id, board} ->
+      shown = for p <- displayed_passwords(board), card = cards[p], do: card
+      {id, %{board: board, cards: shown}}
+    end)
+  end
+
+  # The passwords of the cards a resolved board draws (overlay units are only a
+  # count), once each.
+  defp displayed_passwords(board) do
+    zones =
+      for player <- board["players"],
+          zone <- ~w(monsters spells hand grave banished extra),
+          card <- player[zone],
+          do: card
+
+    fields = for player <- board["players"], do: player["field"]
+
+    (zones ++ fields ++ board["emz"])
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(& &1["password"])
+    |> Enum.uniq()
   end
 
   defp insert_record(format, game) do
