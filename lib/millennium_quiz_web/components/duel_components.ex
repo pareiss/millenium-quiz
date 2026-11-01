@@ -908,7 +908,12 @@ defmodule MillenniumQuizWeb.DuelComponents do
   # The stubby filled sword before an ATK value
   defp sword_icon(assigns) do
     ~H"""
-    <svg class="duel-tile-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg
+      class="duel-tile-icon duel-icon-sword"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
       <g transform="rotate(45 12 12)">
         <path d="M12 1.5l3.6 3.6V15H8.4V5.1z" />
         <rect x="4.5" y="15.5" width="15" height="3.4" rx="1" />
@@ -921,7 +926,12 @@ defmodule MillenniumQuizWeb.DuelComponents do
   # The shield before a DEF value
   defp shield_icon(assigns) do
     ~H"""
-    <svg class="duel-tile-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg
+      class="duel-tile-icon duel-icon-shield"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
       <path d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5z" />
     </svg>
     """
