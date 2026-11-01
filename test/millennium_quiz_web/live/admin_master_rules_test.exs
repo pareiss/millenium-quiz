@@ -26,7 +26,7 @@ defmodule MillenniumQuizWeb.AdminMasterRulesTest do
       assert has_element?(view, "#rule-mr3-has", "Pendulum scales: yes")
       assert has_element?(view, "#rule-mr4-has", "Extra Monster Zones: yes")
       assert has_element?(view, "#master-rules-note", "keeps its board")
-      assert has_element?(view, "#master-rules-note", "warning")
+      assert has_element?(view, "#master-rules-note", "Nothing warns")
     end
 
     test "is in the admin menu, in the bar and in the folded menu", %{conn: conn} do

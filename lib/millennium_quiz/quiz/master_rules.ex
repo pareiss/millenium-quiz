@@ -27,9 +27,10 @@ defmodule MillenniumQuiz.Quiz.MasterRules do
   ## What editing changes
 
   Only the dates are editable; which zones a rule has is part of the rule.
-  A saved question keeps its board and a running game keeps the rule copied
-  into its snapshot; a question whose board no longer fits is only noticed when
-  it is edited next.
+  A saved question keeps its board; nothing is rewritten when a date changes.
+  A board is checked against the dates in force whenever it is validated or
+  resolved (`Quiz.Board`), so a board that no longer fits is refused then.
+  Nothing warns an admin about such questions in advance.
   """
   import Ecto.Query
 
@@ -37,6 +38,7 @@ defmodule MillenniumQuiz.Quiz.MasterRules do
   alias MillenniumQuiz.Repo
 
   @cache_key {__MODULE__, :current}
+  @generation_key {__MODULE__, :generation}
 
   # What "plausible" means for a date: the TCG began in March 2002; Xyz
   # Monsters are from 2008 (OCG) to 2011 (TCG).
@@ -55,9 +57,13 @@ defmodule MillenniumQuiz.Quiz.MasterRules do
         value
 
       :miss ->
+        generation = generation()
+
         case load() do
           {:ok, value} ->
-            put_cache(value)
+            # A save that finished while we were reading bumped the generation:
+            # what we read may be the old dates, so it is used but not kept.
+            if generation() == generation, do: put_cache(value)
             value
 
           :error ->
@@ -189,50 +195,58 @@ defmodule MillenniumQuiz.Quiz.MasterRules do
   @doc "Validates and stores the dates; the cache is cleared. See `validate/1`."
   @spec save(map) :: {:ok, dates} | {:error, %{atom => String.t()}}
   def save(params) do
-    with {:ok, dates} <- validate(params) do
-      write(dates)
+    with {:ok, dates} <- validate(params),
+         :ok <- write(dates) do
       {:ok, dates}
     end
   end
 
   @doc "Puts the built-in default dates back."
-  @spec reset() :: {:ok, dates}
+  @spec reset() :: {:ok, dates} | {:error, %{atom => String.t()}}
   def reset do
     dates = default_dates()
-    write(dates)
-    {:ok, dates}
+
+    with :ok <- write(dates) do
+      {:ok, dates}
+    end
   end
 
   # Updates the rows, creating one that is missing from its default, in one
-  # transaction. The cache is erased after it, whatever happened.
+  # transaction. The cache is erased after it, whatever happened. A database
+  # error is returned as `{:error, %{base: message}}`, never raised.
   defp write(dates) do
     {rules, _} = defaults()
 
     try do
-      Repo.transaction(fn ->
-        for {rule, i} <- Enum.with_index(rules, 1) do
-          starts_on = if rule.key == :mr1_2, do: nil, else: Map.fetch!(dates, rule.key)
+      {:ok, _} =
+        Repo.transaction(fn ->
+          for {rule, i} <- Enum.with_index(rules, 1) do
+            starts_on = if rule.key == :mr1_2, do: nil, else: Map.fetch!(dates, rule.key)
+
+            Repo.insert!(
+              %MasterRuleSetting{
+                key: Atom.to_string(rule.key),
+                name: rule.name,
+                position: i,
+                starts_on: starts_on,
+                emz: rule.emz,
+                pendulum_scales: rule.pendulum_scales
+              },
+              on_conflict: [set: [starts_on: starts_on, updated_at: now()]],
+              conflict_target: :key
+            )
+          end
 
           Repo.insert!(
-            %MasterRuleSetting{
-              key: Atom.to_string(rule.key),
-              name: rule.name,
-              position: i,
-              starts_on: starts_on,
-              emz: rule.emz,
-              pendulum_scales: rule.pendulum_scales
-            },
-            on_conflict: [set: [starts_on: starts_on, updated_at: now()]],
+            %MasterRuleFeature{key: "xyz", starts_on: dates.xyz},
+            on_conflict: [set: [starts_on: dates.xyz, updated_at: now()]],
             conflict_target: :key
           )
-        end
+        end)
 
-        Repo.insert!(
-          %MasterRuleFeature{key: "xyz", starts_on: dates.xyz},
-          on_conflict: [set: [starts_on: dates.xyz, updated_at: now()]],
-          conflict_target: :key
-        )
-      end)
+      :ok
+    rescue
+      e -> {:error, %{base: "could not be stored: #{Exception.message(e)}"}}
     after
       clear_cache()
     end
@@ -303,13 +317,21 @@ defmodule MillenniumQuiz.Quiz.MasterRules do
 
     errors
     |> Enum.sort()
-    |> Enum.map_join(" ", fn {field, msg} -> "#{labels[field]} start date #{msg}" end)
+    |> Enum.map_join(" ", fn
+      {:base, msg} -> "The dates #{msg}"
+      {field, msg} -> "#{labels[field]} start date #{msg}"
+    end)
   end
 
   ## Cache and loading
 
   @doc "Forgets what was read, so the next read goes to the database."
-  def clear_cache, do: :persistent_term.erase(@cache_key)
+  def clear_cache do
+    :persistent_term.put(@generation_key, System.unique_integer([:monotonic]))
+    :persistent_term.erase(@cache_key)
+  end
+
+  defp generation, do: :persistent_term.get(@generation_key, 0)
 
   defp cache?, do: Application.get_env(:millennium_quiz, __MODULE__, [])[:cache] != false
 

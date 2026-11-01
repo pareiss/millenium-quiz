@@ -86,12 +86,12 @@ defmodule MillenniumQuizWeb.Admin.MasterRulesLive do
             <h2 class="font-semibold text-base">What a change does</h2>
             <ul class="list-disc space-y-1 pl-5">
               <li>
-                A saved question keeps its board, and a running or paused game keeps the rule
-                that was copied into it when the game began. Nothing is rewritten.
+                A saved question keeps its board. Nothing is rewritten when a date changes.
               </li>
               <li>
-                A question whose board no longer fits the new dates shows a warning the next
-                time it is edited.
+                A board is checked against the dates when it is validated, so a board that no
+                longer fits the new dates is refused then. Nothing warns about such questions
+                in advance.
               </li>
               <li>
                 The Master Rule 1/2 era has no start date: it lasts until Master Rule 3 starts,
@@ -177,6 +177,9 @@ defmodule MillenniumQuizWeb.Admin.MasterRulesLive do
       {:ok, _dates} ->
         {:noreply, socket |> load() |> put_flash(:info, "Master Rules saved.")}
 
+      {:error, %{base: msg}} ->
+        {:noreply, put_flash(socket, :error, "Master Rules not saved: #{msg}")}
+
       {:error, _errors} ->
         {:noreply, show_errors(socket, params)}
     end
@@ -186,13 +189,17 @@ defmodule MillenniumQuizWeb.Admin.MasterRulesLive do
   def handle_event("cancel", _params, socket), do: {:noreply, assign(socket, :confirm, false)}
 
   def handle_event("reset", _params, socket) do
-    {:ok, _} = MasterRules.reset()
+    case MasterRules.reset() do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(:confirm, false)
+         |> load()
+         |> put_flash(:info, "Master Rules reset to the defaults.")}
 
-    {:noreply,
-     socket
-     |> assign(:confirm, false)
-     |> load()
-     |> put_flash(:info, "Master Rules reset to the defaults.")}
+      {:error, %{base: msg}} ->
+        {:noreply, socket |> assign(:confirm, false) |> put_flash(:error, "Not reset: #{msg}")}
+    end
   end
 
   # Keeps what was typed and shows what is wrong with it.

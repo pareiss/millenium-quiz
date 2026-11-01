@@ -110,6 +110,17 @@ defmodule MillenniumQuiz.Quiz.MasterRulesTest do
       assert Repo.one!(row("mr1_2")).starts_on == nil
     end
 
+    test "a database error is returned, not raised, by save, reset and import" do
+      Repo.query!("ALTER TABLE master_rule_features RENAME TO master_rule_features_x")
+
+      assert {:error, %{base: "could not be stored: " <> _}} =
+               MasterRules.save(put(%{"mr3" => "2013-06-01"}))
+
+      assert {:error, %{base: _}} = MasterRules.reset()
+      assert {:error, msg} = MasterRules.import(MasterRules.export())
+      assert msg =~ "could not be stored"
+    end
+
     test "reset puts the defaults back" do
       {:ok, _} = MasterRules.save(put(%{"mr3" => "2013-06-01", "xyz" => "2012-01-01"}))
       assert {:ok, _} = MasterRules.reset()
@@ -197,6 +208,12 @@ defmodule MillenniumQuiz.Quiz.MasterRulesTest do
       assert MasterRules.dates().mr3 == ~D[2014-01-01]
       assert {:ok, _} = MasterRules.import(section)
       assert Repo.one!(row("mr3")).starts_on == ~D[2014-01-01]
+    end
+
+    test "clear_cache/0 moves the generation, so a read that began earlier is not kept" do
+      before = :persistent_term.get({MasterRules, :generation}, 0)
+      MasterRules.clear_cache()
+      assert :persistent_term.get({MasterRules, :generation}) != before
     end
 
     test "clear_cache/0 makes the next read go to the table" do
