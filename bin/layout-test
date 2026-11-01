@@ -49,6 +49,12 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
     at every viewport no horizontal overflow, tiles 66px at 390, 54px at 320, 96px on a desktop, close button, chips,
     hand tiles and list items of 44px or more, the card panel only from 900px, Extra Monster Zones only on the modern
     board, a chip's list sheet on screen, the close button on screen when the board is scrolled
+  - the board in the game (format "Board in game fixture", the first question has a board), on the real game screens, so also
+    on a release: at every viewport the Board button between the question text and the answers (>= 44px, with its note),
+    the dialog (fits, no sideways scroll, close button >= 44px and on screen, side panel only from 900px), a tapped tile
+    (the card dialog above the board below 900px, the card in the side panel from it), Escape (closes, focus back on the
+    button, the game unchanged) and the reveal screen, which keeps only the button. LAYOUT_REQUIRE_GAME_BOARD=1 (CI) makes the
+    missing format a failure; LAYOUT_SHOTS=<dir> saves screenshots of these states at 320, 390, 768 and 1280
 Exit code: 0 all passed, 1 at least one check failed.
 """
 import os
@@ -167,12 +173,13 @@ def metrics(page):
 FIXTURE_LINK = "a:has-text('Layout check'):not(:has-text('Layout check pictures'))"
 PICTURES_LINK = "a:has-text('Layout check pictures')"
 DUEL_LINK = "a:has-text('LP duel fixture')"
+BOARD_GAME_LINK = "a:has-text('Board in game fixture')"
 
 
-def start_game(page):
-    """Opens the Layout check format, names two players and starts; the board is up."""
+def start_game(page, link=FIXTURE_LINK):
+    """Opens the Layout check format (or the one `link` finds), names two players and starts; the board is up."""
     page.goto(base + "/")
-    page.locator(FIXTURE_LINK).first.click()
+    page.locator(link).first.click()
     page.wait_for_selector("#start-game")
     for i in range(2):
         # real key events: the field debounces, and the form reads it on blur
@@ -386,7 +393,188 @@ with sync_playwright() as p:
         touch.context.close()
         desk.context.close()
 
+    # ---- the board in the game (format "Board in game fixture": its first question has a board) ----
+    # The real game screens, so this runs on a release too (the dev preview above does not). It creates one game,
+    # then opens it at every viewport: the Board button between the question text and the answers, the dialog,
+    # the card of a tapped tile (the card dialog below 900px, the side panel from it), Escape, and the reveal
+    # screen, which keeps only the button. LAYOUT_SHOTS=<dir> saves screenshots of these states.
+    BOARD_GAME_VIEWPORTS = VIEWPORTS + [("desktop 1280x800", 1280, 800, 4, 0)]
+    BOARD_GAME_JS = """() => {
+      const r = (e) => e.getBoundingClientRect()
+      const q = (s) => document.querySelector(s)
+      const inside = (b) => b.left >= -0.5 && b.right <= innerWidth + 0.5
+      const onScreen = (b) => inside(b) && b.top >= -0.5 && b.bottom <= innerHeight + 0.5
+      const btn = q('#board-button'), text = q('#question-text'), choice = q('#choice-0')
+      const dlg = q('#board-dialog'), sheet = q('.duel-board-sheet'), close = q('#board-dialog-close')
+      const panel = q('.duel-board-panel')
+      const follows = (a, b) => !!a && !!b && !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+      return {
+        overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        btn: btn ? {w: r(btn).width, h: r(btn).height, inside: inside(r(btn))} : null,
+        noteShown: !!q('#board-button-note') && r(q('#board-button-note')).height > 0,
+        afterText: follows(text, btn), beforeChoice: choice ? follows(btn, choice) : null,
+        dlg: dlg ? {overX: dlg.scrollWidth - dlg.clientWidth, sheetIn: inside(r(sheet)),
+                    close: close ? {w: r(close).width, h: r(close).height, on: onScreen(r(close))} : null,
+                    panelShown: panel ? getComputedStyle(panel).display !== 'none' : false} : null,
+        focus: document.activeElement ? document.activeElement.id : '',
+        player: (q('#current-player') || {}).textContent || '',
+        question: text ? text.textContent : '',
+      }
+    }"""
+
+    def game_board_checks():
+        probe = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+        probe.goto(base + "/")
+        if probe.locator(BOARD_GAME_LINK).count() == 0:
+            probe.context.close()
+            if os.environ.get("LAYOUT_REQUIRE_GAME_BOARD"):
+                check("the format 'Board in game fixture' is seeded", False, "priv/repo/layout_fixture.exs")
+            else:
+                print("Board in the game: skipped, no format 'Board in game fixture' (run priv/repo/layout_fixture.exs)")
+            return
+        probe.context.close()
+        print("Board in the game (format 'Board in game fixture', the real game screens)")
+        shots = os.environ.get("LAYOUT_SHOTS")
+        if shots:
+            os.makedirs(shots, exist_ok=True)
+
+        def shot(pg, w, label):
+            if shots and w in (320, 390, 768, 1280):
+                pg.screenshot(path=f"{shots}/{THEME or 'default'}-{w}-{label}.png")
+
+        starter = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+        start_game(starter, BOARD_GAME_LINK)
+        starter.locator("button[phx-click='choose']:not([disabled])").first.click()
+        starter.wait_for_selector("#board-button")
+        game_url = starter.url
+        check("the first question has the Board button", game_url.startswith(base + "/games/"), game_url)
+
+        touch = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True).new_page()
+        desk = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+
+        def open_game(pg, w, h, selector):
+            pg.set_viewport_size({"width": w, "height": h})
+            pg.goto(game_url)
+            pg.wait_for_selector("[data-phx-main].phx-connected")
+            pg.wait_for_selector(selector)
+            pg.wait_for_timeout(150)
+
+        def board_screen(phase, selector):
+            for name, w, h, _, _ in BOARD_GAME_VIEWPORTS:
+                pg = touch if w <= 1180 else desk
+                label = f"{name} {phase}"
+                open_game(pg, w, h, selector)
+                pg.locator("#board-button").scroll_into_view_if_needed()
+                m = pg.evaluate(BOARD_GAME_JS)
+                b = m["btn"]
+                check(f"{label}: the Board button is shown, 44px or more, inside the screen, with its note, no sideways scroll",
+                      b is not None and b["w"] >= 43.5 and b["h"] >= 43.5 and b["inside"] and m["noteShown"] and m["overX"] <= 0, str(m))
+                if phase == "question":
+                    check(f"{label}: the button sits between the question text and the answers",
+                          m["afterText"] and m["beforeChoice"], str(m))
+                else:
+                    check(f"{label}: the reveal shows the button only, no board opened by itself",
+                          m["afterText"] and m["dlg"] is None, str(m))
+                shot(pg, w, f"{phase}-1-button")
+                before = (m["player"], m["question"])
+
+                # open: a dialog that fits, a close button on screen, the side panel only from 900px
+                pg.click("#board-button")
+                pg.wait_for_selector("#board-dialog")
+                pg.wait_for_timeout(200)
+                m = pg.evaluate(BOARD_GAME_JS)
+                d = m["dlg"] or {}
+                c = d.get("close") or {}
+                check(f"{label}: the dialog opens, fits the width, no sideways scroll, the close button is 44px or more and on screen",
+                      d and d["sheetIn"] and d["overX"] <= 0 and m["overX"] <= 0 and c.get("w", 0) >= 43.5
+                      and c.get("h", 0) >= 43.5 and c.get("on"), str(m))
+                check(f"{label}: the card panel shows from 900px only", d.get("panelShown") == (w >= 900), str(m))
+                shot(pg, w, f"{phase}-2-dialog")
+
+                # a tapped tile: the card dialog above the board below 900px, the panel from it
+                pg.click("#board-dialog-tile-p1-monsters-1")
+                if w < 900:
+                    pg.wait_for_selector("#board-card-zoom")
+                    pg.wait_for_timeout(250)
+                    z = pg.evaluate(
+                        """() => {
+                          const r = (e) => e.getBoundingClientRect()
+                          const zoom = document.querySelector('#board-card-zoom')
+                          const card = zoom.querySelector('.mq-card')
+                          const close = document.querySelector('#board-card-zoom-close')
+                          const cb = r(close)
+                          const top = document.elementFromPoint(cb.left + cb.width / 2, cb.top + cb.height / 2)
+                          const c = r(card)
+                          return {cardIn: c.left >= -0.5 && c.right <= innerWidth + 0.5, cardW: c.width,
+                                  closeW: cb.width, closeH: cb.height,
+                                  closeOn: cb.top >= -0.5 && cb.bottom <= innerHeight + 0.5 && cb.left >= -0.5 && cb.right <= innerWidth + 0.5,
+                                  closeAbove: !!top && zoom.contains(top),
+                                  overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                                  detail: !!document.querySelector('#board-detail'),
+                                  name: zoom.textContent.includes('Board Dragon')}
+                        }"""
+                    )
+                    check(f"{label}: a tapped tile opens the card dialog above the board: card in the screen, close button 44px, on screen and on top",
+                          z["cardIn"] and z["cardW"] >= 150 and z["closeW"] >= 43.5 and z["closeH"] >= 43.5 and z["closeOn"]
+                          and z["closeAbove"] and z["overX"] <= 0 and not z["detail"] and z["name"], str(z))
+                    shot(pg, w, f"{phase}-3-card")
+                    pg.click("#board-card-zoom-close")
+                    pg.wait_for_selector("#board-card-zoom", state="detached")
+                    check(f"{label}: closing the card dialog leaves the board open", pg.is_visible("#board-dialog"))
+                else:
+                    pg.wait_for_selector("#board-detail")
+                    pg.wait_for_timeout(250)
+                    z = pg.evaluate(
+                        """() => {
+                          const r = (e) => e.getBoundingClientRect()
+                          const panel = document.querySelector('.duel-board-panel')
+                          const card = document.querySelector('#board-detail .mq-card')
+                          const p = r(panel), c = r(card)
+                          return {cardW: c.width, inPanel: c.left >= p.left - 0.5 && c.right <= p.right + 0.5,
+                                  panelIn: p.right <= innerWidth + 0.5, zoom: !!document.querySelector('#board-card-zoom'),
+                                  overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                                  name: card.textContent.includes('Board Dragon')}
+                        }"""
+                    )
+                    check(f"{label}: a tapped tile fills the side panel with the card (inside the panel and the screen), no card dialog",
+                          z["cardW"] >= 150 and z["inPanel"] and z["panelIn"] and not z["zoom"] and z["overX"] <= 0 and z["name"], str(z))
+                    shot(pg, w, f"{phase}-3-card")
+
+                # Escape closes the board, the focus is back on the button, and nothing in the game moved
+                pg.keyboard.press("Escape")
+                pg.wait_for_selector("#board-dialog", state="detached")
+                pg.wait_for_timeout(100)
+                m = pg.evaluate(BOARD_GAME_JS)
+                check(f"{label}: Escape closes the board and puts the focus back on the Board button",
+                      m["focus"] == "board-button" and m["dlg"] is None, str(m))
+                check(f"{label}: the game did not change (same player, same question)",
+                      (m["player"], m["question"]) == before, f"{before} -> {(m['player'], m['question'])}")
+                # the close button works too
+                pg.click("#board-button")
+                pg.wait_for_selector("#board-dialog")
+                pg.click("#board-dialog-close")
+                pg.wait_for_selector("#board-dialog", state="detached")
+                m = pg.evaluate(BOARD_GAME_JS)
+                check(f"{label}: the close button closes it, no sideways scroll", m["dlg"] is None and m["overX"] <= 0, str(m))
+
+        board_screen("question", "#choice-0")
+
+        # both players answer: the reveal
+        starter.goto(game_url)
+        starter.wait_for_selector("[data-phx-main].phx-connected")
+        for _ in range(2):
+            starter.wait_for_timeout(4200)  # the server's turn guard and the pass-the-device bar
+            starter.click("#choice-0")
+            starter.wait_for_timeout(300)
+        starter.wait_for_selector("#reveal")
+        board_screen("reveal", "#reveal")
+        touch.context.close()
+        desk.context.close()
+        starter.context.close()
+
+
     board_checks()
+    game_board_checks()
     if os.environ.get("LAYOUT_ONLY") == "board":
         browser.close()
         print()
