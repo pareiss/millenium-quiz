@@ -68,7 +68,12 @@ defmodule MillenniumQuiz.Quiz.Question do
   cards an importer could fetch.
   """
   def validate_board_for_format(changeset, date) do
-    case get_field(changeset, :board) do
+    # A board that failed to cast has no change; get_field would then return the
+    # old stored board and its errors would mix with the shape errors.
+    board =
+      if Keyword.has_key?(changeset.errors, :board), do: nil, else: get_field(changeset, :board)
+
+    case board do
       nil ->
         changeset
 

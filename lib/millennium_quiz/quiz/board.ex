@@ -37,6 +37,15 @@ defmodule MillenniumQuiz.Quiz.Board do
   (current values), `"up"`, `"equip"`, `"owner"`, `"by"`, `"mark"`.
   Unknown keys are an error.
 
+  ## Pendulum scales (a deliberate simplification)
+
+  The board draws the Pendulum scales in the outer Spell/Trap Zones
+  (`spells[0]` and `spells[4]`) for every era. In Master Rule 3 the Pendulum
+  Zones were separate zones; this is left out on purpose so the board stays
+  small. A Master Rule 3 board with 5 Spells/Traps plus 2 scales is therefore
+  not representable, and `validate/2` rejects a scale and a Spell/Trap in the
+  same outer zone. This is intended, not a bug.
+
   ## The resolved board
 
   What the board component and the game snapshot use: string keys, cards
@@ -506,6 +515,11 @@ defmodule MillenniumQuiz.Quiz.Board do
   end
 
   # A scale takes the place of the outer Spell/Trap Zone: spells[0] and spells[4].
+  # DECIDED ON PURPOSE (PR #69, F1): in Master Rule 3 the Pendulum Zones were
+  # separate zones, but the board draws the scales in the outer Spell/Trap Zones
+  # for every era so the board stays small. Consequence: an MR3 board with 5
+  # Spell/Traps plus 2 scales cannot be represented, so a scale and a Spell/Trap
+  # in the same outer zone is rejected for every rule that has scales.
   defp scale_conflicts(%{"players" => players}) do
     for {%{"pendulum" => pendulum, "spells" => spells}, n} <- Enum.with_index(players, 1),
         {scale, slot, side} <- [
@@ -516,7 +530,7 @@ defmodule MillenniumQuiz.Quiz.Board do
         Enum.at(spells, slot) != nil do
       zone(
         "player #{n} spell/trap zone #{slot + 1}",
-        "the #{side} Pendulum Zone is this Spell/Trap Zone: a scale and a Spell/Trap cannot both be there"
+        "the #{side} Pendulum scale is drawn in this outer Spell/Trap Zone (the board has no separate Pendulum Zones, in any Master Rule), so a scale and a Spell/Trap cannot both be there"
       )
     end
   end
@@ -666,6 +680,8 @@ defmodule MillenniumQuiz.Quiz.Board do
       |> Map.get("spells")
       |> pad(5)
       |> Enum.map(&resolve_card(&1, :spells, ctx))
+      # Scales go into the outer Spell/Trap Zones for every era (deliberate, see
+      # scale_conflicts/1 and the Board moduledoc).
       |> place_scale(0, left, ctx)
       |> place_scale(4, right, ctx)
 
@@ -780,15 +796,20 @@ defmodule MillenniumQuiz.Quiz.Board do
       frame in @frames -> frame
       frame == "token" -> "normal"
       row.kind in ["Spell", "Trap"] -> String.downcase(row.kind)
-      true -> kind_from_text(String.downcase("#{row.monster_type_line} #{row.card_type}"))
+      true -> kind_from_text("#{row.monster_type_line} / #{row.card_type}")
     end
   end
 
+  # Whole segments of a type line such as "Spellcaster / Normal", never
+  # substrings: "Spellcaster" is a monster type, not a Spell.
   defp kind_from_text(text) do
+    segments =
+      text |> String.downcase() |> String.split("/") |> Enum.map(&String.trim/1)
+
     Enum.find_value(
       ~w(spell trap fusion synchro xyz link ritual pendulum normal),
       "effect",
-      &(String.contains?(text, &1) && &1)
+      &(&1 in segments && &1)
     )
   end
 end

@@ -269,7 +269,8 @@ defmodule MillenniumQuiz.Quiz.BoardTest do
       assert {:error, [%{path: "player 1 spell/trap zone 1", message: m}]} =
                Board.validate(left, @mr3)
 
-      assert m =~ "left Pendulum Zone"
+      assert m =~ "left Pendulum scale"
+      assert m =~ "no separate Pendulum Zones"
       assert {:error, [%{path: "player 1 spell/trap zone 5"}]} = Board.validate(right, @mr3)
       assert :ok = Board.validate(middle, @mr3)
     end
@@ -553,6 +554,21 @@ defmodule MillenniumQuiz.Quiz.BoardTest do
     end
   end
 
+  describe "text fallback for the kind" do
+    test "a Spellcaster monster without frame_type is a monster, not a Spell" do
+      insert_card(1, %{
+        frame_type: nil,
+        kind: "Monster",
+        monster_type_line: "Spellcaster / Normal",
+        card_type: "Normal Monster"
+      })
+
+      b = board(%{"monsters" => monsters([%{"code" => 1, "pos" => "atk"}])})
+      assert %{"players" => [p1, _]} = Board.resolve(b, @mr4)
+      assert %{"kind" => "normal", "atk" => 1800, "level" => 4} = hd(p1["monsters"])
+    end
+  end
+
   describe "Question.changeset/2" do
     defp question_attrs(extra) do
       Map.merge(
@@ -565,6 +581,19 @@ defmodule MillenniumQuiz.Quiz.BoardTest do
         },
         extra
       )
+    end
+
+    test "format errors of the old board are not added when the new board fails to cast" do
+      existing = %Question{board: board(%{"monsters" => monsters([%{"code" => 987_654}])})}
+      bad = board(%{"monsters" => monsters([nil, nil, %{"code" => 1, "pos" => "up"}])})
+
+      cs =
+        existing
+        |> Question.changeset(question_attrs(%{"board" => bad}))
+        |> Question.validate_board_for_format(@mr4)
+
+      assert [{"player 1 monster zone 3: pos must be one of atk, def, set", _}] =
+               Keyword.get_values(cs.errors, :board)
     end
 
     test "casts a valid board and normalises it" do

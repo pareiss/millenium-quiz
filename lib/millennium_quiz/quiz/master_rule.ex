@@ -8,6 +8,10 @@ defmodule MillenniumQuiz.Quiz.MasterRule do
   | `:mr3`   | 2014-01-01      | no                  | yes             |
   | `:mr4`   | 2017-04-01      | yes                 | yes             |
 
+  Pendulum scales: in Master Rule 3 the Pendulum Zones were separate zones.
+  The board deliberately draws scales in the outer Spell/Trap Zones for every
+  era so it stays small; this is intended (see `MillenniumQuiz.Quiz.Board`).
+
   Overlay units (Xyz materials) are not tied to a Master Rule: Xyz Monsters
   came out in the middle of the first era (TCG 2011-06), so `allows?/2` with a
   date answers `:overlay_units` from the `:xyz` feature date; with a bare rule
@@ -74,7 +78,11 @@ defmodule MillenniumQuiz.Quiz.MasterRule do
 
   @doc "The rule struct for a key, a date or nil."
   @spec get(key | Date.t() | nil) :: t
-  def get(key) when is_atom(key) and not is_nil(key), do: Enum.find(rules(), &(&1.key == key))
+  def get(key) when is_atom(key) and not is_nil(key) do
+    Enum.find(rules(), &(&1.key == key)) ||
+      raise ArgumentError, "unknown Master Rule #{inspect(key)}"
+  end
+
   def get(date), do: get(for_date(date))
 
   @doc """

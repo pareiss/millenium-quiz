@@ -43,4 +43,8 @@ defmodule MillenniumQuiz.Quiz.MasterRuleTest do
     assert MasterRule.allows?(:mr1_2, :overlay_units)
     assert MasterRule.allows?(nil, :overlay_units)
   end
+
+  test "an unknown rule key raises a clear error" do
+    assert_raise ArgumentError, ~r/unknown Master Rule :mr5/, fn -> MasterRule.get(:mr5) end
+  end
 end
