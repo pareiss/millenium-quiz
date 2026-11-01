@@ -295,6 +295,117 @@ defmodule MillenniumQuiz.GameTest do
     end
   end
 
+  describe "the board of a question" do
+    @board %{
+      "rule" => "mr1_2",
+      "turn" => 2,
+      "phase" => "main1",
+      "turn_player" => 1,
+      "reveal_all" => false,
+      "emz" => [nil, nil],
+      "players" => []
+    }
+
+    defp board_game do
+      card = %Card{
+        id: 7,
+        name: "Jinzo",
+        password: 77_585_513,
+        card_texts: [],
+        texts: %{"en" => "T"}
+      }
+
+      boards = %{3 => %{board: @board, cards: [card]}}
+      new_game(boards: boards)
+    end
+
+    test "is copied into the question; questions without one have none" do
+      game = board_game()
+      with_board = Enum.find(game.questions, &(&1.id == 3))
+      assert with_board.board == @board
+      assert %{name: "Jinzo", text: "T", id: 7} = game.board_cards["77585513"]
+      assert Enum.all?(game.questions, &(&1.id == 3 or &1.board == nil))
+
+      no_boards = new_game()
+      assert Enum.all?(no_boards.questions, &(&1.board == nil))
+      assert no_boards.board_cards == %{}
+    end
+
+    test "a card on several boards is kept once for the game" do
+      card = %Card{
+        id: 7,
+        name: "Jinzo",
+        password: 77_585_513,
+        card_texts: [],
+        texts: %{"en" => "T"}
+      }
+
+      other = %{card | id: 8, name: "Other", password: 2}
+
+      boards = %{
+        3 => %{board: @board, cards: [card, other]},
+        1 => %{board: %{@board | "turn" => 3}, cards: [card]},
+        # not a question of this game: ignored
+        99 => %{board: @board, cards: [%{card | password: 5}]}
+      }
+
+      game = new_game(boards: boards)
+      assert game.board_cards |> Map.keys() |> Enum.sort() == ["2", "77585513"]
+      assert Enum.count(game.questions, & &1.board) == 2
+    end
+
+    test "survives a JSON roundtrip" do
+      game = board_game()
+      json = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+      assert Game.from_map(json) == game
+    end
+
+    test "a snapshot from before boards loads without one" do
+      map = board_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
+
+      old =
+        map
+        |> Map.delete("board_cards")
+        |> update_in(["questions"], fn qs -> Enum.map(qs, &Map.delete(&1, "board")) end)
+
+      game = Game.from_map(old)
+      assert Enum.all?(game.questions, &(&1.board == nil))
+      assert game.board_cards == %{}
+      assert game.phase == :choosing
+
+      # and a null, as a game saved without any board holds it
+      nulls = old |> Map.put("board_cards", nil)
+      assert Game.from_map(nulls).board_cards == %{}
+
+      # the shape of a game from before boards, written out
+      legacy = %{
+        "format_name" => "Old",
+        "mode" => "free",
+        "start_lp" => 4000,
+        "players" => [%{"name" => "Ann", "lp" => 4000}, %{"name" => "Bob", "lp" => 4000}],
+        "topics" => ["A"],
+        "questions" => [
+          %{
+            "id" => 1,
+            "topic" => "A",
+            "column" => 0,
+            "text" => "Q",
+            "damage" => 100,
+            "choices" => ["a", "b"],
+            "correct" => 0,
+            "cards" => []
+          }
+        ],
+        "round" => 1,
+        "turn_order" => [0, 1],
+        "turn_index" => 0,
+        "phase" => "choosing"
+      }
+
+      assert %Game{board_cards: %{}, questions: [%{board: nil}]} = Game.from_map(legacy)
+    end
+  end
+
   test "the submitter name is kept in a snapshot; older snapshots load without it" do
     map = new_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
 

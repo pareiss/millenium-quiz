@@ -3,6 +3,7 @@ defmodule MillenniumQuiz.GamesTest do
 
   import Ecto.Query
   import MillenniumQuiz.QuizFixtures
+  import MillenniumQuiz.BoardGameFixtures, only: [board_format_fixture: 0]
 
   alias MillenniumQuiz.{Game, Games}
   alias MillenniumQuiz.Quiz.Question
@@ -125,6 +126,98 @@ defmodule MillenniumQuiz.GamesTest do
 
     test "is not offered to continue", %{old_id: id} do
       assert Games.list_unfinished_games([id]) == []
+    end
+  end
+
+  describe "a question with a board" do
+    setup do
+      Map.merge(%{codes: MillenniumQuiz.BoardGameFixtures.codes()}, board_format_fixture())
+    end
+
+    defp board_question(game, question), do: Enum.find(game.questions, &(&1.id == question.id))
+
+    test "the game snapshots the resolved board and each card once", %{
+      format: format,
+      question: question,
+      codes: codes
+    } do
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, %{game: game}} = Games.fetch_game(id)
+      q = board_question(game, question)
+
+      assert %{"rule" => "mr1_2", "turn" => 3, "players" => [p1, p2]} = q.board
+
+      assert [nil, %{"name" => "Board Card 1001", "pos" => "atk"}, %{"pos" => "set"}, nil, nil] =
+               p1["monsters"]
+
+      assert %{"name" => "Board Card 1007"} = p2["field"]
+      # the card that is not in the pool is a placeholder without details
+      assert [%{"password" => 1004}, %{"name" => "Unknown card"}] = p1["grave"]
+
+      # 8 cards in the pool, 1004 is on the board twice: one entry each
+      in_pool = codes |> Map.delete(:missing) |> Map.values() |> Enum.sort()
+      assert game.board_cards |> Map.keys() |> Enum.sort() == Enum.map(in_pool, &to_string/1)
+
+      assert %{
+               name: "Board Card 1001",
+               text: "Text of card 1001.",
+               attribute: "DARK",
+               id: card_id
+             } =
+               game.board_cards["1001"]
+
+      assert is_integer(card_id)
+
+      # the other questions have no board
+      others = Enum.reject(game.questions, &(&1.id == question.id))
+      assert Enum.all?(others, &(&1.board == nil))
+
+      # the stored state is plain JSON and loads back the same
+      stored = Repo.get!(GameRecord, id).state
+      assert stored |> Jason.encode!() |> Jason.decode!() |> Game.from_map() == game
+    end
+
+    test "editing the question or the cards afterwards does not change the game", %{
+      format: format,
+      question: question,
+      codes: codes
+    } do
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, %{game: game}} = Games.fetch_game(id)
+      stored = Repo.get!(GameRecord, id).state
+
+      question |> Ecto.Changeset.change(board: nil) |> Repo.update!()
+
+      Repo.update_all(from(c in MillenniumQuiz.Cards.Card, where: c.password == ^codes.p1_up),
+        set: [name: "Renamed", texts: %{"en" => "New text."}, atk: "9999"]
+      )
+
+      # Stop the process so that the game is loaded from the stored JSONB,
+      # not read from memory.
+      [{pid, _}] = Registry.lookup(MillenniumQuiz.Games.Registry, id)
+      ref = Process.monitor(pid)
+      DynamicSupervisor.terminate_child(MillenniumQuiz.Games.Supervisor, pid)
+      assert_receive {:DOWN, ^ref, :process, ^pid, _}
+
+      {:ok, %{game: again}} = Games.fetch_game(id)
+      assert again == game
+      assert Repo.get!(GameRecord, id).state == stored
+      assert again.board_cards["1001"].name == "Board Card 1001"
+    end
+
+    test "the board survives the game process being restarted", %{
+      format: format,
+      question: question
+    } do
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, _} = Games.choose(id, 0)
+      [{pid, _}] = Registry.lookup(MillenniumQuiz.Games.Registry, id)
+      ref = Process.monitor(pid)
+      DynamicSupervisor.terminate_child(MillenniumQuiz.Games.Supervisor, pid)
+      assert_receive {:DOWN, ^ref, :process, ^pid, _}
+
+      {:ok, %{game: game}} = Games.fetch_game(id)
+      assert %{"rule" => "mr1_2"} = board_question(game, question).board
     end
   end
 

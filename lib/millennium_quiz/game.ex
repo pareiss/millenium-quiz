@@ -41,6 +41,27 @@ defmodule MillenniumQuiz.Game do
 
   Questions are snapshotted when the game is created, so admins can edit
   content while games are running without breaking them.
+
+  ## The board of a question
+
+  A question may have a read-only Yu-Gi-Oh! board (`Quiz.Board`). Both parts
+  of the snapshot are plain JSON data:
+
+    * `board` in the question - the resolved board (`Quiz.Board.resolve/3`:
+      string keys, cards with name, kind, ATK/DEF, level, artwork url,
+      position), or nil. It names each card by `"password"`.
+    * `board_cards` in the game - the full card (`t:card/0`, the same maps as
+      the `cards` of a question, so `CardComponents.card/1` draws them) of
+      every card on any board, keyed by its password as a string
+      (`"46986414"`). A card is stored once per game, however many boards and
+      zones show it: the boards of a puzzle pack share most of their cards and
+      each card with its text is ~0.7 KB, the board itself ~0.2 KB per card
+      shown. A card that is not in the pool has no entry. Without boards it
+      is `%{}`.
+
+  The resolving needs the database, so `Game.new/4` does not do it: the caller
+  passes the result in the `:boards` option (see there). Snapshots from before
+  boards load with `board: nil` in every question and `board_cards: %{}`.
   """
 
   alias MillenniumQuiz.Cards
@@ -83,7 +104,8 @@ defmodule MillenniumQuiz.Game do
             current: nil,
             picks: [],
             answered: 0,
-            phase: :choosing
+            phase: :choosing,
+            board_cards: %{}
 
   @type mode :: :free | :ascending
   @typedoc """
@@ -109,6 +131,7 @@ defmodule MillenniumQuiz.Game do
           choices: [String.t()],
           correct: non_neg_integer(),
           cards: [card()],
+          board: map() | nil,
           result: result() | nil
         }
   @typedoc """
@@ -151,7 +174,8 @@ defmodule MillenniumQuiz.Game do
           current: non_neg_integer() | nil,
           picks: [non_neg_integer() | nil],
           answered: non_neg_integer(),
-          phase: :choosing | :answering | :revealed | :finished
+          phase: :choosing | :answering | :revealed | :finished,
+          board_cards: %{String.t() => card()}
         }
 
   def min_players, do: @min_players
@@ -202,6 +226,12 @@ defmodule MillenniumQuiz.Game do
       least `Avatars.min_cards/0` cards, else the set of its date) or the game is refused with
       `{:error, :invalid_avatar}`; two players can't have the same one
       (`{:error, :duplicate_avatars}`). The others get different random ones.
+    * `:boards` - `%{question_id => %{board: resolved_board, cards: [%Card{}]}}`
+      for the questions that have a board (`Games.create_game/3` builds it).
+      The board is copied as given; the cards (with `card_texts` loaded) are
+      snapshotted like the cards of a question, as on the format's date, and
+      keyed by password into `board_cards` of the game. A question that is not
+      in the map has no board.
   """
   def new(format, player_names, questions, opts \\ []) do
     shuffle = Keyword.get(opts, :shuffle, &Enum.shuffle/1)
@@ -237,7 +267,8 @@ defmodule MillenniumQuiz.Game do
         {:ok, chosen} = chosen
         {:ok, mode} = mode
         {:ok, start_lp} = start_lp
-        {topics, questions} = build_board(questions, format.date)
+        boards = Keyword.get(opts, :boards, %{})
+        {topics, questions} = build_board(questions, format.date, boards)
 
         {:ok,
          %__MODULE__{
@@ -254,6 +285,7 @@ defmodule MillenniumQuiz.Game do
              end),
            topics: topics,
            questions: questions,
+           board_cards: snapshot_board_cards(boards, questions, format.date),
            picks: List.duplicate(nil, length(names)),
            turn_order: shuffle.(Enum.to_list(0..(length(names) - 1)))
          }}
@@ -279,7 +311,7 @@ defmodule MillenniumQuiz.Game do
   defp chosen_avatars(_other, _pool, _count), do: {:error, :invalid_avatar}
 
   # Columns in topic order, each column from easiest to hardest.
-  defp build_board(questions, date) do
+  defp build_board(questions, date, boards) do
     columns =
       questions
       |> Enum.group_by(& &1.topic_id)
@@ -292,13 +324,13 @@ defmodule MillenniumQuiz.Game do
       Enum.flat_map(columns, fn {{_, column}, index} ->
         column
         |> Enum.sort_by(&{&1.position, &1.id})
-        |> Enum.map(&snapshot_question(&1, index, date))
+        |> Enum.map(&snapshot_question(&1, index, date, Map.get(boards, &1.id)))
       end)
 
     {topics, questions}
   end
 
-  defp snapshot_question(%Question{} = q, column, date) do
+  defp snapshot_question(%Question{} = q, column, date, board) do
     %{
       id: q.id,
       topic: q.topic.name,
@@ -310,20 +342,38 @@ defmodule MillenniumQuiz.Game do
       choices: Enum.map(q.choices, & &1.text),
       correct: Enum.find_index(q.choices, & &1.correct),
       cards: snapshot_cards(q.question_cards, date),
+      board: board && board.board,
       result: nil
     }
+  end
+
+  defp snapshot_board_cards(boards, questions, date) do
+    ids = MapSet.new(questions, & &1.id)
+
+    for {id, %{cards: cards}} <- boards, id in ids, card <- cards, into: %{} do
+      {Integer.to_string(card.password), snapshot_card(card, date)}
+    end
   end
 
   # Cards as they read on the format's date (English for now).
   defp snapshot_cards(%Ecto.Association.NotLoaded{}, _date), do: []
 
   defp snapshot_cards(question_cards, date) do
-    for %{card: card} = question_card <- question_cards do
-      card
-      |> Map.take(@card_details)
-      |> Map.merge(Cards.printed_on(card, date))
-      |> Map.merge(%{id: card.id, name: card.name, owner: question_card.owner})
-    end
+    for %{card: card} = question_card <- question_cards,
+        do: snapshot_card(card, date, question_card.owner)
+  end
+
+  @doc """
+  A card as the game keeps it: the printed details, the text as it read on
+  `date` (English for now) and the owner (1, 2 or nil). `card` needs its
+  `card_texts` loaded.
+  """
+  @spec snapshot_card(struct(), Date.t(), 1 | 2 | nil) :: card()
+  def snapshot_card(card, date, owner \\ nil) do
+    card
+    |> Map.take(@card_details)
+    |> Map.merge(Cards.printed_on(card, date))
+    |> Map.merge(%{id: card.id, name: card.name, owner: owner})
   end
 
   ## Queries
@@ -648,6 +698,7 @@ defmodule MillenniumQuiz.Game do
             choices: q["choices"],
             correct: q["correct"],
             cards: Enum.map(q["cards"] || [], &card_from_map/1),
+            board: q["board"],
             result: q["result"] && result_from_map(q["result"], no_picks)
           }
         end),
@@ -657,6 +708,7 @@ defmodule MillenniumQuiz.Game do
       current: map["current"],
       picks: map["picks"] || no_picks,
       answered: map["answered"] || 0,
+      board_cards: Map.new(map["board_cards"] || %{}, fn {k, v} -> {k, card_from_map(v)} end),
       phase: if(start_lp, do: phase_from_string(map["phase"]), else: :finished)
     }
   end

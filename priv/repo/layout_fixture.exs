@@ -163,3 +163,112 @@ else
 
   IO.puts("Seeded format #{format.name}.")
 end
+
+# A fourth format for the board in the game (docs: Game, GameLive): the first question of the first topic
+# has a board (Master Rule 4 by the date: both Extra Monster Zones, a hand, graveyards, a face-down card of
+# each player); the others have none. The name must not contain "Layout check".
+if Repo.get_by(Format, name: "Board in game fixture") do
+  IO.puts("Board in game fixture already exists, skipping.")
+else
+  alias MillenniumQuiz.Quiz.Board
+
+  text =
+    "Once per turn, during your Main Phase: you can target 1 monster in your GY; Special Summon it, " <>
+      "but it cannot attack this turn. If this card is destroyed by battle or card effect, you can " <>
+      "add 1 card from your Deck to your hand. You can only use each effect of this card's name once per turn."
+
+  # {password, name, frame_type, kind, atk, def, level}
+  specs = [
+    {992_001, "Board Dragon", "effect", "Monster", "2500", "2000", 7},
+    {992_002, "Board Knight", "normal", "Monster", "1800", "1200", 4},
+    {992_003, "Board Mage", "effect", "Monster", "1200", "800", 3},
+    {992_004, "Board Hole", "trap", "Trap", nil, nil, nil},
+    {992_005, "Board Storm", "spell", "Spell", nil, nil, nil},
+    {992_006, "Board Field", "spell", "Spell", nil, nil, nil},
+    {992_007, "Board Fusion", "fusion", "Monster", "2800", "2000", 8},
+    {992_008, "Board Link", "link", "Monster", "2300", nil, nil},
+    {992_009, "Board Xyz", "xyz", "Monster", "2500", "2000", nil},
+    {992_010, "Board Draw", "spell", "Spell", nil, nil, nil},
+    {992_011, "Board Gate", "trap", "Trap", nil, nil, nil},
+    {992_012, "Board Ghost", "effect", "Monster", "400", "1600", 3}
+  ]
+
+  for {password, name, frame, kind, atk, def, level} <- specs do
+    Repo.get_by(Card, password: password) ||
+      Repo.insert!(%Card{
+        name: name,
+        password: password,
+        kind: kind,
+        frame_type: frame,
+        attribute: if(kind == "Monster", do: "DARK"),
+        monster_type_line: if(kind == "Monster", do: "Warrior / Effect"),
+        level: level,
+        rank: if(frame == "xyz", do: 4),
+        atk: atk,
+        def: def,
+        texts: %{"en" => text},
+        fetched_at: DateTime.utc_now(:second)
+      })
+  end
+
+  c = fn code, pos -> %{"code" => code, "pos" => pos} end
+
+  {:ok, board} =
+    Board.cast(%{
+      "v" => 1,
+      "turn" => 3,
+      "phase" => "main1",
+      "turnPlayer" => 1,
+      "emz" => [c.(992_008, "atk"), Map.put(c.(992_009, "atk"), "overlay", [992_001, 992_002])],
+      "players" => [
+        %{
+          "lp" => 6200,
+          "monsters" => [nil, c.(992_001, "atk"), c.(992_002, "def"), c.(992_003, "set"), nil],
+          "spells" => [nil, c.(992_004, "set"), nil, c.(992_005, "set"), nil],
+          "field" => c.(992_006, "atk"),
+          "hand" => [c.(992_010, "atk"), c.(992_011, "atk")],
+          "grave" => [c.(992_012, "atk"), c.(992_002, "atk")],
+          "extra" => [c.(992_007, "atk")],
+          "deck" => 25
+        },
+        %{
+          "lp" => 4500,
+          "monsters" => [c.(992_002, "atk"), nil, c.(992_003, "set"), nil, c.(992_001, "def")],
+          "spells" => [c.(992_004, "set"), nil, nil, nil, nil],
+          "grave" => [c.(992_012, "atk")],
+          "deck" => 22
+        }
+      ]
+    })
+
+  {:ok, format} =
+    Quiz.create_format(%{
+      "name" => "Board in game fixture",
+      "date" => Date.utc_today(),
+      "description" => "Fixture for bin/layout-test: the first question has a board, the others none.",
+      "topics" => %{"0" => %{"name" => "With a board"}, "1" => %{"name" => "Without"}}
+    })
+
+  [with_board, without] = format.topics
+
+  choices = %{
+    "0" => %{"text" => "Attack with the dragon", "correct" => "true"},
+    "1" => %{"text" => "Set a card and pass"},
+    "2" => %{"text" => "Summon the link monster"}
+  }
+
+  {:ok, question} =
+    Quiz.create_question(
+      with_board,
+      %{"text" => "{P1} has this board in Main Phase 1. What is the best next play?", "choices" => choices},
+      []
+    )
+
+  question |> Ecto.Changeset.change(board: board) |> Repo.update!()
+
+  for {topic, text} <- [{with_board, "A second question, without a board?"}, {without, "A third one?"}] do
+    {:ok, _} = Quiz.create_question(topic, %{"text" => text, "choices" => choices}, [])
+  end
+
+  IO.puts("Seeded format #{format.name}.")
+end
