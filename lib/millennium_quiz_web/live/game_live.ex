@@ -907,8 +907,8 @@ defmodule MillenniumQuizWeb.GameLive do
   defp question_meta(assigns) do
     ~H"""
     <div class="flex flex-wrap items-center gap-2 text-sm">
-      <span class="duel-tag badge badge-outline">{@question.topic}</span>
-      <span class="duel-tag duel-tag--atk badge badge-primary" id="question-points">
+      <span class="duel-tag duel-tag--wrap badge badge-outline">{@question.topic}</span>
+      <span class="duel-tag duel-tag--wrap duel-tag--atk badge badge-primary" id="question-points">
         {@question.damage} ATK
       </span>
     </div>
