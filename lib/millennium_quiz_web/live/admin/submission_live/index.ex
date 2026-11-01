@@ -18,120 +18,124 @@ defmodule MillenniumQuizWeb.Admin.SubmissionLive.Index do
       current_scope={@current_scope}
       pending_submissions={@pending_submissions}
     >
-      <.header>
-        Suggested questions
-        <:subtitle>Questions sent in by players, waiting for you to add, edit or reject.</:subtitle>
-      </.header>
+      <div class="duel-admin space-y-6">
+        <.header>
+          Suggested questions
+          <:subtitle>Questions sent in by players, waiting for you to add, edit or reject.</:subtitle>
+        </.header>
 
-      <div role="tablist" class="tabs tabs-border" id="submission-filters">
-        <.link
-          :for={f <- filters()}
-          patch={~p"/admin/submissions?#{[status: f]}"}
-          role="tab"
-          id={"filter-#{f}"}
-          class={["tab", f == @filter && "tab-active"]}
-        >
-          {String.capitalize(f)}
-          <span :if={f == "pending"} class="badge badge-sm badge-primary ml-1" id="pending-count">
-            {@pending_count}
-          </span>
-        </.link>
-      </div>
-
-      <p
-        :if={@submissions == []}
-        class="rounded-box border border-dashed border-base-300 p-8 text-center text-base-content/60"
-        id="no-submissions"
-      >
-        Nothing here.
-      </p>
-
-      <ul class="space-y-3" id="submissions">
-        <li
-          :for={s <- @submissions}
-          id={"submission-#{s.id}"}
-          class="rounded-box border border-base-300 bg-base-100 p-4 space-y-2"
-        >
-          <div class="flex flex-wrap items-center gap-2 text-sm text-base-content/60">
-            <span>{s.topic.format.name} · {s.topic.name}</span>
-            <span class={["badge badge-sm", status_class(s.status)]}>{s.status}</span>
-            <span>
-              {if s.submitter_name, do: "by #{s.submitter_name}", else: "no name"} · {Calendar.strftime(
-                s.inserted_at,
-                "%Y-%m-%d %H:%M"
-              )}
+        <div role="tablist" class="tabs tabs-border" id="submission-filters">
+          <.link
+            :for={f <- filters()}
+            patch={~p"/admin/submissions?#{[status: f]}"}
+            role="tab"
+            id={"filter-#{f}"}
+            class={["tab min-w-11", f == @filter && "tab-active"]}
+          >
+            {String.capitalize(f)}
+            <span :if={f == "pending"} class="badge badge-sm badge-primary ml-1" id="pending-count">
+              {@pending_count}
             </span>
-          </div>
-          <p class="font-semibold whitespace-pre-line"><.answer_text text={s.text} /></p>
-          <ol class="list-[upper-alpha] pl-6 text-sm">
-            <li :for={c <- s.choices} class={c.correct && "font-semibold"}>
-              <.answer_text text={c.text} />
-            </li>
-          </ol>
-          <div class="flex flex-wrap gap-2 pt-1">
-            <.button
-              :if={s.status == "pending"}
-              variant="primary"
-              navigate={~p"/admin/topics/#{s.topic_id}/questions/new?#{[submission: s.id]}"}
-              id={"review-#{s.id}"}
-            >
-              Review and add
-            </.button>
-            <button
-              :if={s.status == "pending"}
-              class="btn btn-ghost"
-              phx-click="confirm"
-              phx-value-what="reject"
-              phx-value-id={s.id}
-              id={"reject-#{s.id}"}
-            >
-              Reject
-            </button>
-            <.button
-              :if={s.status == "approved" and s.question_id}
-              navigate={~p"/admin/questions/#{s.question_id}/edit"}
-              id={"question-#{s.id}"}
-            >
-              Open the question
-            </.button>
-            <button
-              :if={s.status != "pending"}
-              class="btn btn-ghost"
-              phx-click="confirm"
-              phx-value-what="delete"
-              phx-value-id={s.id}
-              id={"delete-#{s.id}"}
-            >
-              Delete
-            </button>
-          </div>
-        </li>
-      </ul>
+          </.link>
+        </div>
 
-      <.confirm_dialog
-        :if={@confirm}
-        id="submission-dialog"
-        title={
-          if @confirm.what == :reject, do: "Reject this suggestion?", else: "Delete this suggestion?"
-        }
-        on_cancel="cancel"
-        cancel_id="submission-dialog-cancel"
-      >
-        <p :if={@confirm.what == :reject}>
-          It is kept under "Rejected". The player sees on their page that it was not added.
+        <p
+          :if={@submissions == []}
+          class="rounded-box border border-dashed border-base-300 p-8 text-center text-base-content/60"
+          id="no-submissions"
+        >
+          Nothing here.
         </p>
-        <p :if={@confirm.what == :delete}>
-          The suggestion is removed for good. A question made from it stays.
-        </p>
-        <:actions>
-          <button class="btn btn-ghost" phx-click="cancel" id="submission-dialog-cancel">
-            Cancel
-          </button>
-          <button class="btn btn-error" phx-click="do_confirm" id="submission-dialog-confirm">
-            {if @confirm.what == :reject, do: "Reject", else: "Delete"}
-          </button>
-        </:actions>
-      </.confirm_dialog>
+
+        <ul class="space-y-3" id="submissions">
+          <li
+            :for={s <- @submissions}
+            id={"submission-#{s.id}"}
+            class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 p-4 space-y-2"
+          >
+            <div class="flex flex-wrap items-center gap-2 text-sm text-base-content/60">
+              <span>{s.topic.format.name} · {s.topic.name}</span>
+              <span class={["badge badge-sm", status_class(s.status)]}>{s.status}</span>
+              <span>
+                {if s.submitter_name, do: "by #{s.submitter_name}", else: "no name"} · {Calendar.strftime(
+                  s.inserted_at,
+                  "%Y-%m-%d %H:%M"
+                )}
+              </span>
+            </div>
+            <p class="font-semibold whitespace-pre-line"><.answer_text text={s.text} /></p>
+            <ol class="list-[upper-alpha] pl-6 text-sm">
+              <li :for={c <- s.choices} class={c.correct && "font-semibold"}>
+                <.answer_text text={c.text} />
+              </li>
+            </ol>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <.button
+                :if={s.status == "pending"}
+                variant="primary"
+                navigate={~p"/admin/topics/#{s.topic_id}/questions/new?#{[submission: s.id]}"}
+                id={"review-#{s.id}"}
+              >
+                Review and add
+              </.button>
+              <button
+                :if={s.status == "pending"}
+                class="btn btn-ghost"
+                phx-click="confirm"
+                phx-value-what="reject"
+                phx-value-id={s.id}
+                id={"reject-#{s.id}"}
+              >
+                Reject
+              </button>
+              <.button
+                :if={s.status == "approved" and s.question_id}
+                navigate={~p"/admin/questions/#{s.question_id}/edit"}
+                id={"question-#{s.id}"}
+              >
+                Open the question
+              </.button>
+              <button
+                :if={s.status != "pending"}
+                class="btn btn-ghost"
+                phx-click="confirm"
+                phx-value-what="delete"
+                phx-value-id={s.id}
+                id={"delete-#{s.id}"}
+              >
+                Delete
+              </button>
+            </div>
+          </li>
+        </ul>
+
+        <.confirm_dialog
+          :if={@confirm}
+          id="submission-dialog"
+          title={
+            if @confirm.what == :reject,
+              do: "Reject this suggestion?",
+              else: "Delete this suggestion?"
+          }
+          on_cancel="cancel"
+          cancel_id="submission-dialog-cancel"
+        >
+          <p :if={@confirm.what == :reject}>
+            It is kept under "Rejected". The player sees on their page that it was not added.
+          </p>
+          <p :if={@confirm.what == :delete}>
+            The suggestion is removed for good. A question made from it stays.
+          </p>
+          <:actions>
+            <button class="btn btn-ghost" phx-click="cancel" id="submission-dialog-cancel">
+              Cancel
+            </button>
+            <button class="btn btn-error" phx-click="do_confirm" id="submission-dialog-confirm">
+              {if @confirm.what == :reject, do: "Reject", else: "Delete"}
+            </button>
+          </:actions>
+        </.confirm_dialog>
+      </div>
     </Layouts.app>
     """
   end
