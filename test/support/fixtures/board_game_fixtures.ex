@@ -74,7 +74,7 @@ defmodule MillenniumQuiz.BoardGameFixtures do
             ],
             "spells" => [nil, nil, %{"code" => @p1_trap, "pos" => "set"}, nil, nil],
             "hand" => [%{"code" => @hand}],
-            "grave" => [%{"code" => @hand}, %{"code" => @missing}]
+            "grave" => [%{"code" => @hand}]
           }),
           player.(5400, %{
             "monsters" => [
