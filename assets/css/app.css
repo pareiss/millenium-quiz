@@ -1942,3 +1942,531 @@ a, button, input, select, textarea, summary, label, [role="button"] { touch-acti
    fits. Never below the reader's own setting (100%), so nothing changes up to
    1920 x 1080. */
 html { font-size: max(100%, min(0.8333vw, 1.4815vh)); }
+
+/* The board view (DuelComponents.duel_board/1 and board_button/1): a read-only board in a
+   dialog. Daisy colours and the --duel-* tokens only, so every theme has a complete look; the
+   duel themes add the cut corners. The mat is a size container: the tiles are 66px wide
+   (4.125rem) on a phone, 54px (3.375rem) under 360px, 96px (6rem) from 560px, from the width
+   of the board (cqw) and, so a phone on its side is not all one tile, from the height too.
+   The frame colours of the tiles are the same in every theme (the colour of a card is a fact
+   of the card, not of the theme). */
+@property --duel-w {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 66px;
+}
+
+.duel-board-entry { display: flex; align-items: center; gap: 0.75rem; }
+.duel-board-note {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+}
+
+.duel-board-dialog { color: var(--color-base-content); }
+.duel-board-sheet {
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-base-200);
+}
+.duel-board-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.875rem;
+  background: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-300));
+  border-bottom: 1px solid color-mix(in oklab, var(--color-primary) 35%, transparent);
+}
+.duel-board-title { flex: 1; min-width: 0; line-height: 1.25; }
+.duel-board-title h2 {
+  margin: 0;
+  font-family: var(--duel-font-display);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: var(--duel-track);
+  text-transform: var(--duel-case);
+}
+.duel-board-title span {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+}
+.duel-board-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.duel-board-close:hover { background: color-mix(in oklab, var(--color-base-content) 12%, transparent); }
+.duel-board-close:focus-visible,
+.duel-tile-btn:focus-visible,
+.duel-chip:focus-visible,
+.duel-list-item:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+  position: relative;
+  z-index: 3;
+}
+
+.duel-board-body { flex: 1; }
+.duel-board-main { container: duel-board / inline-size; min-width: 0; }
+.duel-board-panel { display: none; }
+.duel-board-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+}
+
+.duel-board-mat {
+  --duel-g: 4px;
+  --duel-cap: 4.125rem;
+  /* five tiles and four gaps, between the paddings of the mat and a side */
+  --duel-w: min(var(--duel-cap), (100cqw - 2.125rem - 4 * var(--duel-g)) / 5, max(3.375rem, (100dvh - 11rem) / 4.4));
+  --duel-h: calc(var(--duel-w) * 4 / 3);
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem;
+}
+@container duel-board (max-width: 359.98px) {
+  .duel-board-mat { --duel-cap: 3.375rem; --duel-g: 3px; }
+  .duel-lp-bar u { width: 5px; }
+  .duel-lp-num { min-width: 3.6rem; }
+}
+@container duel-board (min-width: 560px) {
+  .duel-board-mat { --duel-cap: 6rem; --duel-g: 6px; }
+}
+
+/* a side: its colour edge, name, LP, then the rows */
+.duel-side {
+  --c: var(--duel-p1);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid color-mix(in oklab, var(--c) 45%, transparent);
+  border-inline-start: 4px solid var(--c);
+  background: color-mix(in oklab, var(--c) 5%, var(--color-base-100));
+  clip-path: var(--duel-clip-cut, none);
+}
+.duel-side[data-seat="2"] { --c: var(--duel-p2); }
+.duel-side[data-turn="true"] { border-inline-start-width: 7px; }
+.duel-side-head { display: flex; align-items: center; gap: 8px; min-height: 2rem; }
+.duel-seat {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  background: var(--c);
+  color: var(--color-base-100);
+  font-family: var(--duel-font-display);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.duel-side-name {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--duel-font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: var(--duel-case);
+}
+.duel-side-name small { margin-inline-start: 0.4rem; font-size: 0.62rem; opacity: 0.75; }
+.duel-lp { flex: none; display: flex; align-items: center; gap: 6px; }
+.duel-lp-bar { display: flex; gap: 2px; }
+.duel-lp-bar u {
+  width: 7px;
+  height: 12px;
+  background: var(--c);
+  transform: skewX(-18deg);
+  text-decoration: none;
+}
+.duel-lp-bar u.off { background: color-mix(in oklab, var(--color-base-content) 18%, transparent); }
+.duel-lp-num {
+  min-width: 4.4rem;
+  padding: 2px 8px;
+  background: var(--color-base-200);
+  font-family: var(--duel-font-display);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+/* the zones */
+.duel-zones {
+  display: grid;
+  grid-template-columns: repeat(5, var(--duel-w));
+  gap: var(--duel-g);
+  justify-content: center;
+}
+.duel-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--duel-w);
+  height: var(--duel-h);
+}
+.duel-cell[data-empty="true"] {
+  border: 1px dashed color-mix(in oklab, var(--color-base-content) 24%, transparent);
+}
+.duel-cell[data-emz="true"][data-empty="true"] {
+  border-color: color-mix(in oklab, var(--color-primary) 55%, transparent);
+}
+.duel-cell-gap { visibility: hidden; }
+.duel-field-label {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 4px;
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+}
+.duel-emz { display: flex; flex-direction: column; gap: 4px; }
+.duel-emz-label {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin: 0;
+  font-family: var(--duel-font-display);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+}
+.duel-emz-label::before,
+.duel-emz-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: color-mix(in oklab, var(--color-base-content) 22%, transparent);
+}
+
+/* the field zone beside the chips; the chips are 44px high at least, so the row is 92px */
+.duel-stackrow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--duel-g);
+  min-height: calc(2 * 2.75rem + 4px);
+}
+.duel-cell-field { flex: none; height: auto; min-height: var(--duel-h); }
+.duel-chips {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+}
+.duel-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  line-height: 1.05;
+  background: var(--color-base-200);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-base-content) 22%, transparent);
+  color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+  font-family: var(--duel-font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: var(--duel-case);
+}
+.duel-chip b {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--color-base-content);
+}
+.duel-chip[data-zero="false"] { box-shadow: inset 0 0 0 1px var(--c); }
+.duel-chip[data-zero="false"] b { color: var(--c); }
+button.duel-chip { cursor: pointer; }
+button.duel-chip:hover:not(:disabled) { background: color-mix(in oklab, var(--c) 12%, var(--color-base-200)); }
+.duel-chip[data-zero="true"] { opacity: 0.55; }
+button.duel-chip:disabled { cursor: default; }
+
+/* the hand: small tiles */
+.duel-hand { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.duel-hand-label {
+  margin: 0;
+  font-family: var(--duel-font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--color-base-content) 68%, transparent);
+}
+.duel-hand-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+
+/* a tile: a button around the face of a card */
+.duel-tile-btn {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+.duel-tile-btn[data-selected="true"] .duel-tile,
+.duel-list-item[data-selected="true"] .duel-tile {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+.duel-tile {
+  --f: #c67a35;
+  --tw: var(--duel-w);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+  width: var(--tw);
+  height: calc(var(--tw) * 4 / 3);
+  padding: 2px;
+  overflow: hidden;
+  background: var(--f);
+  border: 1px solid color-mix(in oklab, #000 45%, var(--f));
+  color: #14110a;
+  font-family: var(--duel-font-body, ui-sans-serif, system-ui, sans-serif);
+  line-height: 1;
+  text-align: center;
+}
+.duel-tile[data-variant="hand"] { --tw: max(2.75rem, calc(var(--duel-w) * 0.72)); }
+.duel-tile[data-variant="list"] { --tw: 3.75rem; }
+.duel-tile[data-kind="normal"] { --f: #c9a54b; }
+.duel-tile[data-kind="effect"] { --f: #c67a35; }
+.duel-tile[data-kind="fusion"] { --f: #8a54b8; }
+.duel-tile[data-kind="ritual"] { --f: #3b78c8; }
+.duel-tile[data-kind="synchro"] { --f: #d9dde3; }
+.duel-tile[data-kind="xyz"] { --f: #2a2d36; color: #fff; }
+.duel-tile[data-kind="link"] { --f: #1f6a9e; color: #fff; }
+.duel-tile[data-kind="spell"] { --f: #1d9a8a; }
+.duel-tile[data-kind="trap"] { --f: #b0457a; }
+.duel-tile[data-kind="pendulum"] {
+  --f: #c67a35;
+  background: linear-gradient(135deg, #c67a35 50%, #38a58d 50%);
+}
+.duel-tile-art {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(155deg, color-mix(in oklab, var(--f) 30%, #fff), color-mix(in oklab, var(--f) 55%, #20263a));
+}
+.duel-tile-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+.duel-tile-initial {
+  font-family: var(--duel-font-display);
+  font-size: calc(var(--tw) * 0.36);
+  font-weight: 800;
+  color: rgb(0 0 0 / 0.4);
+}
+.duel-tile-name {
+  padding: 1px 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: color-mix(in oklab, #fff 55%, var(--f));
+  color: #14110a;
+  font-size: max(7px, calc(var(--tw) * 0.135));
+  font-weight: 700;
+}
+.duel-tile[data-kind="xyz"] .duel-tile-name,
+.duel-tile[data-kind="link"] .duel-tile-name { background: #444a58; color: #fff; }
+.duel-tile-stat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--tw) * 0.2);
+  background: #c9202f;
+  color: #fff;
+  font-family: var(--duel-font-display);
+  font-size: max(9px, calc(var(--tw) * 0.17));
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+.duel-tile-icon {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  margin-inline-end: 0.2em;
+  fill: currentColor;
+}
+/* attack position: red strip with the sword; defense position: blue strip with the shield and
+   the artwork turned a quarter, in the same tile (the image is the size of the art box turned) */
+.duel-tile[data-monster="true"][data-pos="atk"] { box-shadow: inset 0 0 0 2px #c9202f; }
+.duel-tile[data-pos="def"] { box-shadow: inset 0 0 0 2px #1f66c9; }
+.duel-tile[data-pos="def"] .duel-tile-stat { background: #1f66c9; }
+.duel-tile[data-pos="def"] .duel-tile-icon { width: 0.95em; height: 0.95em; }
+.duel-tile[data-pos="def"] .duel-tile-art { container-type: size; }
+.duel-tile[data-pos="def"] .duel-tile-art img {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 100cqh;
+  height: 100cqw;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+/* face down: the card back, an oval; wider for a monster (it lies in defense position) */
+.duel-tile[data-pos="set"] {
+  --f: #7a4a2b;
+  background: repeating-linear-gradient(45deg, #5b3a22 0 4px, #6b4529 4px 8px);
+}
+.duel-tile[data-pos="set"]::after {
+  content: "";
+  position: absolute;
+  inset: 22%;
+  border: 2px solid #b9894f;
+  border-radius: 50%;
+  background: radial-gradient(#1c2b6b, #0c1235);
+}
+.duel-tile[data-pos="set"][data-monster="true"]::after { inset: 32% 14%; }
+.duel-tile-badge {
+  position: absolute;
+  z-index: 2;
+  padding: 0 3px;
+  background: #0b0f16;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  color: #fff;
+  font-family: var(--duel-font-display);
+  font-size: max(7px, calc(var(--tw) * 0.14));
+  font-weight: 800;
+  line-height: 1.3;
+}
+.duel-tile-badge[data-badge="overlay"] { top: 0; right: 0; background: #2a2d36; }
+.duel-tile-badge[data-badge="counters"] { top: 0; left: 0; background: #1a7a3a; }
+.duel-tile-badge[data-badge="scale"] { bottom: 30%; left: 0; background: #5ad1b6; color: #04170f; }
+
+/* the list a chip opens */
+.duel-sheet { position: fixed; inset: 0; z-index: 60; }
+.duel-sheet-shade { position: absolute; inset: 0; background: rgb(0 0 0 / 0.55); }
+.duel-sheet-panel {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  max-width: 40rem;
+  max-height: 75dvh;
+  margin-inline: auto;
+  padding: 0 0.75rem 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-base-100);
+  border-top: 2px solid var(--color-primary);
+}
+.duel-sheet-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-block: 0.25rem;
+  background: var(--color-base-100);
+}
+.duel-sheet-head h3 {
+  margin: 0;
+  font-family: var(--duel-font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: var(--duel-track);
+  text-transform: var(--duel-case);
+}
+.duel-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.duel-list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.25rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  cursor: pointer;
+}
+.duel-list-item:hover { background: color-mix(in oklab, var(--color-base-content) 8%, transparent); }
+.duel-list-stats { font-size: 0.7rem; opacity: 0.75; }
+
+/* a tablet: a dialog with room around it; from 900px the card panel sits beside the board
+   (below that a tile opens the card dialog) */
+@media (min-width: 40rem) {
+  .duel-board-sheet {
+    width: min(100% - 2rem, 44rem);
+    min-height: 0;
+    margin: 1rem auto;
+    border: 1px solid color-mix(in oklab, var(--color-primary) 35%, transparent);
+  }
+}
+@media (min-width: 56.25rem) {
+  .duel-board-sheet { width: min(100% - 2rem, 70rem); }
+  .duel-board-body { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; }
+  .duel-board-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-self: start;
+    position: sticky;
+    top: 3.5rem;
+    max-height: calc(100dvh - 4.5rem);
+    padding: 0.75rem;
+    overflow-y: auto;
+    background: var(--color-base-100);
+    border-inline-start: 1px solid color-mix(in oklab, var(--color-base-content) 22%, transparent);
+  }
+}
+/* the duel themes: the cut corners */
+[data-theme=duel-dark], [data-theme=duel-light] {
+  .duel-lp-num { clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%); }
+}
+@media (pointer: coarse) {
+  .duel-board-entry .btn { min-height: 2.75rem; }
+}

@@ -60,3 +60,7 @@ config :millennium_quiz, :turn_lock_ms, 0
 
 # no background refresh of the card names in tests (they call refresh/1 themselves)
 config :millennium_quiz, MillenniumQuiz.Cards.CardNames.Refresher, enabled: false
+
+# The dev-only pages (/dev/...: style guides and previews of the components) are routed in
+# tests too, so their pages and fixtures are tested
+config :millennium_quiz, dev_routes: true
