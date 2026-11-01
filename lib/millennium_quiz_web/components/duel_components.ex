@@ -349,6 +349,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
         "phase" => "draw" | "standby" | "main1" | "battle" | "main2" | "end" | nil,
         "turn_player" => 1 | 2 | nil,
         "emz" => [card | nil, card | nil],      # only drawn when "rule" == "mr4"
+        "reveal_all" => false,                  # optional, see below
         "players" => [player1, player2]
       }
 
@@ -377,6 +378,14 @@ defmodule MillenniumQuizWeb.DuelComponents do
         "scale" => false
       }
 
+  Face-down cards (`"pos" => "set"`) are always drawn as the card back. A face-down
+  card of Player 1 can be tapped like a face-up one (`on_card` is sent, its label
+  names the card and says "face-down"), so the caller may show its details. A
+  face-down card of Player 2 is an inert picture (not a button, no `on_card`, label
+  "Face-down card, ...") unless the board has `"reveal_all" => true` (a boolean,
+  missing means false; used by puzzles): then every face-down card behaves like
+  Player 1's.
+
   Cards in a hand, graveyard, banished zone or Extra Deck have `"pos" => "atk"`
   and only name, kind, atk, def and art matter.
 
@@ -387,7 +396,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
   0-based index; the same string is what `selected` takes), `phx-value-player`
   ("1" or "2", not set for an Extra Monster Zone), `phx-value-zone` (`"monsters"`,
   `"spells"`, `"field"`, `"hand"`, `"grave"`, `"banished"`, `"extra"`, `"emz"`)
-  and `phx-value-index`. Without `on_card` the tiles are buttons that do nothing.
+  and `phx-value-index`. Without `on_card` the tiles are buttons that do nothing. Tile ids look like
+  `board-dialog-tile-p1-monsters-2` (the dialog id, `-tile-`, the key).
   """
   attr :id, :string, default: "board-dialog"
   attr :board, :map, required: true
@@ -405,6 +415,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
     assigns =
       assigns
       |> assign(:rule, board["rule"])
+      |> assign(:reveal_all, board["reveal_all"] == true)
       |> assign(:p1, p1)
       |> assign(:p2, p2)
       |> assign(:emz, for(i <- 0..1, do: Enum.at(board["emz"] || [], i)))
@@ -424,9 +435,11 @@ defmodule MillenniumQuizWeb.DuelComponents do
       phx-mounted={JS.focus(to: "##{@id}-close")}
     >
       <script :type={Phoenix.LiveView.ColocatedHook} name=".BoardDialog">
-        // Escape closes an open list sheet first (in the browser, like its chip opened it); only
-        // without one it reaches the dialog's own Escape binding, which closes the board. The
-        // listener is on the document, in the capture phase, so it runs before LiveView's.
+        // Escape closes an open list sheet first, by running the sheet's own close command
+        // (so LiveView's show/hide state stays right); only without a sheet it reaches the
+        // dialog's own Escape binding, which closes the board. The listener is on the
+        // document, in the capture phase, so it runs before LiveView's. It stands back when
+        // another dialog (the card dialog) is open above the board, so that one gets Escape.
         export default {
           mounted() {
             this.onKey = (event) => {
@@ -434,10 +447,13 @@ defmodule MillenniumQuizWeb.DuelComponents do
               const sheet = [...this.el.querySelectorAll(".duel-sheet")]
                 .find((el) => getComputedStyle(el).display !== "none")
               if (!sheet) return
+              const above = [...document.querySelectorAll(".mq-dialog")]
+                .some((el) => el !== this.el && !this.el.contains(el))
+              if (above) return
+              const btn = sheet.querySelector(".duel-board-close")
               event.stopPropagation()
               event.preventDefault()
-              sheet.style.display = "none"
-              document.getElementById(sheet.id.replace("-sheet-", "-chip-"))?.focus()
+              this.liveSocket.execJS(btn, btn.getAttribute("phx-click"))
             }
             document.addEventListener("keydown", this.onKey, true)
           },
@@ -472,6 +488,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
                 name={Map.get(@names, 2, "Player 2")}
                 turn?={@board["turn_player"] == 2}
                 start_lp={@start_lp}
+                reveal_all={@reveal_all}
                 on_card={@on_card}
                 selected={@selected}
               />
@@ -487,6 +504,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
                   <span class="duel-cell duel-cell-gap" aria-hidden="true"></span>
                   <.zone
                     card={Enum.at(@emz, 0)}
+                    id={@id}
+                    reveal_all={@reveal_all}
                     key="emz:0"
                     place="Extra Monster Zone 1"
                     emz
@@ -498,6 +517,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
                   <span class="duel-cell duel-cell-gap" aria-hidden="true"></span>
                   <.zone
                     card={Enum.at(@emz, 1)}
+                    id={@id}
+                    reveal_all={@reveal_all}
                     key="emz:1"
                     place="Extra Monster Zone 2"
                     emz
@@ -516,6 +537,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
                 name={Map.get(@names, 1, "Player 1")}
                 turn?={@board["turn_player"] == 1}
                 start_lp={@start_lp}
+                reveal_all={@reveal_all}
                 on_card={@on_card}
                 selected={@selected}
               />
@@ -579,6 +601,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
   attr :name, :string, required: true
   attr :turn?, :boolean, default: false
   attr :start_lp, :integer, required: true
+  attr :reveal_all, :boolean, default: false
   attr :on_card, :string, default: nil
   attr :selected, :string, default: nil
 
@@ -633,6 +656,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
         id={@id}
         seat={@seat}
         cards={@hand}
+        reveal_all={@reveal_all}
         on_card={@on_card}
         selected={@selected}
       />
@@ -642,6 +666,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
         seat={@seat}
         player={@player}
         name={@name}
+        reveal_all={@reveal_all}
         on_card={@on_card}
         selected={@selected}
       />
@@ -650,6 +675,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
         kind="spells"
         seat={@seat}
         player={@player}
+        id={@id}
+        reveal_all={@reveal_all}
         on_card={@on_card}
         selected={@selected}
       />
@@ -657,6 +684,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
         kind="monsters"
         seat={@seat}
         player={@player}
+        id={@id}
+        reveal_all={@reveal_all}
         on_card={@on_card}
         selected={@selected}
       />
@@ -665,6 +694,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
         kind="spells"
         seat={@seat}
         player={@player}
+        id={@id}
+        reveal_all={@reveal_all}
         on_card={@on_card}
         selected={@selected}
       />
@@ -674,6 +705,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
         seat={@seat}
         player={@player}
         name={@name}
+        reveal_all={@reveal_all}
         on_card={@on_card}
         selected={@selected}
       />
@@ -682,6 +714,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
         id={@id}
         seat={@seat}
         cards={@hand}
+        reveal_all={@reveal_all}
         on_card={@on_card}
         selected={@selected}
       />
@@ -692,6 +725,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
   attr :kind, :string, required: true, values: ~w(monsters spells)
   attr :seat, :integer, required: true
   attr :player, :map, required: true
+  attr :id, :string, required: true
+  attr :reveal_all, :boolean, default: false
   attr :on_card, :string, default: nil
   attr :selected, :string, default: nil
 
@@ -704,6 +739,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
       <.zone
         :for={{card, i} <- Enum.with_index(@cards)}
         card={card}
+        id={@id}
+        reveal_all={@reveal_all}
         key={"p#{@seat}:#{@kind}:#{i}"}
         place={place(@seat, @kind, i, card)}
         on_card={@on_card}
@@ -730,6 +767,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
   attr :player, :integer, default: nil
   attr :index, :integer, required: true
   attr :emz, :boolean, default: false
+  attr :id, :string, required: true
+  attr :reveal_all, :boolean, default: false
   attr :on_card, :string, default: nil
   attr :selected, :string, default: nil
 
@@ -740,6 +779,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
       <.tile_button
         :if={@card}
         card={@card}
+        id={@id}
+        reveal_all={@reveal_all}
         key={@key}
         place={@place}
         zone={@zone}
@@ -753,27 +794,38 @@ defmodule MillenniumQuizWeb.DuelComponents do
   end
 
   attr :card, :map, required: true
+  attr :id, :string, required: true
   attr :key, :string, required: true
   attr :place, :string, required: true
   attr :zone, :string, required: true
   attr :player, :integer, default: nil
   attr :index, :integer, required: true
+  attr :reveal_all, :boolean, default: false
   attr :on_card, :string, default: nil
   attr :selected, :string, default: nil
   attr :variant, :string, default: "board", values: ~w(board hand)
 
+  # A face-up card, any card of Player 1 and, with the board's "reveal_all", every card
+  # is a button. A face-down card of Player 2 is an inert picture (its card back).
   defp tile_button(assigns) do
-    assigns = assign(assigns, :label, tile_label(assigns.card, assigns.place))
+    reveal? = assigns.card["pos"] != "set" or assigns.player == 1 or assigns.reveal_all
+
+    assigns =
+      assigns
+      |> assign(:reveal?, reveal?)
+      |> assign(:label, tile_label(assigns.card, assigns.place, reveal?))
+      |> assign(:dom_id, "#{assigns.id}-tile-#{String.replace(assigns.key, ":", "-")}")
 
     ~H"""
     <button
+      :if={@reveal?}
       type="button"
-      id={"tile-#{String.replace(@key, ":", "-")}"}
+      id={@dom_id}
       class="duel-tile-btn"
       data-selected={to_string(@selected == @key)}
       aria-current={@selected == @key && "true"}
       aria-label={@label}
-      title={tile_title(@card)}
+      title={@card["name"]}
       phx-click={@on_card}
       phx-value-key={@key}
       phx-value-player={@player}
@@ -782,12 +834,18 @@ defmodule MillenniumQuizWeb.DuelComponents do
     >
       <.tile card={@card} variant={@variant} />
     </button>
+    <div
+      :if={!@reveal?}
+      id={@dom_id}
+      class="duel-tile-btn"
+      data-inert="true"
+      role="img"
+      aria-label={@label}
+    >
+      <.tile card={@card} variant={@variant} />
+    </div>
     """
   end
-
-  # The hover title: the name of a face-up card, nothing for a face-down one
-  defp tile_title(%{"pos" => "set"}), do: nil
-  defp tile_title(card), do: card["name"]
 
   attr :card, :map, required: true
   attr :variant, :string, default: "board", values: ~w(board hand list)
@@ -869,8 +927,11 @@ defmodule MillenniumQuizWeb.DuelComponents do
   defp stat(n), do: n
 
   # The accessible name of a tile: "Jinzo, attack position, ATK 2400, Player 2 monster zone 2".
-  # A face-down card keeps its identity out of it.
-  defp tile_label(card, place) do
+  # A face-down card the viewer may not see is just "Face-down card, place"; one that
+  # may be revealed names the card and says it is face down.
+  defp tile_label(%{"pos" => "set"}, place, false), do: "Face-down card, #{place}"
+
+  defp tile_label(card, place, _reveal?) do
     down? = card["pos"] == "set"
     overlay = card["overlay"] || 0
     counters = card["counters"] || 0
@@ -878,10 +939,10 @@ defmodule MillenniumQuizWeb.DuelComponents do
     parts =
       case {card["pos"] || "atk", monster?(card)} do
         {"set", true} ->
-          ["Face-down defense monster"]
+          [card["name"], "face-down defense monster"]
 
         {"set", false} ->
-          ["Face-down spell or trap card"]
+          [card["name"], "face-down spell or trap card"]
 
         {"def", true} ->
           [card["name"], "defense position", "DEF #{stat(card["def"])}"]
@@ -941,6 +1002,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
   attr :seat, :integer, required: true
   attr :player, :map, required: true
   attr :name, :string, required: true
+  attr :reveal_all, :boolean, default: false
   attr :on_card, :string, default: nil
   attr :selected, :string, default: nil
 
@@ -965,6 +1027,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
         <.tile_button
           :if={@field_card}
           card={@field_card}
+          id={@id}
+          reveal_all={@reveal_all}
           key={"p#{@seat}:field:0"}
           place={"Player #{@seat} field zone"}
           zone="field"
@@ -1119,6 +1183,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
   attr :id, :string, required: true
   attr :seat, :integer, required: true
   attr :cards, :list, required: true
+  attr :reveal_all, :boolean, default: false
   attr :on_card, :string, default: nil
   attr :selected, :string, default: nil
 
@@ -1138,6 +1203,8 @@ defmodule MillenniumQuizWeb.DuelComponents do
         <.tile_button
           :for={{card, i} <- Enum.with_index(@cards)}
           card={card}
+          id={@id}
+          reveal_all={@reveal_all}
           key={"p#{@seat}:hand:#{i}"}
           place={"Player #{@seat} hand, card #{i + 1} of #{@n}"}
           zone="hand"

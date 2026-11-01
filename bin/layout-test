@@ -223,15 +223,18 @@ with sync_playwright() as p:
     # ---- the board view (the dev preview page /dev/board; docs: DuelComponents.duel_board/1) ----
     # Needs a server with dev routes (mix phx.server); a release has none: the page is a 404 and the checks
     # are skipped, unless LAYOUT_REQUIRE_BOARD=1. LAYOUT_ONLY=board runs only these checks.
-    BOARD_FIXTURES = ["goat", "edison", "pendulum", "modern", "empty"]
+    BOARD_FIXTURES = ["goat", "edison", "pendulum", "modern", "puzzle", "empty"]
     BOARD_JS = """() => {
       const r = (e) => e.getBoundingClientRect()
       const dlg = document.querySelector('#board-dialog')
       const sheet = document.querySelector('.duel-board-sheet')
       const main = document.querySelector('.duel-board-main')
       const close = document.querySelector('#board-dialog-close')
-      const tiles = [...document.querySelectorAll('.duel-zones .duel-tile-btn, .duel-stackrow .duel-tile-btn')]
-      const hand = [...document.querySelectorAll('.duel-hand .duel-tile-btn')]
+      // the touch targets are the buttons; a face-down card of Player 2 is an inert picture, not a target
+      const tiles = [...document.querySelectorAll('.duel-zones button.duel-tile-btn, .duel-stackrow button.duel-tile-btn')]
+      const allTiles = [...document.querySelectorAll('.duel-zones .duel-tile-btn, .duel-stackrow .duel-tile-btn')]
+      const inert = [...document.querySelectorAll('.duel-tile-btn[data-inert]')]
+      const hand = [...document.querySelectorAll('.duel-hand button.duel-tile-btn')]
       const chips = [...document.querySelectorAll('.duel-chip')]
       const stat = document.querySelector('.duel-tile-stat')
       const panel = document.querySelector('.duel-board-panel')
@@ -248,7 +251,9 @@ with sync_playwright() as p:
         tileN: tiles.length,
         tileW: tiles.length ? r(tiles[0]).width : 0,
         tileH: tiles.length ? r(tiles[0]).height : 0,
-        tilesIn: tiles.every((t) => inside(r(t))),
+        tilesIn: allTiles.every((t) => inside(r(t))),
+        inertN: inert.length,
+        inertClickable: inert.filter((t) => t.tagName === 'BUTTON' || t.hasAttribute('phx-click') || t.tabIndex >= 0).length,
         tilesSame: new Set(tiles.map((t) => Math.round(r(t).width))).size <= 1,
         handN: hand.length,
         handMinW: hand.length ? Math.min(...hand.map((t) => r(t).width)) : 99,
@@ -313,7 +318,13 @@ with sync_playwright() as p:
                 check(f"{label}: the ATK strip text is {m['statFont']:.0f}px (9px or more), the card panel only from 900px",
                       m["statFont"] >= 8.9 and m["panelShown"] == (w >= 900), str(m))
                 check(f"{label}: Extra Monster Zones only on the modern board, a hand only where it has cards",
-                      m["emz"] == (2 if fx == "modern" else 0) and (m["handN"] > 0) == (fx in ("edison", "modern")), str(m))
+                      m["emz"] == (2 if fx == "modern" else 0) and (m["handN"] > 0) == (fx in ("edison", "modern", "puzzle")), str(m))
+                # the reveal rule: Player 2's face-down cards are inert (goat has two set traps/spells of Player 2),
+                # nowhere a button, tab stop or click; the puzzle board (reveal_all) has none
+                check(f"{label}: face-down cards of Player 2 are inert pictures, not touch targets"
+                      f"{' (puzzle: all revealable)' if fx == 'puzzle' else ''}",
+                      m["inertClickable"] == 0 and (m["inertN"] == 0 if fx == "puzzle" else True)
+                      and (m["inertN"] > 0 if fx == "goat" else True), str(m))
             # exact sizes the design promises
             pg.goto(f"{base}/dev/board?board=goat")
             pg.wait_for_selector("#board-dialog")
@@ -351,6 +362,20 @@ with sync_playwright() as p:
             check(f"{name}: closing the list hides it and puts the focus back on its chip",
                   not pg.is_visible("#board-dialog-sheet-1-grave")
                   and pg.evaluate("document.activeElement.id") == "board-dialog-chip-1-grave")
+            # Escape closes the list through its own close command; a later render (a tapped tile changes
+            # `selected`) must not bring it back
+            pg.click("#board-dialog-chip-1-grave")
+            pg.wait_for_selector("#board-dialog-sheet-1-grave", state="visible")
+            pg.keyboard.press("Escape")
+            pg.wait_for_timeout(100)
+            check(f"{name}: Escape closes the list, puts the focus on its chip and leaves the board open",
+                  not pg.is_visible("#board-dialog-sheet-1-grave") and pg.is_visible("#board-dialog")
+                  and pg.evaluate("document.activeElement.id") == "board-dialog-chip-1-grave")
+            pg.click("#board-dialog-tile-p1-monsters-0")
+            pg.wait_for_selector("#board-dialog-tile-p1-monsters-0[data-selected=true]")
+            pg.wait_for_timeout(150)
+            check(f"{name}: after Escape and a tapped tile the list stays closed",
+                  not pg.is_visible("#board-dialog-sheet-1-grave"))
             # a tall board scrolls inside the dialog and the close button stays reachable (sticky)
             pg.evaluate("document.querySelector('#board-dialog').scrollTo(0, 99999)")
             pg.wait_for_timeout(100)

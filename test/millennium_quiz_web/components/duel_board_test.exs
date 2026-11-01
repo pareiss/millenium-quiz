@@ -61,6 +61,20 @@ defmodule MillenniumQuizWeb.DuelBoardTest do
     )
   end
 
+  # Player 2 has a set monster and a set trap
+  defp face_down_board do
+    put_player(board(), 2, %{
+      "monsters" => [
+        card("Spore", "effect", atk: 400, def: 800, pos: "set", art: "/s.jpg"),
+        nil,
+        nil,
+        nil,
+        nil
+      ],
+      "spells" => [card("Mirror Force", "trap", pos: "set"), nil, nil, nil, nil]
+    })
+  end
+
   defp put_player(board, seat, overrides) do
     update_in(board, ["players", Access.at(seat - 1)], &Map.merge(&1, overrides))
   end
@@ -153,15 +167,18 @@ defmodule MillenniumQuizWeb.DuelBoardTest do
           })
         )
 
-      assert attr(html, "#tile-p2-monsters-1", "aria-label") == [
+      assert attr(html, "#board-dialog-tile-p2-monsters-1", "aria-label") == [
                "Jinzo, attack position, ATK 2400, Player 2 monster zone 2"
              ]
 
-      assert attr(html, "#tile-p2-monsters-1 .duel-tile", "data-pos") == ["atk"]
-      assert count(html, "#tile-p2-monsters-1 .duel-tile-stat .duel-icon-sword") == 1
-      assert count(html, "#tile-p2-monsters-1 .duel-tile-stat .duel-icon-shield") == 0
-      assert text(html, "#tile-p2-monsters-1 .duel-tile-stat") == "2400"
-      assert attr(html, "#tile-p2-monsters-1", "title") == ["Jinzo"]
+      assert attr(html, "#board-dialog-tile-p2-monsters-1 .duel-tile", "data-pos") == ["atk"]
+      assert count(html, "#board-dialog-tile-p2-monsters-1 .duel-tile-stat .duel-icon-sword") == 1
+
+      assert count(html, "#board-dialog-tile-p2-monsters-1 .duel-tile-stat .duel-icon-shield") ==
+               0
+
+      assert text(html, "#board-dialog-tile-p2-monsters-1 .duel-tile-stat") == "2400"
+      assert attr(html, "#board-dialog-tile-p2-monsters-1", "title") == ["Jinzo"]
     end
 
     test "defense position: blue strip with a shield before the DEF value, same markup size" do
@@ -179,43 +196,39 @@ defmodule MillenniumQuizWeb.DuelBoardTest do
           })
         )
 
-      assert attr(html, "#tile-p1-monsters-2", "aria-label") == [
+      assert attr(html, "#board-dialog-tile-p1-monsters-2", "aria-label") == [
                "Master Hyperion, defense position, DEF 2100, Player 1 monster zone 3"
              ]
 
-      assert attr(html, "#tile-p1-monsters-2 .duel-tile", "data-pos") == ["def"]
-      assert count(html, "#tile-p1-monsters-2 .duel-tile-stat .duel-icon-shield") == 1
-      assert count(html, "#tile-p1-monsters-2 .duel-tile-stat .duel-icon-sword") == 0
-      assert text(html, "#tile-p1-monsters-2 .duel-tile-stat") == "2100"
+      assert attr(html, "#board-dialog-tile-p1-monsters-2 .duel-tile", "data-pos") == ["def"]
+
+      assert count(html, "#board-dialog-tile-p1-monsters-2 .duel-tile-stat .duel-icon-shield") ==
+               1
+
+      assert count(html, "#board-dialog-tile-p1-monsters-2 .duel-tile-stat .duel-icon-sword") == 0
+      assert text(html, "#board-dialog-tile-p1-monsters-2 .duel-tile-stat") == "2100"
       # the artwork is an image the CSS turns a quarter inside the same tile
-      assert attr(html, "#tile-p1-monsters-2 .duel-tile-art img", "src") == ["/a.jpg"]
+      assert attr(html, "#board-dialog-tile-p1-monsters-2 .duel-tile-art img", "src") == [
+               "/a.jpg"
+             ]
     end
 
-    test "face down: the card back, and neither name nor art nor stats in the markup" do
-      html =
-        render_board(
-          board()
-          |> put_player(2, %{
-            "monsters" => [
-              card("Spore", "effect", atk: 400, def: 800, pos: "set", art: "/s.jpg"),
-              nil,
-              nil,
-              nil,
-              nil
-            ],
-            "spells" => [card("Mirror Force", "trap", pos: "set"), nil, nil, nil, nil]
-          })
-        )
+    test "face down, Player 2: the card back, inert, and neither name nor art nor stats in the markup" do
+      html = render_board(face_down_board())
 
-      assert attr(html, "#tile-p2-monsters-0", "aria-label") == [
-               "Face-down defense monster, Player 2 monster zone 1"
+      assert attr(html, "#board-dialog-tile-p2-monsters-0", "aria-label") == [
+               "Face-down card, Player 2 monster zone 1"
              ]
 
-      assert attr(html, "#tile-p2-spells-0", "aria-label") == [
-               "Face-down spell or trap card, Player 2 spell/trap zone 1"
+      assert attr(html, "#board-dialog-tile-p2-spells-0", "aria-label") == [
+               "Face-down card, Player 2 spell/trap zone 1"
              ]
 
-      for id <- ["#tile-p2-monsters-0", "#tile-p2-spells-0"] do
+      for id <- ["#board-dialog-tile-p2-monsters-0", "#board-dialog-tile-p2-spells-0"] do
+        # not a button, no click, no tab stop
+        assert count(html, "button#{id}") == 0
+        assert attr(html, id, "phx-click") == []
+        assert attr(html, id, "data-inert") == ["true"]
         assert attr(html, "#{id} .duel-tile", "data-pos") == ["set"]
         assert count(html, "#{id} img") == 0
         assert count(html, "#{id} .duel-tile-name") == 0
@@ -225,8 +238,66 @@ defmodule MillenniumQuizWeb.DuelBoardTest do
 
       refute html =~ "Spore"
       refute html =~ "Mirror Force"
-      assert attr(html, "#tile-p2-monsters-0 .duel-tile", "data-monster") == ["true"]
-      assert attr(html, "#tile-p2-spells-0 .duel-tile", "data-monster") == ["false"]
+
+      assert attr(html, "#board-dialog-tile-p2-monsters-0 .duel-tile", "data-monster") ==
+               ["true"]
+
+      assert attr(html, "#board-dialog-tile-p2-spells-0 .duel-tile", "data-monster") ==
+               ["false"]
+    end
+
+    test "face down, Player 1: still the card back, but a button that names the card" do
+      html =
+        render_board(
+          face_down_board()
+          |> put_player(1, %{
+            "monsters" => [
+              card("Spore", "effect", atk: 400, def: 800, pos: "set"),
+              nil,
+              nil,
+              nil,
+              nil
+            ],
+            "spells" => [nil, nil, card("Heavy Storm", "spell", pos: "set"), nil, nil]
+          })
+        )
+
+      assert attr(html, "button#board-dialog-tile-p1-monsters-0", "aria-label") == [
+               "Spore, face-down defense monster, Player 1 monster zone 1"
+             ]
+
+      assert attr(html, "button#board-dialog-tile-p1-spells-2", "aria-label") == [
+               "Heavy Storm, face-down spell or trap card, Player 1 spell/trap zone 3"
+             ]
+
+      assert attr(html, "#board-dialog-tile-p1-spells-2", "phx-click") == ["card"]
+      assert attr(html, "#board-dialog-tile-p1-spells-2 .duel-tile", "data-pos") == ["set"]
+      assert count(html, "#board-dialog-tile-p1-spells-2 .duel-tile-name") == 0
+      assert count(html, "#board-dialog-tile-p1-monsters-0 img") == 0
+      # Player 2 stays inert
+      assert count(html, "button#board-dialog-tile-p2-spells-0") == 0
+    end
+
+    test "face down with reveal_all: every face-down card is a button, still drawn face down" do
+      html = render_board(Map.put(face_down_board(), "reveal_all", true))
+
+      assert attr(html, "button#board-dialog-tile-p2-spells-0", "aria-label") == [
+               "Mirror Force, face-down spell or trap card, Player 2 spell/trap zone 1"
+             ]
+
+      assert attr(html, "button#board-dialog-tile-p2-monsters-0", "phx-click") == ["card"]
+      assert attr(html, "#board-dialog-tile-p2-monsters-0 .duel-tile", "data-pos") == ["set"]
+      assert count(html, "#board-dialog-tile-p2-monsters-0 img") == 0
+      assert count(html, "[data-inert]") == 0
+
+      html = render_board(Map.put(face_down_board(), "reveal_all", false))
+      assert count(html, "[data-inert]") == 2
+    end
+
+    test "tile ids are scoped by the dialog id" do
+      html = render_board(face_down_board(), id: "other")
+      assert count(html, "#board-dialog-tile-p2-spells-0") == 0
+      assert count(html, "#other-tile-p2-spells-0") == 1
     end
 
     test "frame colour is by kind, a spell or trap has no strip" do
@@ -261,7 +332,7 @@ defmodule MillenniumQuizWeb.DuelBoardTest do
 
       assert count(html, "#board-dialog-side-1 [data-row=spells] .duel-tile-stat") == 0
       # a link monster has no DEF: an attack tile with a ?-free ATK
-      assert text(html, "#tile-p1-monsters-2 .duel-tile-stat") == "1"
+      assert text(html, "#board-dialog-tile-p1-monsters-2 .duel-tile-stat") == "1"
     end
 
     test "overlay units, counters and a Pendulum scale are badges and part of the name" do
@@ -286,14 +357,14 @@ defmodule MillenniumQuizWeb.DuelBoardTest do
           })
         )
 
-      assert count(html, "#tile-p1-monsters-1 [data-badge=overlay]") == 1
-      assert text(html, "#tile-p1-monsters-1 [data-badge=overlay]") =~ "×2"
-      assert [label] = attr(html, "#tile-p1-monsters-1", "aria-label")
+      assert count(html, "#board-dialog-tile-p1-monsters-1 [data-badge=overlay]") == 1
+      assert text(html, "#board-dialog-tile-p1-monsters-1 [data-badge=overlay]") =~ "×2"
+      assert [label] = attr(html, "#board-dialog-tile-p1-monsters-1", "aria-label")
       assert label =~ "2 overlay units"
 
-      assert count(html, "#tile-p1-spells-0 [data-badge=scale]") == 1
-      assert count(html, "#tile-p1-spells-0 [data-badge=counters]") == 1
-      assert [label] = attr(html, "#tile-p1-spells-0", "aria-label")
+      assert count(html, "#board-dialog-tile-p1-spells-0 [data-badge=scale]") == 1
+      assert count(html, "#board-dialog-tile-p1-spells-0 [data-badge=counters]") == 1
+      assert [label] = attr(html, "#board-dialog-tile-p1-spells-0", "aria-label")
       assert label =~ "Pendulum Scale"
       assert label =~ "3 counters"
       assert label =~ "Player 1 Pendulum zone 1"
@@ -314,10 +385,13 @@ defmodule MillenniumQuizWeb.DuelBoardTest do
           })
         )
 
-      assert attr(html, "#tile-p1-monsters-0 img", "src") == ["/images/avatars/jinzo.jpg"]
-      assert attr(html, "#tile-p1-monsters-0 img", "alt") == [""]
-      assert count(html, "#tile-p1-monsters-1 img") == 0
-      assert text(html, "#tile-p1-monsters-1 .duel-tile-initial") == "Z"
+      assert attr(html, "#board-dialog-tile-p1-monsters-0 img", "src") == [
+               "/images/avatars/jinzo.jpg"
+             ]
+
+      assert attr(html, "#board-dialog-tile-p1-monsters-0 img", "alt") == [""]
+      assert count(html, "#board-dialog-tile-p1-monsters-1 img") == 0
+      assert text(html, "#board-dialog-tile-p1-monsters-1 .duel-tile-initial") == "Z"
     end
 
     test "a tap sends on_card with the key, player, zone and index; the selected tile is marked" do
@@ -328,13 +402,13 @@ defmodule MillenniumQuizWeb.DuelBoardTest do
         })
 
       html = render_board(board, selected: "p2:monsters:2")
-      assert attr(html, "#tile-p2-monsters-2", "phx-click") == ["card"]
-      assert attr(html, "#tile-p2-monsters-2", "phx-value-key") == ["p2:monsters:2"]
-      assert attr(html, "#tile-p2-monsters-2", "phx-value-player") == ["2"]
-      assert attr(html, "#tile-p2-monsters-2", "phx-value-zone") == ["monsters"]
-      assert attr(html, "#tile-p2-monsters-2", "phx-value-index") == ["2"]
-      assert attr(html, "#tile-p2-monsters-2", "data-selected") == ["true"]
-      assert attr(html, "#tile-p2-monsters-2", "aria-current") == ["true"]
+      assert attr(html, "#board-dialog-tile-p2-monsters-2", "phx-click") == ["card"]
+      assert attr(html, "#board-dialog-tile-p2-monsters-2", "phx-value-key") == ["p2:monsters:2"]
+      assert attr(html, "#board-dialog-tile-p2-monsters-2", "phx-value-player") == ["2"]
+      assert attr(html, "#board-dialog-tile-p2-monsters-2", "phx-value-zone") == ["monsters"]
+      assert attr(html, "#board-dialog-tile-p2-monsters-2", "phx-value-index") == ["2"]
+      assert attr(html, "#board-dialog-tile-p2-monsters-2", "data-selected") == ["true"]
+      assert attr(html, "#board-dialog-tile-p2-monsters-2", "aria-current") == ["true"]
       assert count(html, "[data-selected=true]") == 1
     end
   end

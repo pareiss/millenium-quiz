@@ -4,13 +4,14 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
     Dev-only preview of the board view (`/dev/board`, only routed and compiled with
     `dev_routes`): `DuelComponents.duel_board/1` and `board_button/1` on fixture
     boards in the shape of its data contract. Pick a board with `?board=goat | edison
-    | pendulum | modern | empty`; the dialog opens by itself (`?open=0` keeps it
+    | pendulum | modern | puzzle | empty`; the dialog opens by itself (`?open=0` keeps it
     closed). Open it with `?theme=duel-dark` or `?theme=duel-light`.
 
     The fixtures: Goat (Master Rule 1/2, no Extra Monster Zones), Edison (hand and
     graveyard cards), Pendulum (Master Rule 3, scales), Modern (Master Rule 4: both
     Extra Monster Zones, an Xyz monster with overlay units, counters) and a nearly
-    empty board.
+    empty board and a Puzzle board with `"reveal_all" => true` (every face-down card can be
+    tapped and read; on the other boards only Player 1's can).
 
     The fixtures use the artwork crops in `priv/static/images/avatars` where a card
     has one and no artwork (the frame and an initial) otherwise.
@@ -26,6 +27,7 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
       {"edison", "Edison"},
       {"pendulum", "Pendulum"},
       {"modern", "Modern"},
+      {"puzzle", "Puzzle"},
       {"empty", "Empty"}
     ]
 
@@ -92,6 +94,7 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
                 class="aspect-square w-full object-cover"
               />
               <h3 class="text-lg font-bold">{@card["name"]}</h3>
+              <p :if={@card["pos"] == "set"} class="text-sm">Face-down</p>
               <p class="text-sm">
                 {@card["kind"]}<span :if={@card["atk"]}> · ATK {@card["atk"]}</span><span :if={
                   @card["def"]
@@ -168,13 +171,15 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
       )
     end
 
-    defp board("goat") do
+    @doc false
+    def board("goat") do
       %{
         "rule" => "mr1_2",
         "turn" => 3,
         "phase" => "main1",
         "turn_player" => 1,
         "emz" => [nil, nil],
+        "reveal_all" => false,
         "players" => [
           player(6200,
             monsters: [
@@ -220,13 +225,14 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
       }
     end
 
-    defp board("edison") do
+    def board("edison") do
       %{
         "rule" => "mr1_2",
         "turn" => 4,
         "phase" => "main1",
         "turn_player" => 1,
         "emz" => [nil, nil],
+        "reveal_all" => false,
         "players" => [
           player(8000,
             monsters: [
@@ -292,13 +298,14 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
       }
     end
 
-    defp board("pendulum") do
+    def board("pendulum") do
       %{
         "rule" => "mr3",
         "turn" => 5,
         "phase" => "battle",
         "turn_player" => 2,
         "emz" => [nil, nil],
+        "reveal_all" => false,
         "players" => [
           player(7300,
             monsters: [
@@ -360,12 +367,13 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
       }
     end
 
-    defp board("modern") do
+    def board("modern") do
       %{
         "rule" => "mr4",
         "turn" => 2,
         "phase" => "main2",
         "turn_player" => 2,
+        "reveal_all" => false,
         "emz" => [
           card("Decode Talker", "link", atk: 2300),
           card("Number 39: Utopia", "xyz", atk: 2500, def: 2000, overlay: 2)
@@ -414,13 +422,45 @@ if Application.compile_env(:millennium_quiz, :dev_routes) do
       }
     end
 
-    defp board("empty") do
+    # a puzzle: reveal_all lets every face-down card be tapped and read
+    def board("puzzle") do
+      %{
+        "rule" => "mr3",
+        "turn" => 1,
+        "phase" => "main1",
+        "turn_player" => 1,
+        "reveal_all" => true,
+        "emz" => [nil, nil],
+        "players" => [
+          player(1000,
+            monsters: [nil, mon("Jinzo", "effect", 2400, 1500, art: "jinzo"), nil, nil, nil],
+            spells: [nil, nil, set("Heavy Storm", "spell"), nil, nil],
+            hand: [spell("Mystical Space Typhoon")],
+            deck: 20
+          ),
+          player(2000,
+            monsters: [
+              nil,
+              nil,
+              mon("Spore", "effect", 400, 800, pos: "set", art: "spore"),
+              nil,
+              nil
+            ],
+            spells: [set("Mirror Force", "trap"), nil, set("Scapegoat", "spell"), nil, nil],
+            deck: 20
+          )
+        ]
+      }
+    end
+
+    def board("empty") do
       %{
         "rule" => "mr1_2",
         "turn" => nil,
         "phase" => nil,
         "turn_player" => nil,
         "emz" => [nil, nil],
+        "reveal_all" => false,
         "players" => [
           player(8000,
             monsters: [nil, nil, mon("Jinzo", "effect", 2400, 1500, art: "jinzo"), nil, nil],

@@ -4,7 +4,7 @@ defmodule MillenniumQuizWeb.DevBoardTest do
 
   import Phoenix.LiveViewTest
 
-  @boards ~w(goat edison pendulum modern empty)
+  @boards ~w(goat edison pendulum modern puzzle empty)
 
   test "every fixture board renders in an open dialog", %{conn: conn} do
     for board <- @boards do
@@ -19,7 +19,7 @@ defmodule MillenniumQuizWeb.DevBoardTest do
   test "an unknown board falls back to the Goat board", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/dev/board?board=nope")
     assert has_element?(view, "#fixture-goat.btn-primary")
-    assert has_element?(view, "#tile-p2-monsters-1[aria-label*=Jinzo]")
+    assert has_element?(view, "#board-dialog-tile-p2-monsters-1[aria-label*=Jinzo]")
   end
 
   test "Extra Monster Zones only on the modern board, hands only where the fixture has them", %{
@@ -30,6 +30,7 @@ defmodule MillenniumQuizWeb.DevBoardTest do
           {"edison", false, true},
           {"pendulum", false, false},
           {"modern", true, true},
+          {"puzzle", false, true},
           {"empty", false, false}
         ] do
       {:ok, view, _html} = live(conn, ~p"/dev/board?board=#{board}")
@@ -53,13 +54,29 @@ defmodule MillenniumQuizWeb.DevBoardTest do
     {:ok, view, _} = live(conn, ~p"/dev/board?board=goat")
     refute has_element?(view, "#board-detail")
 
-    view |> element("#tile-p2-monsters-1") |> render_click()
-    assert has_element?(view, "#tile-p2-monsters-1[data-selected=true]")
+    view |> element("#board-dialog-tile-p2-monsters-1") |> render_click()
+    assert has_element?(view, "#board-dialog-tile-p2-monsters-1[data-selected=true]")
     assert render(view) =~ "board-detail"
     assert has_element?(view, "#board-detail", "Jinzo")
 
-    view |> element("#tile-p2-monsters-1") |> render_click()
+    view |> element("#board-dialog-tile-p2-monsters-1") |> render_click()
     refute has_element?(view, "#board-detail")
+  end
+
+  test "a face-down card of Player 1 can be read, one of Player 2 is inert", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/dev/board?board=goat")
+    view |> element("#board-dialog-tile-p1-spells-2") |> render_click()
+    assert has_element?(view, "#board-detail", "Heavy Storm")
+    assert has_element?(view, "#board-detail", "Face-down")
+
+    refute has_element?(view, "button#board-dialog-tile-p2-spells-0")
+    assert has_element?(view, "#board-dialog-tile-p2-spells-0[aria-label^='Face-down card']")
+  end
+
+  test "on the puzzle board every face-down card can be read", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/dev/board?board=puzzle")
+    view |> element("#board-dialog-tile-p2-spells-0") |> render_click()
+    assert has_element?(view, "#board-detail", "Mirror Force")
   end
 
   test "a list item selects the card too", %{conn: conn} do
@@ -84,9 +101,10 @@ defmodule MillenniumQuizWeb.DevBoardTest do
 
   test "the fixtures keep to the data contract", %{conn: conn} do
     for board <- @boards do
-      {:ok, view, _} = live(conn, ~p"/dev/board?board=#{board}")
-      %{board: b} = :sys.get_state(view.pid).socket.assigns
+      b = MillenniumQuizWeb.Dev.BoardLive.board(board)
 
+      assert is_boolean(b["reveal_all"])
+      assert b["reveal_all"] == (board == "puzzle")
       assert b["rule"] in ["mr1_2", "mr3", "mr4"]
       assert [p1, p2] = b["players"]
       assert length(b["emz"]) == 2
