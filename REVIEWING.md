@@ -106,3 +106,9 @@ again, or when a design decision should stop being questioned.
   `<br />` and are handled. A value continuing on the next source line doesn't
   occur (0 of 300 random `Card Errata:` pages, checked 2026-10-03). Don't flag
   it unless a real page shows it.
+- **Pendulum scales are drawn in the outer Spell/Trap Zones for every Master
+  Rule.** In Master Rule 3 the Pendulum Zones were separate zones. The board
+  deliberately does not model them (the owner's decision, PR #69) so it stays
+  small; mechanically it only means 5 Spell/Traps plus 2 scales cannot be
+  shown. `Board.validate/2` rejects a scale and a Spell/Trap in the same outer
+  zone for every rule with scales. Don't flag it.

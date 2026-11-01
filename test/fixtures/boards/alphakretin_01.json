@@ -1,0 +1,199 @@
+{
+ "v": 1,
+ "turn": 1,
+ "phase": "main1",
+ "turnPlayer": 1,
+ "emz": [
+  null,
+  null
+ ],
+ "players": [
+  {
+   "lp": 1,
+   "monsters": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "spells": [
+    {
+     "code": 52112003,
+     "pos": "set"
+    },
+    {
+     "code": 1033312,
+     "pos": "set"
+    },
+    null,
+    null,
+    null
+   ],
+   "field": null,
+   "pendulum": [
+    null,
+    null
+   ],
+   "hand": [
+    {
+     "code": 48686504
+    },
+    {
+     "code": 30915572
+    },
+    {
+     "code": 87602890
+    }
+   ],
+   "grave": [],
+   "banished": [],
+   "extra": [
+    {
+     "code": 18967507
+    },
+    {
+     "code": 35952884
+    },
+    {
+     "code": 24696097
+    },
+    {
+     "code": 83531441
+    },
+    {
+     "code": 40418351
+    },
+    {
+     "code": 40418351
+    },
+    {
+     "code": 99267150
+    },
+    {
+     "code": 25586143
+    },
+    {
+     "code": 28912357
+    },
+    {
+     "code": 43378048
+    },
+    {
+     "code": 32752319
+    }
+   ],
+   "deck": 17
+  },
+  {
+   "lp": 500,
+   "monsters": [
+    {
+     "code": 41517789,
+     "pos": "atk"
+    },
+    {
+     "code": 66729231,
+     "pos": "atk"
+    },
+    {
+     "code": 45349196,
+     "pos": "atk"
+    },
+    {
+     "code": 49032236,
+     "pos": "atk"
+    },
+    {
+     "code": 94092230,
+     "pos": "atk"
+    }
+   ],
+   "spells": [
+    {
+     "code": 7153114,
+     "pos": "up"
+    },
+    {
+     "code": 94253609,
+     "pos": "up"
+    },
+    null,
+    null,
+    null
+   ],
+   "field": {
+    "code": 269012,
+    "pos": "up"
+   },
+   "pendulum": [
+    null,
+    {
+     "code": 45103815
+    }
+   ],
+   "hand": [
+    {
+     "code": 20450925
+    }
+   ],
+   "grave": [
+    {
+     "code": 28183605
+    },
+    {
+     "code": 59755122
+    },
+    {
+     "code": 21249921
+    },
+    {
+     "code": 50954680
+    },
+    {
+     "code": 5780210
+    },
+    {
+     "code": 70781052
+    },
+    {
+     "code": 74677422
+    },
+    {
+     "code": 6172122
+    },
+    {
+     "code": 29888389
+    },
+    {
+     "code": 46159582
+    },
+    {
+     "code": 54338958
+    },
+    {
+     "code": 54338958
+    },
+    {
+     "code": 54338958
+    },
+    {
+     "code": 24919805
+    },
+    {
+     "code": 51126152
+    },
+    {
+     "code": 76136345
+    }
+   ],
+   "banished": [
+    {
+     "code": 65192027
+    }
+   ],
+   "extra": [],
+   "deck": 0
+  }
+ ]
+}
