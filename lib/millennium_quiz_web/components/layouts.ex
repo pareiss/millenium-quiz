@@ -65,32 +65,32 @@ defmodule MillenniumQuizWeb.Layouts do
         <div class="flex-1" />
 
         <%= if @current_scope do %>
-          <%!-- from sm up the links sit in the bar; below it they fold into a menu --%>
-          <.link navigate={~p"/admin/formats"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
+          <%!-- from md (768px) up the links sit in the bar; below it they fold into a menu --%>
+          <.link navigate={~p"/admin/formats"} class="hidden md:inline-flex btn btn-ghost btn-sm">
             Formats
           </.link>
-          <.link navigate={~p"/admin/submissions"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
+          <.link navigate={~p"/admin/submissions"} class="hidden md:inline-flex btn btn-ghost btn-sm">
             Suggestions
             <span :if={@pending_submissions > 0} class="badge badge-primary badge-sm" id="nav-pending">
               {@pending_submissions}
             </span>
           </.link>
-          <.link navigate={~p"/admin/backup"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
+          <.link navigate={~p"/admin/backup"} class="hidden md:inline-flex btn btn-ghost btn-sm">
             Backup
           </.link>
-          <.link navigate={~p"/admin/users"} class="hidden sm:inline-flex btn btn-ghost btn-sm">
+          <.link navigate={~p"/admin/users"} class="hidden md:inline-flex btn btn-ghost btn-sm">
             <.icon name="hero-user-circle" class="size-4" />
             <span class="max-w-40 truncate">{@current_scope.user.username}</span>
           </.link>
           <.link
             href={~p"/admin/logout"}
             method="delete"
-            class="hidden sm:inline-flex btn btn-ghost btn-sm"
+            class="hidden md:inline-flex btn btn-ghost btn-sm"
             id="logout-link"
           >
             Log out
           </.link>
-          <div class="dropdown dropdown-end sm:hidden" id="admin-menu">
+          <div class="dropdown dropdown-end md:hidden" id="admin-menu">
             <div
               tabindex="0"
               role="button"

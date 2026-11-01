@@ -784,12 +784,13 @@ defmodule MillenniumQuizWeb.GameLive do
       <%!-- Below sm (a phone upright): two to a row, whatever the width. From sm
            up a card is a quarter of the row, between 8.5 and 11 rem wide: 4 fit
            a portrait tablet (a row of about 670 to 740 px), 3 the half column of
-           a landscape one, 2 a phone on its side --%>
+           a landscape one, 2 a phone on its side; a short screen (under 32rem high) lets
+           a card shrink to 6.5rem, so 4 fit there too --%>
       <div class="flex flex-wrap gap-3" id="question-cards">
         <article
           :for={{card, i} <- Enum.with_index(@cards)}
           id={"question-card-#{i}"}
-          class="w-[calc(50%-0.375rem)] sm:w-[clamp(8.5rem,calc((100%_-_2.25rem)/4),11rem)]"
+          class="w-[calc(50%-0.375rem)] sm:w-[clamp(8.5rem,calc((100%_-_2.25rem)/4),11rem)] [@media(min-width:40rem)_and_(max-height:32rem)]:w-[clamp(6.5rem,calc((100%_-_2.25rem)/4),11rem)]"
         >
           <div
             class="mq-nosel mq-owned relative cursor-zoom-in transition motion-safe:hover:-translate-y-1 hover:drop-shadow-lg"

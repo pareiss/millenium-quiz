@@ -74,6 +74,9 @@ VIEWPORTS = [
     ("phone 360x740", 360, 740, 2, 430),
     ("phone 320x568", 320, 568, 2, 560),
     ("phone landscape 844x390", 844, 390, 2, 450),
+    ("phone landscape 740x360", 740, 360, 2, 450),
+    ("phone landscape 667x375", 667, 375, 2, 450),
+    ("tablet landscape 1024x600", 1024, 600, 3, 300),
     # large screens: a monitor, a 4K one at 100% (1600x900 and up, see app.css); the
     # sizes are browser windows: the 1080p monitor's is about 1920x950
     ("desktop window 1920x950", 1920, 950, 4, 0),
@@ -264,6 +267,8 @@ with sync_playwright() as p:
         m = metrics(page)
         check(f"{name}: no horizontal overflow", m["overX"] <= 0, f"{m['overX']}px")
         check(f"{name}: {per_row} cards per row", m["perRow"] >= per_row, f"{m['perRow']}")
+        if w >= 640 and h <= 512:  # a phone or small tablet on its side: the cards shrink so all 4 fit a row
+            check(f"{name}: all 4 cards in one row (short landscape)", m["perRow"] >= 4, f"{m['perRow']}")
         large = is_large(w, h)
         check(f"{name}: {'player list with the question' if large else 'no score line'}", m["score"] == large,
               f"shown {m['score']}")
