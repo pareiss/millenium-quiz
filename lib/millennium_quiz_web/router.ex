@@ -63,6 +63,7 @@ defmodule MillenniumQuizWeb.Router do
       live "/questions/:id/edit", QuestionLive.Form, :edit
       live "/submissions", SubmissionLive.Index, :index
       live "/users", UserLive.Index, :index
+      live "/master-rules", MasterRulesLive, :index
       live "/backup", BackupLive, :index
     end
 

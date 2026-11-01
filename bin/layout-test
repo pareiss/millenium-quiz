@@ -40,7 +40,7 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
     fixed-damage note (no points field), on screen at every viewport; the question form has up and down buttons
     for the cards, on screen at every viewport, and they move a card (nothing is saved);
     every admin page (formats, new/edit format, format page, profile pictures, question form, suggestions, admins,
-    backup) at every viewport: no horizontal overflow, no cut-off text, every control >= 44px on touch viewports
+    backup, master rules) at every viewport: no horizontal overflow, no cut-off text, every control >= 44px on touch viewports
     (up to 1180px wide), a long question text in the format page's rows wraps;
     LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip.
     It logs in on the site it is pointed at, so use the throwaway site of CI or a local fixture, not a real one
@@ -901,6 +901,7 @@ with sync_playwright() as p:
             ("suggestions", "/admin/submissions", "#submission-filters"),
             ("admins", "/admin/users", "#new-user-form"),
             ("backup", "/admin/backup", "#restore-form"),
+            ("master rules", "/admin/master-rules", "#master-rules-form"),
         ]
         AUDIT = """() => {
           const d = document.documentElement
