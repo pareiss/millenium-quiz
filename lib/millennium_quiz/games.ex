@@ -74,7 +74,7 @@ defmodule MillenniumQuiz.Games do
   end
 
   # The passwords of the cards a resolved board draws (overlay units are only a
-  # count), once each.
+  # count, and the Extra Monster Zones only exist under Master Rule 4), once each.
   defp displayed_passwords(board) do
     zones =
       for player <- board["players"],
@@ -84,7 +84,9 @@ defmodule MillenniumQuiz.Games do
 
     fields = for player <- board["players"], do: player["field"]
 
-    (zones ++ fields ++ board["emz"])
+    emz = if board["rule"] == "mr4", do: board["emz"], else: []
+
+    (zones ++ fields ++ emz)
     |> Enum.reject(&is_nil/1)
     |> Enum.map(& &1["password"])
     |> Enum.uniq()

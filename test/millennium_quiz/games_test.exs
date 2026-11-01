@@ -192,6 +192,13 @@ defmodule MillenniumQuiz.GamesTest do
         set: [name: "Renamed", texts: %{"en" => "New text."}, atk: "9999"]
       )
 
+      # Stop the process so that the game is loaded from the stored JSONB,
+      # not read from memory.
+      [{pid, _}] = Registry.lookup(MillenniumQuiz.Games.Registry, id)
+      ref = Process.monitor(pid)
+      DynamicSupervisor.terminate_child(MillenniumQuiz.Games.Supervisor, pid)
+      assert_receive {:DOWN, ^ref, :process, ^pid, _}
+
       {:ok, %{game: again}} = Games.fetch_game(id)
       assert again == game
       assert Repo.get!(GameRecord, id).state == stored

@@ -360,8 +360,10 @@ defmodule MillenniumQuizWeb.GameBoardTest do
       record = Repo.get!(GameRecord, id)
 
       old =
-        update_in(record.state, ["questions"], fn questions ->
-          Enum.map(questions, &Map.drop(&1, ["board", "board_cards"]))
+        record.state
+        |> Map.delete("board_cards")
+        |> update_in(["questions"], fn questions ->
+          Enum.map(questions, &Map.delete(&1, "board"))
         end)
 
       record |> Ecto.Changeset.change(state: old) |> Repo.update!()
