@@ -44,6 +44,10 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
     (up to 1180px wide), a long question text in the format page's rows wraps;
     LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip.
     It logs in on the site it is pointed at, so use the throwaway site of CI or a local fixture, not a real one
+  - the board section of the admin question form (same admin login): at every viewport the collapsed section opens, the
+    textarea, the preview and remove buttons are on screen (44px or more on touch viewports), the pasted empty board
+    is valid and its preview dialog opens with the close button >= 44px and the mat on screen, a bad board lists its
+    issues on a tablet and a phone, Remove board empties the text (nothing is saved)
   - the board view, on the dev preview page /dev/board (five fixture boards, only with a server that has dev routes, so
     not on a release; LAYOUT_ONLY=board runs only these, LAYOUT_REQUIRE_BOARD=1 makes a missing page a failure):
     at every viewport no horizontal overflow, tiles 66px at 390, 54px at 320, 96px on a desktop, close button, chips,
@@ -943,6 +947,69 @@ with sync_playwright() as p:
                 if waits("(id) => document.querySelector('#selected-cards > li').id === 'selected-card-' + id", first,
                          f"{w}x{h}: and up again restores the order"):
                     check(f"{w}x{h}: and up again restores the order", card_order() == before, str(card_order()))
+
+        # The board section of the question form (a board is pasted as JSON; nothing is saved). An empty
+        # board needs no card in the pool, so this also runs on a release without the card dump.
+        print("Admin question form (board section)")
+        import json as _json
+        _pl = {"lp": 8000, "monsters": [None] * 5, "spells": [None] * 5}
+        empty_board = _json.dumps({"v": 1, "turn": 1, "phase": "main1", "players": [_pl, _pl]})
+        bad_board = _json.dumps({"v": 1, "turn": 0, "phase": "dinner", "players": [_pl, _pl]})
+        page.set_viewport_size({"width": 390, "height": 844})
+        board_toggle_start = page.evaluate("() => document.querySelector('#toggle-board-section')?.getAttribute('aria-expanded')")
+        check("the board section is there and collapsed on a question without a board", board_toggle_start == "false", str(board_toggle_start))
+        page.click("#toggle-board-section")
+        page.wait_for_selector("#question_board", state="visible")
+        page.fill("#question_board", empty_board)
+        page.wait_for_selector("#board-valid", timeout=5000)
+        BOARD_STATE = """() => {
+          const box = (s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect()
+            return {w: Math.round(r.width), h: Math.round(r.height), inside: r.width > 0 && r.left >= 0 && r.right <= innerWidth} }
+          return {overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                  toggle: box('#toggle-board-section'), area: box('#question_board'), btn: box('#board-preview-button'),
+                  remove: box('#remove-board')}
+        }"""
+        for name, w, h, _, _ in VIEWPORTS:
+            page.set_viewport_size({"width": w, "height": h})
+            page.wait_for_timeout(100)
+            b = page.evaluate(BOARD_STATE)
+            touch_vp = w <= 1180
+            ok = (b["overX"] <= 0 and all(b[k] and b[k]["inside"] for k in ("toggle", "area", "btn", "remove"))
+                  and (not touch_vp or all(b[k]["h"] >= 43.5 for k in ("toggle", "btn", "remove"))))
+            check(f"{name}: admin board section: textarea, preview and remove buttons on screen"
+                  + (", buttons 44px or more" if touch_vp else "") + ", no horizontal overflow", ok, str(b))
+            page.click("#board-preview-button")
+            page.wait_for_selector("#board-preview", state="visible")
+            d = page.evaluate(
+                """() => {
+                  const c = document.querySelector('#board-preview-close').getBoundingClientRect()
+                  const m = document.querySelector('#board-preview .duel-board-mat')
+                  const t = m && m.getBoundingClientRect()
+                  return {overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                          close: c.width >= 43.5 && c.height >= 43.5 && c.top >= 0 && c.right <= innerWidth,
+                          tile: !!t && t.width >= 200 && t.right <= innerWidth + 0.5 && t.left >= 0}
+                }""")
+            check(f"{name}: admin board preview opens: close button 44px or more, the mat on screen, no horizontal overflow",
+                  d["overX"] <= 0 and d["close"] and d["tile"], str(d))
+            page.click("#board-preview-close")
+            page.wait_for_selector("#board-preview", state="detached")
+        for w, h in [(768, 1024), (390, 844)]:  # a tablet, a phone
+            page.set_viewport_size({"width": w, "height": h})
+            page.fill("#question_board", bad_board)
+            page.wait_for_selector("#board-issues", timeout=5000)
+            i = page.evaluate(
+                """() => {
+                  const e = document.querySelector('#board-issues'), r = e.getBoundingClientRect()
+                  return {items: e.querySelectorAll('li').length, inside: r.left >= 0 && r.right <= innerWidth,
+                          preview: !!document.querySelector('#board-preview-button'),
+                          overX: document.documentElement.scrollWidth - document.documentElement.clientWidth}
+                }""")
+            check(f"{w}x{h}: a bad board lists its issues on screen and has no preview, no horizontal overflow",
+                  i["items"] >= 2 and i["inside"] and not i["preview"] and i["overX"] <= 0, str(i))
+        page.click("#remove-board")
+        page.wait_for_selector("#board-status:has-text('No board.')")
+        check("Remove board empties the text", page.input_value("#question_board") == "", page.input_value("#question_board"))
+        page.set_viewport_size({"width": 1280, "height": 900})
 
         # The profile pictures of a format (the admin page of "Layout check pictures": 5 cards)
         print("Admin format page (profile pictures)")

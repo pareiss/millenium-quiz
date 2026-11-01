@@ -1,8 +1,14 @@
 defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   use MillenniumQuizWeb, :live_view
 
+  import MillenniumQuizWeb.DuelComponents, only: [duel_board: 1, board_button: 1]
+
   alias MillenniumQuiz.{Cards, Quiz}
-  alias MillenniumQuiz.Quiz.{CardLinks, Choice, Question}
+  alias MillenniumQuiz.Quiz.{Board, CardLinks, Choice, Question}
+
+  # pasted board JSON; a board is a few KB, this only stops absurd input
+  @max_board_bytes 60_000
+  @shown_issues 5
 
   @impl true
   def render(assigns) do
@@ -335,11 +341,141 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
             </button>
           </fieldset>
 
+          <section
+            class="duel-plate duel-sub space-y-3 rounded-field border border-base-300 p-3"
+            id="board-section"
+          >
+            <div class="flex items-start gap-2">
+              <div class="min-w-0 flex-1">
+                <h2 class="font-medium">
+                  Board
+                  <span :if={@board_state.board} class="badge badge-ghost badge-sm ml-1">
+                    attached
+                  </span>
+                </h2>
+                <p class="text-sm text-base-content/60">
+                  Optional: a board players can open while this question is shown. Paste it as stored (with reveal_all); empty means no board.
+                </p>
+              </div>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm min-h-11"
+                phx-click="toggle_board_section"
+                id="toggle-board-section"
+                aria-expanded={to_string(@board_open)}
+                aria-controls="board-section-body"
+              >
+                <.icon
+                  name={if @board_open, do: "hero-chevron-up", else: "hero-chevron-down"}
+                  class="size-4"
+                /> {if @board_open, do: "Hide", else: "Show"}
+              </button>
+            </div>
+
+            <%!-- hidden, not removed, when collapsed: the text must stay in the form --%>
+            <div id="board-section-body" class="space-y-3" hidden={!@board_open}>
+              <.input
+                id="question_board"
+                name="question[board]"
+                value={@board_text}
+                type="textarea"
+                label="Board JSON"
+                rows="8"
+                maxlength={@max_board_bytes}
+                spellcheck="false"
+                autocomplete="off"
+                phx-debounce="500"
+                class="w-full textarea font-mono text-xs"
+                aria-describedby="board-status"
+              />
+
+              <div id="board-status" role="status" class="space-y-1 text-sm">
+                <p :if={@board_text == ""} class="text-base-content/60">No board.</p>
+                <p
+                  :if={@board_text != "" and @board_state.issues == []}
+                  class="flex items-center gap-2 text-success"
+                  id="board-valid"
+                >
+                  <.icon name="hero-check-circle" class="size-5 shrink-0" />
+                  Valid for {display_date(@topic.format.date)}.
+                </p>
+                <div :if={@board_state.issues != []} id="board-issues" class="space-y-1 text-error">
+                  <p :if={@board_state.board == nil} class="font-medium" id="board-unsaved">
+                    This is not a valid board: saving the question leaves it out.
+                  </p>
+                  <p :if={@board_state.board != nil} class="font-medium" id="board-unfit">
+                    Saving keeps this board, but it is not shown in games until these are fixed.
+                  </p>
+                  <p class="flex items-center gap-2">
+                    <.icon name="hero-exclamation-circle" class="size-5 shrink-0" />
+                    {issue_count(@board_state.issues)}
+                  </p>
+                  <ul class="list-disc pl-8">
+                    <li :for={issue <- Enum.take(@board_state.issues, @shown_issues)}>
+                      <span class="font-medium">{issue.path}</span>: {issue.message}
+                    </li>
+                  </ul>
+                  <p :if={length(@board_state.issues) > @shown_issues} class="pl-8">
+                    and {length(@board_state.issues) - @shown_issues} more.
+                  </p>
+                  <p :if={@missing_codes != []} class="pl-8 text-base-content/70" id="board-missing">
+                    Not in the card pool: {Enum.join(@missing_codes, ", ")}. Add those cards to a question first.
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-3">
+                <.board_button
+                  :if={@board_preview}
+                  id="board-preview-button"
+                  board={@board_preview}
+                  on_click="open_board_preview"
+                />
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm min-h-11"
+                  phx-click="remove_board"
+                  id="remove-board"
+                  disabled={@board_text == ""}
+                >
+                  <.icon name="hero-trash" class="size-4" /> Remove board
+                </button>
+              </div>
+            </div>
+          </section>
+
           <div class="flex gap-2 pt-2">
             <.button variant="primary" phx-disable-with="Saving…" id="save-question">Save</.button>
             <.button navigate={@return_to}>Cancel</.button>
           </div>
         </.form>
+
+        <.duel_board
+          :if={@board_preview && @preview_open}
+          id="board-preview"
+          board={@board_preview}
+          on_close="close_board_preview"
+          on_card="board_card"
+          selected={@board_selected}
+        >
+          <:detail :if={@board_card}>
+            <div id="board-preview-detail" class="flex flex-col gap-2">
+              <img
+                :if={@board_card["art"]}
+                src={@board_card["art"]}
+                alt=""
+                class="aspect-square w-full object-cover"
+              />
+              <h3 class="text-lg font-bold">{@board_card["name"]}</h3>
+              <p :if={@board_card["pos"] == "set"} class="text-sm">Face-down</p>
+              <p class="text-sm">
+                {@board_card["kind"]}<span :if={@board_card["atk"]}> · ATK {@board_card["atk"]}</span><span :if={
+                  @board_card["def"]
+                }> · DEF {@board_card["def"]}</span>
+              </p>
+            </div>
+          </:detail>
+        </.duel_board>
       </div>
     </Layouts.app>
     """
@@ -415,8 +551,54 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
     |> assign(:results, [])
     |> assign(:search_error, nil)
     |> assign(:importing, nil)
+    |> assign(:max_board_bytes, @max_board_bytes)
+    |> assign(:shown_issues, @shown_issues)
+    |> assign(:board_open, question.board != nil)
+    |> assign(:preview_open, false)
+    |> assign_board(board_text(question.board))
     |> assign_unlinked_names()
   end
+
+  defp board_text(nil), do: ""
+  defp board_text(board), do: Jason.encode!(board, pretty: true)
+
+  # Checks the pasted text against the format's date and keeps what the
+  # section shows: the cast board, the issues, the resolved board for the preview.
+  defp assign_board(socket, text) do
+    text = if is_binary(text), do: String.trim(text), else: ""
+    date = socket.assigns.topic.format.date
+    state = board_state(text, date)
+
+    socket
+    |> assign(:board_text, text)
+    |> assign(:board_state, state)
+    |> assign(:board_selected, nil)
+    |> assign(:board_card, nil)
+    |> assign(:missing_codes, Board.missing_passwords(state.issues))
+    |> assign(:board_preview, state.board && Board.resolve(state.board, date))
+  end
+
+  defp board_state("", _date), do: %{board: nil, issues: []}
+
+  defp board_state(text, _date) when byte_size(text) > @max_board_bytes do
+    %{board: nil, issues: [%{kind: :shape, path: "board", message: "is too long", code: nil}]}
+  end
+
+  defp board_state(text, date) do
+    case Board.cast(text) do
+      {:ok, board} ->
+        case Board.validate(board, date) do
+          :ok -> %{board: board, issues: []}
+          {:error, issues} -> %{board: board, issues: issues}
+        end
+
+      {:error, issues} ->
+        %{board: nil, issues: issues}
+    end
+  end
+
+  defp issue_count([_]), do: "1 problem with the board:"
+  defp issue_count(issues), do: "#{length(issues)} problems with the board:"
 
   defp owner_value(owners, card_id), do: owners |> Map.get(card_id) |> to_string_or_none()
   defp to_string_or_none(nil), do: "none"
@@ -464,47 +646,65 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
   def handle_event("validate", %{"question" => params}, socket) do
     changeset = Quiz.change_question(socket.assigns.question, params)
 
+    # no "board" key: the section is not in the form, the board stays as it is
+    # (and typing in the question does not check the board again)
+    socket =
+      case params do
+        %{"board" => text} when is_binary(text) ->
+          if String.trim(text) == socket.assigns.board_text,
+            do: socket,
+            else: assign_board(socket, text)
+
+        _ ->
+          socket
+      end
+
     {:noreply,
      socket |> assign(:form, to_form(changeset, action: :validate)) |> assign_unlinked_names()}
   end
 
   def handle_event("save", %{"question" => params}, socket) do
-    cards = card_entries(socket)
+    socket =
+      if Map.has_key?(params, "board"), do: assign_board(socket, params["board"]), else: socket
 
-    result =
-      case {socket.assigns.live_action, socket.assigns.submission} do
-        {:new, nil} ->
-          Quiz.create_question(socket.assigns.topic, params, cards)
+    # A board is optional: one that does not cast is left out (the stored one stays),
+    # one that casts is kept even when it does not fit the format's date.
+    %{board: board, issues: issues} = socket.assigns.board_state
+    text = socket.assigns.board_text
 
-        {:new, submission} ->
-          Quiz.approve_submission(submission, socket.assigns.topic, params, cards)
-
-        {:edit, _} ->
-          Quiz.update_question(socket.assigns.question, params, cards)
-      end
-
-    case result do
-      {:ok, _question} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Question saved.")
-         |> push_navigate(
-           to:
-             if(socket.assigns.submission,
-               do: ~p"/admin/submissions",
-               else: socket.assigns.return_to
-             )
-         )}
-
-      {:error, :reviewed} ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "That suggestion was already reviewed.")
-         |> push_navigate(to: ~p"/admin/submissions")}
-
-      {:error, changeset} ->
-        {:noreply, socket |> assign(:form, to_form(changeset)) |> assign_unlinked_names()}
+    cond do
+      not Map.has_key?(params, "board") -> save(socket, params, nil)
+      text == "" -> save(socket, params, nil)
+      board == nil -> save(socket, Map.delete(params, "board"), :not_saved)
+      issues == [] -> save(socket, Map.put(params, "board", text), nil)
+      true -> save(socket, Map.put(params, "board", text), :problems)
     end
+  end
+
+  def handle_event("toggle_board_section", _params, socket),
+    do: {:noreply, assign(socket, :board_open, !socket.assigns.board_open)}
+
+  def handle_event("remove_board", _params, socket) do
+    params = Map.put(socket.assigns.form.params || %{}, "board", "")
+    changeset = Quiz.change_question(socket.assigns.question, params)
+
+    {:noreply,
+     socket
+     |> assign_board("")
+     |> assign(:preview_open, false)
+     |> assign(:form, to_form(changeset, action: socket.assigns.form.source.action))}
+  end
+
+  def handle_event("open_board_preview", _params, socket),
+    do: {:noreply, assign(socket, :preview_open, true)}
+
+  def handle_event("close_board_preview", _params, socket),
+    do: {:noreply, assign(socket, preview_open: false, board_selected: nil, board_card: nil)}
+
+  def handle_event("board_card", %{"key" => key}, socket) when is_binary(key) do
+    key = if socket.assigns.board_selected == key, do: nil, else: key
+    card = key && board_card(socket.assigns.board_preview, key)
+    {:noreply, assign(socket, board_selected: card && key, board_card: card)}
   end
 
   def handle_event("search_cards", %{"card_search" => %{"query" => query}}, socket) do
@@ -703,6 +903,91 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
       |> assign(:form, to_form(changeset, action: form.source.action))
       # a focused textarea is not patched by LiveView; tell the hook as well
       |> push_event("card_links:set_text", %{text: new_text})
+    end
+  end
+
+  # "emz:0", "p1:monsters:2": the same keys the board component sends
+  defp board_card(board, key) do
+    case String.split(key, ":") do
+      ["emz", i] -> board["emz"] |> Enum.at(index(i))
+      ["p" <> seat, zone, i] -> seat_card(board, seat, zone, index(i))
+      _ -> nil
+    end
+  end
+
+  defp seat_card(board, seat, zone, i) when seat in ["1", "2"] and is_integer(i) do
+    player = Enum.at(board["players"], String.to_integer(seat) - 1)
+
+    case zone do
+      "field" -> player["field"]
+      z when z in ~w(monsters spells hand grave banished extra) -> Enum.at(player[z], i)
+      _ -> nil
+    end
+  end
+
+  defp seat_card(_board, _seat, _zone, _i), do: nil
+
+  defp index(i) do
+    case Integer.parse(i) do
+      {n, ""} when n >= 0 -> n
+      _ -> -1
+    end
+  end
+
+  defp put_board_flash(socket, nil), do: put_flash(socket, :info, "Question saved.")
+
+  defp put_board_flash(socket, :problems) do
+    put_flash(
+      socket,
+      :info,
+      "Saved. The board has problems, so it will not be shown in games until they are fixed."
+    )
+  end
+
+  defp put_board_flash(socket, :not_saved) do
+    put_flash(
+      socket,
+      :error,
+      "The question was saved, but the board was not: it is not a valid board. Edit the question to try again."
+    )
+  end
+
+  defp save(socket, params, board_note) do
+    cards = card_entries(socket)
+
+    result =
+      case {socket.assigns.live_action, socket.assigns.submission} do
+        {:new, nil} ->
+          Quiz.create_question(socket.assigns.topic, params, cards)
+
+        {:new, submission} ->
+          Quiz.approve_submission(submission, socket.assigns.topic, params, cards)
+
+        {:edit, _} ->
+          Quiz.update_question(socket.assigns.question, params, cards)
+      end
+
+    case result do
+      {:ok, _question} ->
+        {:noreply,
+         socket
+         |> put_board_flash(board_note)
+         |> push_navigate(
+           to:
+             if(socket.assigns.submission,
+               do: ~p"/admin/submissions",
+               else: socket.assigns.return_to
+             )
+         )}
+
+      {:error, :reviewed} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "That suggestion was already reviewed.")
+         |> push_navigate(to: ~p"/admin/submissions")}
+
+      {:error, changeset} ->
+        {:noreply, socket |> assign(:form, to_form(changeset)) |> assign_unlinked_names()}
     end
   end
 
