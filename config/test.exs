@@ -64,3 +64,7 @@ config :millennium_quiz, MillenniumQuiz.Cards.CardNames.Refresher, enabled: fals
 # The dev-only pages (/dev/...: style guides and previews of the components) are routed in
 # tests too, so their pages and fixtures are tested
 config :millennium_quiz, dev_routes: true
+
+# The Master Rule settings are read from the database on every call in tests,
+# so a test that edits them cannot leak into another (see Quiz.MasterRules).
+config :millennium_quiz, MillenniumQuiz.Quiz.MasterRules, cache: false
