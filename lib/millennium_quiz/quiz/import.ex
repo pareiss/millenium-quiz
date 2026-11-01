@@ -19,6 +19,13 @@ defmodule MillenniumQuiz.Quiz.Import do
       than in the file (renamed since the export), the marker is rewritten to
       the current name so it still links, and a warning says so.
 
+    * A question's `"board"` is cast with `Board.cast/1` and validated against
+      the format's date with `Board.validate/2`; cards the pool lacks are
+      fetched like question cards. A board that is malformed, breaks a rule of
+      the format (zone, release date) or has a card that cannot be fetched is
+      dropped: the question is created with its text and choices, and a
+      warning names the question and the reason (`boards_skipped`).
+
   `run/2` returns `{:ok, summary}` or `{:error, message}`. Options:
   `:pause_ms` (pause between remote card fetches, default as
   `Cards.refresh_all/0`).
@@ -27,7 +34,7 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   alias MillenniumQuiz.{Cards, Quiz, Repo}
   alias MillenniumQuiz.Cards.Card
-  alias MillenniumQuiz.Quiz.{CardLinks, Choice, Export, Format, Question}
+  alias MillenniumQuiz.Quiz.{Board, CardLinks, Choice, Export, Format, Question}
 
   @max_bytes 5_000_000
   @max_formats 50
@@ -49,6 +56,8 @@ defmodule MillenniumQuiz.Quiz.Import do
           cards_missing: non_neg_integer,
           avatars: non_neg_integer,
           avatars_missing: non_neg_integer,
+          boards: non_neg_integer,
+          boards_skipped: non_neg_integer,
           warnings: [String.t()]
         }
 
@@ -180,17 +189,38 @@ defmodule MillenniumQuiz.Quiz.Import do
          true <- is_list(cards) or {:error, "cards must be a list."},
          :ok <- count(cards, @max_cards, "cards"),
          {:ok, cards} <- each(cards, &card/1, "card") do
+      {board, board_error} = board(Map.get(q, "board"))
+
       {:ok,
        %{
          text: text,
          submitted_by: submitted_by,
          choices: choices,
-         cards: cards
+         cards: cards,
+         board: board,
+         board_error: board_error
        }}
     end
   end
 
   defp question(_), do: {:error, "needs a text and a list of choices."}
+
+  # Optional. A board that does not cast costs the board (a warning later),
+  # never the file.
+  defp board(nil), do: {nil, nil}
+
+  defp board(input) do
+    case Board.cast(input) do
+      {:ok, board} -> {board, nil}
+      {:error, issues} -> {nil, issues_text(issues)}
+    end
+  end
+
+  defp issues_text(issues) do
+    shown = issues |> Enum.take(3) |> Enum.map_join("; ", &"#{&1.path}: #{&1.message}")
+    more = length(issues) - 3
+    if more > 0, do: "#{shown}; and #{more} more", else: shown
+  end
 
   defp choice(%{"text" => text, "correct" => correct}) when is_boolean(correct) do
     with :ok <- text(text, "text"), do: {:ok, %{"text" => text, "correct" => correct}}
@@ -261,6 +291,8 @@ defmodule MillenniumQuiz.Quiz.Import do
     cards_missing: 0,
     avatars: 0,
     avatars_missing: 0,
+    boards: 0,
+    boards_skipped: 0,
     warnings: []
   }
 
@@ -354,6 +386,7 @@ defmodule MillenniumQuiz.Quiz.Import do
       |> Enum.flat_map(& &1.cards)
       |> Enum.concat(format.avatars)
       |> Enum.map(& &1.password)
+      |> Enum.concat(board_passwords(format))
       |> Enum.uniq()
 
     cards = resolve(passwords, cards, pause)
@@ -370,6 +403,16 @@ defmodule MillenniumQuiz.Quiz.Import do
     end
   end
 
+  # The cards of the boards that the pool lacks (Board.validate/2 says which).
+  defp board_passwords(format) do
+    for topic <- format.topics,
+        q <- topic.questions,
+        q.board,
+        {:error, issues} <- [Board.validate(q.board, format.date)],
+        password <- Board.missing_passwords(issues),
+        do: password
+  end
+
   defp merge(summary, format, counts) do
     %{
       summary
@@ -380,6 +423,8 @@ defmodule MillenniumQuiz.Quiz.Import do
         cards_missing: summary.cards_missing + counts.missing,
         avatars: summary.avatars + counts.avatars,
         avatars_missing: summary.avatars_missing + counts.avatars_missing,
+        boards: summary.boards + counts.boards,
+        boards_skipped: summary.boards_skipped + counts.boards_skipped,
         warnings: Enum.reverse(counts.warnings, summary.warnings)
     }
   end
@@ -430,10 +475,19 @@ defmodule MillenniumQuiz.Quiz.Import do
         counts =
           created.topics
           |> Enum.zip(format.topics)
-          |> Enum.reduce(%{questions: 0, linked: 0, missing: 0, warnings: []}, fn {topic, data},
-                                                                                  acc ->
-            create_questions(topic, data, format.name, pool, acc)
-          end)
+          |> Enum.reduce(
+            %{
+              questions: 0,
+              linked: 0,
+              missing: 0,
+              boards: 0,
+              boards_skipped: 0,
+              warnings: []
+            },
+            fn {topic, data}, acc ->
+              create_questions(topic, data, format, pool, acc)
+            end
+          )
 
         {created, counts}
       end)
@@ -515,16 +569,23 @@ defmodule MillenniumQuiz.Quiz.Import do
     "#{format}: avatar card #{name} (#{password}) #{why} and is not a profile picture."
   end
 
-  defp create_questions(topic, data, format_name, pool, acc) do
+  defp create_questions(topic, data, format, pool, acc) do
+    format_name = format.name
+
     data.questions
     |> Enum.with_index(1)
     |> Enum.reduce(acc, fn {q, i}, acc ->
       {entries, text, warnings, missing} = link_cards(q, pool, format_name, data.name, i)
 
+      {board, board_warnings} = restore_board(q, format.date, text, format_name, data.name, i)
+      warnings = warnings ++ board_warnings
+      had_board? = q.board != nil or q.board_error != nil
+
       attrs = %{
         "text" => text,
         "submitted_by" => q.submitted_by,
-        "choices" => q.choices
+        "choices" => q.choices,
+        "board" => board
       }
 
       case Quiz.create_question(topic, attrs, entries) do
@@ -532,6 +593,8 @@ defmodule MillenniumQuiz.Quiz.Import do
           %{
             acc
             | questions: acc.questions + 1,
+              boards: acc.boards + if(board, do: 1, else: 0),
+              boards_skipped: acc.boards_skipped + if(had_board? and !board, do: 1, else: 0),
               linked: acc.linked + length(Enum.uniq_by(entries, &elem(&1, 0))),
               missing: acc.missing + missing,
               warnings: Enum.reverse(warnings, acc.warnings)
@@ -541,6 +604,40 @@ defmodule MillenniumQuiz.Quiz.Import do
           Repo.rollback({:question, "topic \"#{data.name}\", question #{i}", cs})
       end
     end)
+  end
+
+  # {board or nil, warnings}. The board is checked again now that the cards
+  # have been fetched; a card that could not be fetched is still missing.
+  defp restore_board(%{board: nil, board_error: nil}, _date, _text, _f, _t, _i), do: {nil, []}
+
+  defp restore_board(%{board: nil, board_error: error}, _date, text, f, t, i),
+    do: {nil, [board_warning(f, t, i, text, error)]}
+
+  defp restore_board(%{board: board}, date, text, f, t, i) do
+    case Board.validate(board, date) do
+      :ok ->
+        {board, []}
+
+      {:error, issues} ->
+        reason =
+          issues
+          |> Enum.take(3)
+          |> Enum.map_join("; ", fn
+            %{kind: :missing, code: code, path: path} ->
+              "#{path}: card #{code} could not be fetched"
+
+            issue ->
+              "#{issue.path}: #{issue.message}"
+          end)
+          |> then(&if(length(issues) > 3, do: "#{&1}; and #{length(issues) - 3} more", else: &1))
+
+        {nil, [board_warning(f, t, i, text, reason)]}
+    end
+  end
+
+  defp board_warning(format_name, topic_name, i, text, reason) do
+    "#{format_name} / #{topic_name} / question #{i} (\"#{String.slice(text, 0, 40)}\"): " <>
+      "the board was not restored and the question has none: #{reason}."
   end
 
   defp link_cards(q, pool, format_name, topic_name, i) do

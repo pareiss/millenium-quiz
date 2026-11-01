@@ -48,6 +48,13 @@ defmodule MillenniumQuiz.Quiz.Export do
   `Quiz.set_avatar_crop/2`) only when a crop is stored for it. A backup
   without crops imports as before (the format stays version 1).
 
+  A question has a `"board"` (the stored shape of `Quiz.Board`, codes only,
+  including `"reveal_all"`) only when it has one. The format stays version 1:
+  a backup without boards imports as before, and an importer from before
+  boards simply ignores the key (a question comes back without its board).
+  The import validates the board against the format's date, fetches cards the
+  pool lacks, and restores the question without the board when that fails.
+
   A card has an `"owner"` (1 or 2, the player it belongs to in the question)
   only when a player owns it. The format stays version 1: a backup without
   owners imports as before, with no card owned.
@@ -130,6 +137,7 @@ defmodule MillenniumQuiz.Quiz.Export do
       "choices" => Enum.map(q.choices, &%{"text" => &1.text, "correct" => &1.correct}),
       "cards" => Enum.map(q.question_cards, &card/1)
     }
+    |> then(&if(q.board, do: Map.put(&1, "board", q.board), else: &1))
   end
 
   # "owner" only when a player owns the card, so a backup without owners is

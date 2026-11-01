@@ -229,6 +229,16 @@ The technical details follow.
   says `Profile pictures: N restored, M missing`. Backups made before this
   existed have no such key and import with no pictures (the format version
   stays 1; `backups/*.json` are imported in the tests).
+- **Boards** (`"board"` of a question, written only when it has one: the
+  stored `board.v1` shape with card passwords, including `"reveal_all"`) are
+  checked on import against the format's date, like in the question form (cards
+  in the pool and released by then, only zones the Master Rule has). Cards the
+  pool lacks are fetched one at a time like question cards. A board that is
+  malformed, breaks a rule or has a card that cannot be fetched is not
+  restored: the question still comes back with its text and choices, and a
+  warning names the question and the reason. The result list says
+  `Boards: N restored, M skipped`. The backup `version` stays 1 (older files
+  have no board and import as before; an older importer ignores the key).
 - **Restoring** never overwrites: a format whose name already exists is
   skipped, so importing the same file twice is harmless. Each format is created
   on its own; one that breaks a rule (for example fewer than 2 topics) is
