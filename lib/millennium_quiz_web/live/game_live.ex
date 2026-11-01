@@ -62,6 +62,14 @@ defmodule MillenniumQuizWeb.GameLive do
             <.reveal_panel game={@game} turn_locked={@turn_locked} crops={@crops} />
         <% end %>
 
+        <%!-- The board comes before the other overlays in the page, so the card
+             zoom and the end-game dialog stack above it (all are fixed, z-50). --%>
+        <.board_dialog
+          :if={@board_open and @status == :active and @game.phase in [:answering, :revealed]}
+          game={@game}
+          selected={@board_selected}
+          wide={@board_wide}
+        />
         <.zoomed_card
           :if={@zoom && @status == :active && @game.phase in [:answering, :revealed]}
           game={@game}
@@ -388,6 +396,7 @@ defmodule MillenniumQuizWeb.GameLive do
             <.question_text question={@question} />
           </p>
           <.question_link_popovers question={@question} />
+          <.question_board_button question={@question} />
           <.question_cards cards={@question.cards} />
         </div>
         <div class="space-y-3 sm:space-y-5">
@@ -623,6 +632,7 @@ defmodule MillenniumQuizWeb.GameLive do
             <.question_text question={@question} />
           </p>
           <.question_link_popovers question={@question} />
+          <.question_board_button question={@question} />
           <.question_cards cards={@question.cards} />
           <p class="flex items-center gap-2 text-sm text-base-content/60">
             Chosen by <.avatar slug={@chooser.avatar} crop={@crops[@chooser.avatar]} class="size-9" />
@@ -824,6 +834,149 @@ defmodule MillenniumQuizWeb.GameLive do
     <.card_credit :if={@cards != []} />
     """
   end
+
+  attr :question, :map, required: true
+
+  # The "Board" button of a question that has a board (nothing otherwise, and
+  # in games from before boards). It only opens the dialog: no game state.
+  defp question_board_button(assigns) do
+    ~H"""
+    <.board_button
+      :if={@question.board}
+      id="board-button"
+      board={@question.board}
+      on_click="open_board"
+    />
+    """
+  end
+
+  attr :game, Game, required: true
+  attr :selected, :string, default: nil, doc: "the key of the tapped tile"
+  attr :wide, :boolean, default: false, doc: "from 900px: the card shows in the side panel"
+
+  # The board of the current question in a dialog, open for everyone (the state
+  # lives in the assigns `board_open` and `board_selected`, so patches keep it).
+  # Below 900px a tapped tile opens the card dialog above the board; from 900px
+  # the card sits in the board's side panel. The browser tells which one applies
+  # (`board_layout` event of the `.BoardLayer` hook), the server cannot know.
+  defp board_dialog(assigns) do
+    question = Game.current_question(assigns.game)
+
+    {card, detail} =
+      case question && board_lookup(question, assigns.selected) do
+        {:ok, card, detail} -> {card, detail}
+        _ -> {nil, nil}
+      end
+
+    assigns =
+      assign(assigns,
+        question: question,
+        tile: card,
+        detail: detail,
+        card_open?: detail != nil and not assigns.wide
+      )
+
+    ~H"""
+    <div :if={@question && @question.board} id="board-layer" class="contents" phx-hook=".BoardLayer">
+      <.duel_board
+        id="board-dialog"
+        board={@question.board}
+        on_close={
+          # While the card dialog is open above, Escape belongs to it.
+          if(@card_open?,
+            do: %JS{},
+            else: JS.push("close_board") |> JS.focus(to: "#board-button")
+          )
+        }
+        on_card="board_card"
+        selected={@selected}
+      >
+        <:detail :if={@detail && @wide}>
+          <div id="board-detail" class="space-y-2">
+            <.card card={@detail} />
+            <p :if={@tile["pos"] == "set"} class="text-xs text-base-content/70" id="board-detail-set">
+              Face-down on the board.
+            </p>
+            <.card_credit />
+          </div>
+        </:detail>
+      </.duel_board>
+      <.card_dialog
+        :if={@card_open?}
+        id="board-card-zoom"
+        card={@detail}
+        on_close="close_board_card"
+      >
+        <p :if={@tile["pos"] == "set"} class="text-center text-sm text-white/90">
+          Face-down on the board.
+        </p>
+        <.card_credit class="text-center text-white/70" />
+      </.card_dialog>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".BoardLayer">
+        // Tells the server whether the board has room for its side panel (900px,
+        // as in app.css), and hands the focus back to the tile after the card dialog.
+        export default {
+          mounted() {
+            this.wide = window.matchMedia("(min-width: 56.25rem)")
+            this.report = () => this.pushEvent("board_layout", {wide: this.wide.matches})
+            this.wide.addEventListener("change", this.report)
+            this.report()
+            this.handleEvent("board:focus", ({id}) => document.getElementById(id)?.focus())
+          },
+          destroyed() { this.wide.removeEventListener("change", this.report) }
+        }
+      </script>
+    </div>
+    """
+  end
+
+  @doc """
+  Looks a tapped tile up in the board of a question as snapshotted in the game:
+  `{:ok, board_card, card}` with the card as the board draws it and the full
+  card (`Game.card` shape) for `card/1`, or `:error`. `key` comes from the
+  browser (`"p1:monsters:2"`, `"emz:0"`, ...) and is never trusted: a malformed
+  key, a zone the board does not draw, a card that is not on the board, a card
+  the dialog would not let the player read (a face-down card of Player 2 on a
+  board without `reveal_all`) and a card without details are all `:error`.
+  """
+  @spec board_lookup(map, term) :: {:ok, map, map} | :error
+  def board_lookup(%{board: %{} = board, board_cards: details}, key) when is_binary(key) do
+    with {:ok, seat, card} <- board_slot(board, String.split(key, ":")),
+         true <- card["pos"] != "set" or seat == 1 or board["reveal_all"] == true,
+         %{} = detail <- details[to_string(card["password"])] do
+      {:ok, card, detail}
+    else
+      _ -> :error
+    end
+  end
+
+  def board_lookup(_question, _key), do: :error
+
+  @list_zones ~w(hand grave banished extra)
+
+  defp board_slot(%{"rule" => "mr4", "emz" => emz}, ["emz", i]) do
+    with {:ok, i} <- parse_index(i), %{} = card <- Enum.at(emz || [], i), do: {:ok, nil, card}
+  end
+
+  defp board_slot(%{"players" => [_, _] = players}, ["p" <> seat, zone, i])
+       when seat in ["1", "2"] do
+    seat = String.to_integer(seat)
+    player = Enum.at(players, seat - 1)
+
+    with {:ok, i} <- parse_index(i),
+         %{} = card <- zone_card(player, zone, i),
+         do: {:ok, seat, card}
+  end
+
+  defp board_slot(_board, _key), do: :error
+
+  defp zone_card(player, "field", 0), do: player["field"]
+
+  defp zone_card(player, zone, i) when zone in ["monsters", "spells"],
+    do: Enum.at(player[zone] || [], i)
+
+  defp zone_card(player, zone, i) when zone in @list_zones, do: Enum.at(player[zone] || [], i)
+  defp zone_card(_player, _zone, _i), do: nil
 
   attr :game, Game, required: true
   attr :zoom, :any, required: true, doc: "`{:card | :text, index}`"
@@ -1177,6 +1330,12 @@ defmodule MillenniumQuizWeb.GameLive do
          |> assign(:confirm_end, false)
          |> assign(:turn_key, nil)
          |> assign(:turn_locked, false)
+         # The board dialog: open for the question with this index, the key of
+         # the tapped tile, and whether the browser has room for the side panel.
+         |> assign(:board_open, false)
+         |> assign(:board_index, nil)
+         |> assign(:board_selected, nil)
+         |> assign(:board_wide, false)
          |> assign(:email_form, to_form(%{"email" => ""}, as: :resume))
          # The players' pictures never change during a game: one query here.
          |> assign(
@@ -1234,6 +1393,60 @@ defmodule MillenniumQuizWeb.GameLive do
   def handle_event("cycle_card", _params, socket), do: {:noreply, socket}
 
   def handle_event("close_card", _params, socket), do: {:noreply, assign(socket, :zoom, nil)}
+
+  # The board dialog is open for everyone, at any time while a question is up.
+  # It changes nothing in the game (no `run/2`, no turn lock).
+  def handle_event("open_board", _params, socket) do
+    game = socket.assigns.game
+    question = Game.current_question(game)
+
+    if socket.assigns.status == :active and game.phase in [:answering, :revealed] and
+         question != nil and question.board != nil do
+      {:noreply, assign(socket, board_open: true, board_index: game.current, board_selected: nil)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_board", _params, socket),
+    do: {:noreply, assign(socket, board_open: false, board_index: nil, board_selected: nil)}
+
+  # A tile of the board was tapped: its key says where. From 900px a second tap
+  # on the same tile clears the panel again.
+  def handle_event("board_card", %{"key" => key}, %{assigns: %{board_open: true}} = socket) do
+    question = Game.current_question(socket.assigns.game)
+
+    case question && board_lookup(question, key) do
+      {:ok, _card, _detail} ->
+        selected =
+          if socket.assigns.board_wide and socket.assigns.board_selected == key,
+            do: nil,
+            else: key
+
+        {:noreply, assign(socket, :board_selected, selected)}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("board_card", _params, socket), do: {:noreply, socket}
+
+  def handle_event("close_board_card", _params, socket) do
+    key = socket.assigns.board_selected
+
+    {:noreply,
+     socket
+     |> assign(:board_selected, nil)
+     |> push_event("board:focus", %{
+       id: "board-dialog-tile-" <> String.replace(key || "", ":", "-")
+     })}
+  end
+
+  def handle_event("board_layout", %{"wide" => wide}, socket) when is_boolean(wide),
+    do: {:noreply, assign(socket, :board_wide, wide)}
+
+  def handle_event("board_layout", _params, socket), do: {:noreply, socket}
 
   def handle_event("confirm_end", _params, socket),
     do: {:noreply, assign(socket, :confirm_end, true)}
@@ -1341,6 +1554,7 @@ defmodule MillenniumQuizWeb.GameLive do
   # (the next player shouldn't find it open).
   defp assign_view(socket, view) do
     socket
+    |> keep_board(view)
     |> assign(:zoom, nil)
     |> assign(:status, view.status)
     |> assign(:game, view.game)
@@ -1348,6 +1562,24 @@ defmodule MillenniumQuizWeb.GameLive do
     |> assign(:page_title, page_title(view.game))
     |> maybe_assign_qr()
   end
+
+  # The board dialog stays open through updates of the same question (a second
+  # device answering, the reveal); a paused or finished game, another question
+  # or a question without a board closes it.
+  defp keep_board(%{assigns: %{board_open: true}} = socket, view) do
+    game = view.game
+    question = Game.current_question(game)
+
+    if view.status == :active and game.phase in [:answering, :revealed] and
+         game.current == socket.assigns.board_index and question != nil and
+         question.board != nil do
+      socket
+    else
+      assign(socket, board_open: false, board_index: nil, board_selected: nil)
+    end
+  end
+
+  defp keep_board(socket, _view), do: socket
 
   defp page_title(%{phase: :finished} = game), do: "#{game.format_name} · Final results"
   defp page_title(game), do: "#{game.format_name} · Q#{game.round}"
