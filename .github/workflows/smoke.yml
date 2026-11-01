@@ -104,6 +104,7 @@ jobs:
       - name: Layout test
         env:
           LAYOUT_REQUIRE_ADMIN: "1"
+          LAYOUT_REQUIRE_GAME_BOARD: "1"
         run: |
           python3 -m venv .venv-layout
           .venv-layout/bin/pip install --quiet -r bin/layout-test-requirements.txt
