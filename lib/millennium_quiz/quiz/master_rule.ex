@@ -19,9 +19,12 @@ defmodule MillenniumQuiz.Quiz.MasterRule do
   (Fusion Monsters); whether a Synchro, Xyz, Pendulum or Link Monster exists on
   a date is decided by its own release date, not here.
 
-  The dates are from memory and may be wrong. They live in ONE place, `rules/0`
-  and `features/0`, so a later source (a table edited in the admin) replaces
-  those two functions and nothing else: every other function reads them.
+  The dates are from memory and may be wrong, so an admin can edit them
+  (`MillenniumQuiz.Quiz.MasterRules`, page `/admin/master-rules`). `rules/0`
+  and `features/0` are the only readers of that source and every other
+  function reads them; the built-in values below (`default_rules/0`,
+  `default_features/0`) are what the table is seeded with and what is used when
+  it is empty or the database cannot be read.
   """
 
   @enforce_keys [:key, :name, :starts_on]
@@ -58,12 +61,18 @@ defmodule MillenniumQuiz.Quiz.MasterRule do
   # Features with their own date, independent of the rule.
   @features [%{key: :xyz, starts_on: ~D[2011-06-01]}]
 
-  @doc "All rules, oldest first."
+  @doc "The built-in rules as maps, oldest first (the seed and the fallback)."
+  def default_rules, do: @rules
+
+  @doc "The built-in features, as `[%{key, starts_on}]`."
+  def default_features, do: @features
+
+  @doc "All rules in force (the stored settings), oldest first."
   @spec rules() :: [t]
-  def rules, do: Enum.map(@rules, &struct!(__MODULE__, &1))
+  def rules, do: elem(MillenniumQuiz.Quiz.MasterRules.current(), 0)
 
   @doc "Features with a start date of their own, as `[%{key, starts_on}]`."
-  def features, do: @features
+  def features, do: elem(MillenniumQuiz.Quiz.MasterRules.current(), 1)
 
   @doc "The key of the rule in force on `date`; no date (a format without one) is the newest."
   @spec for_date(Date.t() | nil) :: key

@@ -53,10 +53,10 @@ defmodule MillenniumQuizWeb.Layouts do
           <span class="duel-brand-mark grid place-items-center size-9 rounded-xl bg-primary text-primary-content shadow-sm transition-transform motion-safe:group-hover:rotate-6">
             <.icon name="hero-eye" class="size-5" />
           </span>
-          <%!-- an admin's bar has six more items: the name waits for 1024px --%>
+          <%!-- an admin's bar has seven more items: the name waits for 1280px --%>
           <span class={[
             "duel-brand-name hidden font-semibold tracking-tight text-lg",
-            if(@current_scope, do: "lg:inline", else: "sm:inline")
+            if(@current_scope, do: "xl:inline", else: "sm:inline")
           ]}>
             Millennium Quiz
           </span>
@@ -65,32 +65,38 @@ defmodule MillenniumQuizWeb.Layouts do
         <div class="flex-1" />
 
         <%= if @current_scope do %>
-          <%!-- from md (768px) up the links sit in the bar; below it they fold into a menu --%>
-          <.link navigate={~p"/admin/formats"} class="hidden md:inline-flex btn btn-ghost btn-sm">
+          <%!-- from lg (1024px) up the links sit in the bar; below it they fold into a menu --%>
+          <.link navigate={~p"/admin/formats"} class="hidden lg:inline-flex btn btn-ghost btn-sm">
             Formats
           </.link>
-          <.link navigate={~p"/admin/submissions"} class="hidden md:inline-flex btn btn-ghost btn-sm">
+          <.link navigate={~p"/admin/submissions"} class="hidden lg:inline-flex btn btn-ghost btn-sm">
             Suggestions
             <span :if={@pending_submissions > 0} class="badge badge-primary badge-sm" id="nav-pending">
               {@pending_submissions}
             </span>
           </.link>
-          <.link navigate={~p"/admin/backup"} class="hidden md:inline-flex btn btn-ghost btn-sm">
+          <.link
+            navigate={~p"/admin/master-rules"}
+            class="hidden lg:inline-flex btn btn-ghost btn-sm"
+          >
+            Master Rules
+          </.link>
+          <.link navigate={~p"/admin/backup"} class="hidden lg:inline-flex btn btn-ghost btn-sm">
             Backup
           </.link>
-          <.link navigate={~p"/admin/users"} class="hidden md:inline-flex btn btn-ghost btn-sm">
+          <.link navigate={~p"/admin/users"} class="hidden lg:inline-flex btn btn-ghost btn-sm">
             <.icon name="hero-user-circle" class="size-4" />
             <span class="max-w-40 truncate">{@current_scope.user.username}</span>
           </.link>
           <.link
             href={~p"/admin/logout"}
             method="delete"
-            class="hidden md:inline-flex btn btn-ghost btn-sm"
+            class="hidden lg:inline-flex btn btn-ghost btn-sm"
             id="logout-link"
           >
             Log out
           </.link>
-          <div class="dropdown dropdown-end md:hidden" id="admin-menu">
+          <div class="dropdown dropdown-end lg:hidden" id="admin-menu">
             <div
               tabindex="0"
               role="button"
@@ -118,6 +124,9 @@ defmodule MillenniumQuizWeb.Layouts do
                     {@pending_submissions}
                   </span>
                 </.link>
+              </li>
+              <li>
+                <.link navigate={~p"/admin/master-rules"} id="menu-master-rules">Master Rules</.link>
               </li>
               <li><.link navigate={~p"/admin/backup"} id="menu-backup">Backup</.link></li>
               <li>

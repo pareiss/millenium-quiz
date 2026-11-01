@@ -48,6 +48,11 @@ defmodule MillenniumQuiz.Quiz.Export do
   `Quiz.set_avatar_crop/2`) only when a crop is stored for it. A backup
   without crops imports as before (the format stays version 1).
 
+  `"master_rules"` (top level, next to `"formats"`) holds the Master Rule
+  settings: `"rules"` (key, name, start date, what the board has) and
+  `"features"` (key, start date); see `Quiz.MasterRules.export/0`. A backup
+  without the key leaves the stored settings alone when imported.
+
   A question has a `"board"` (the stored shape of `Quiz.Board`, codes only,
   including `"reveal_all"`) only when it has one. The format stays version 1:
   a backup without boards imports as before, and an importer from before
@@ -83,6 +88,7 @@ defmodule MillenniumQuiz.Quiz.Export do
     %{
       "version" => @version,
       "exported_at" => DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601(),
+      "master_rules" => MillenniumQuiz.Quiz.MasterRules.export(),
       "formats" => Enum.map(load_formats(), &format(&1, crops))
     }
   end

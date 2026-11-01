@@ -722,7 +722,11 @@ defmodule MillenniumQuiz.Quiz.BoardTest do
     :telemetry.attach(
       inspect(ref),
       [:millennium_quiz, :repo, :query],
-      fn _, _, _, _ -> if self() == me, do: send(me, {ref, :query}) end,
+      fn _, _, meta, _ ->
+        # the Master Rule settings are read per call here (cache off in tests); they are not the pool
+        if self() == me and not String.contains?(meta.query, "master_rule"),
+          do: send(me, {ref, :query})
+      end,
       nil
     )
 
