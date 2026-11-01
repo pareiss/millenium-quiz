@@ -183,6 +183,10 @@ defmodule MillenniumQuiz.Release do
       "Card links: #{s.cards_linked} linked, #{s.cards_missing} missing",
       "Profile pictures: #{Map.get(s, :avatars, 0)} restored, #{Map.get(s, :avatars_missing, 0)} missing"
     ] ++
+      if(Map.get(s, :master_rules) == :applied,
+        do: ["Master Rules: start dates restored"],
+        else: []
+      ) ++
       Enum.map(s.formats_skipped, &"Skipped: #{&1}") ++
       Enum.map(s.formats_failed, fn {name, msg} -> "Failed: #{name}: #{msg}" end) ++
       Enum.map(s.warnings, &"Warning: #{&1}")

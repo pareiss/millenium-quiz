@@ -69,11 +69,30 @@ defmodule MillenniumQuiz.Quiz.Import do
   def run(%{} = data, opts) do
     with {:ok, formats} <- validate(data) do
       pause = Keyword.get_lazy(opts, :pause_ms, &default_pause/0)
-      {:ok, import_formats(formats, pause)}
+      rules = master_rules(data)
+      {:ok, formats |> import_formats(pause) |> add_master_rules(rules)}
     end
   end
 
   def run(_other, _opts), do: {:error, "The file must contain a JSON object."}
+
+  # The optional top-level "master_rules" section: applied when present and
+  # valid, reported and ignored when invalid, never a reason to fail.
+  defp master_rules(%{"master_rules" => section}) do
+    case MillenniumQuiz.Quiz.MasterRules.import(section) do
+      {:ok, _dates} -> :applied
+      {:error, msg} -> {:ignored, msg}
+    end
+  end
+
+  defp master_rules(_), do: :none
+
+  defp add_master_rules(summary, :none), do: summary
+
+  defp add_master_rules(summary, :applied), do: Map.put(summary, :master_rules, :applied)
+
+  defp add_master_rules(summary, {:ignored, msg}),
+    do: %{summary | warnings: summary.warnings ++ ["Master Rules section ignored: #{msg}"]}
 
   defp default_pause do
     Application.get_env(:millennium_quiz, Cards, [])[:refresh_pause_ms] || 250

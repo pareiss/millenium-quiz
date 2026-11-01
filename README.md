@@ -44,6 +44,7 @@ The Kubernetes manifests live in a separate repository, `millennium-quiz-deploy`
   - each card attached to a question has an owner (nobody, player 1 or player 2), set in the question form; a card of a player gets a blue or red outline and a "P1"/"P2" badge, and its link in the text is underlined in that colour (the drawn card itself, `card_components.ex`, is unchanged)
   - the owner is a column on `question_cards`, carried by the game snapshot (old snapshots load without it) and by the backup export and import (old backups too; an `"owner"` of 1 or 2 on a card, only written when set)
 - **Admin** (`/admin`): username/password login. It covers formats with their 2–6 topics edited inline, questions per topic (2–6 answers, one correct), ↑/↓ difficulty ordering, the cards of a question with ↑/↓ buttons to put them in the order players see, per format the cards that are its profile pictures ("Profile pictures" on the format page: card search, up to 40, released by the format's date; a "Crop" button per card opens an editor with the whole artwork, a frame and round previews where a click, a drag or three sliders choose which part of the artwork the round picture shows, saved per card and used everywhere the picture is), and managing admins.
+- **Master Rules** (`/admin/master-rules`): the dates the board eras start on (Master Rule 3, Master Rule 4) and the date overlay units (Xyz) exist, in the tables `master_rules` and `master_rule_features` (seeded by the migration; `Quiz.MasterRules`). `Quiz.MasterRule` reads them through a small `:persistent_term` cache that every save, reset and restore clears, and falls back to the built-in dates when the tables are empty or unreadable, so a game never crashes. Changing a date never rewrites a saved question or a running game (the game snapshot copies the rule); a question whose board no longer fits warns the next time it is edited. A "Reset to defaults" button restores 2014-01-01, 2017-04-01 and 2011-06-01.
 - **Damage**: the damage of a question comes from its position in the topic (see Players); moving a question changes it. The old per-question points override is gone (the column is dropped; old backups with a `points` value still import, the value is ignored).
 
 ## Card data
@@ -169,7 +170,8 @@ The only data that cannot be fetched again is the quiz you wrote. A backup is
 one JSON file with the formats (name, description, date), their topics, the
 questions (text, order), the choices with their correct flag,
 the cards linked to each question and each format's profile pictures with their
-crops (all cards by YGOPRODeck id and name). It does
+crops (all cards by YGOPRODeck id and name), and the Master Rule dates (a
+separate top-level `"master_rules"` section). It does
 not contain games, accounts or the card pool: admins come from `ADMIN_*`, and
 cards are fetched again by their id when a backup is restored.
 
@@ -229,6 +231,16 @@ The technical details follow.
   says `Profile pictures: N restored, M missing`. Backups made before this
   existed have no such key and import with no pictures (the format version
   stays 1; `backups/*.json` are imported in the tests).
+- **Master Rule dates** (`"master_rules"`, top level, next to `"formats"`): the
+  rules (`key`, `name`, `starts_on`, `emz`, `pendulum_scales`) and the features
+  (`xyz` with its date) as edited on `/admin/master-rules`. Unlike formats they
+  are settings, so a restore applies them over the stored ones, but only the
+  dates of Master Rule 3, Master Rule 4 and Xyz are read, and only if all
+  three pass the same checks as an admin save (in order, plausible). A file
+  without the section (all the old ones, `backups/*.json`) leaves the settings
+  alone; an invalid section is reported as `Warning: Master Rules section
+  ignored: ...` and ignored, the rest of the restore is not affected. The
+  result list says `Master Rules: start dates restored` when it was applied.
 - **Restoring** never overwrites: a format whose name already exists is
   skipped, so importing the same file twice is harmless. Each format is created
   on its own; one that breaks a rule (for example fewer than 2 topics) is
