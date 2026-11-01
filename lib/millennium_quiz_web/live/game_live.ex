@@ -863,7 +863,7 @@ defmodule MillenniumQuizWeb.GameLive do
     question = Game.current_question(assigns.game)
 
     {card, detail} =
-      case question && board_lookup(question, assigns.selected) do
+      case question && board_lookup(assigns.game, question, assigns.selected) do
         {:ok, card, detail} -> {card, detail}
         _ -> {nil, nil}
       end
@@ -931,7 +931,7 @@ defmodule MillenniumQuizWeb.GameLive do
   end
 
   @doc """
-  Looks a tapped tile up in the board of a question as snapshotted in the game:
+  Looks a tapped tile up in the board of the question as snapshotted in the game:
   `{:ok, board_card, card}` with the card as the board draws it and the full
   card (`Game.card` shape) for `card/1`, or `:error`. `key` comes from the
   browser (`"p1:monsters:2"`, `"emz:0"`, ...) and is never trusted: a malformed
@@ -939,8 +939,8 @@ defmodule MillenniumQuizWeb.GameLive do
   the dialog would not let the player read (a face-down card of Player 2 on a
   board without `reveal_all`) and a card without details are all `:error`.
   """
-  @spec board_lookup(map, term) :: {:ok, map, map} | :error
-  def board_lookup(%{board: %{} = board, board_cards: details}, key) when is_binary(key) do
+  @spec board_lookup(Game.t(), map, term) :: {:ok, map, map} | :error
+  def board_lookup(%Game{board_cards: details}, %{board: %{} = board}, key) when is_binary(key) do
     with {:ok, seat, card} <- board_slot(board, String.split(key, ":")),
          true <- card["pos"] != "set" or seat == 1 or board["reveal_all"] == true,
          %{} = detail <- details[to_string(card["password"])] do
@@ -950,7 +950,7 @@ defmodule MillenniumQuizWeb.GameLive do
     end
   end
 
-  def board_lookup(_question, _key), do: :error
+  def board_lookup(_game, _question, _key), do: :error
 
   @list_zones ~w(hand grave banished extra)
 
@@ -1416,7 +1416,7 @@ defmodule MillenniumQuizWeb.GameLive do
   def handle_event("board_card", %{"key" => key}, %{assigns: %{board_open: true}} = socket) do
     question = Game.current_question(socket.assigns.game)
 
-    case question && board_lookup(question, key) do
+    case question && board_lookup(socket.assigns.game, question, key) do
       {:ok, _card, _detail} ->
         selected =
           if socket.assigns.board_wide and socket.assigns.board_selected == key,

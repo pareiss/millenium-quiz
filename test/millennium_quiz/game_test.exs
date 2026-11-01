@@ -323,14 +323,35 @@ defmodule MillenniumQuiz.GameTest do
       game = board_game()
       with_board = Enum.find(game.questions, &(&1.id == 3))
       assert with_board.board == @board
-      assert %{name: "Jinzo", text: "T", id: 7} = with_board.board_cards["77585513"]
+      assert %{name: "Jinzo", text: "T", id: 7} = game.board_cards["77585513"]
+      assert Enum.all?(game.questions, &(&1.id == 3 or &1.board == nil))
 
-      for q <- game.questions, q.id != 3 do
-        assert q.board == nil
-        assert q.board_cards == %{}
-      end
+      no_boards = new_game()
+      assert Enum.all?(no_boards.questions, &(&1.board == nil))
+      assert no_boards.board_cards == %{}
+    end
 
-      assert Enum.all?(new_game().questions, &(&1.board == nil and &1.board_cards == %{}))
+    test "a card on several boards is kept once for the game" do
+      card = %Card{
+        id: 7,
+        name: "Jinzo",
+        password: 77_585_513,
+        card_texts: [],
+        texts: %{"en" => "T"}
+      }
+
+      other = %{card | id: 8, name: "Other", password: 2}
+
+      boards = %{
+        3 => %{board: @board, cards: [card, other]},
+        1 => %{board: %{@board | "turn" => 3}, cards: [card]},
+        # not a question of this game: ignored
+        99 => %{board: @board, cards: [%{card | password: 5}]}
+      }
+
+      game = new_game(boards: boards)
+      assert game.board_cards |> Map.keys() |> Enum.sort() == ["2", "77585513"]
+      assert Enum.count(game.questions, & &1.board) == 2
     end
 
     test "survives a JSON roundtrip" do
@@ -343,24 +364,45 @@ defmodule MillenniumQuiz.GameTest do
       map = board_game() |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
 
       old =
-        update_in(map, ["questions"], fn qs ->
-          Enum.map(qs, &Map.drop(&1, ["board", "board_cards"]))
-        end)
+        map
+        |> Map.delete("board_cards")
+        |> update_in(["questions"], fn qs -> Enum.map(qs, &Map.delete(&1, "board")) end)
 
       game = Game.from_map(old)
-      assert Enum.all?(game.questions, &(&1.board == nil and &1.board_cards == %{}))
+      assert Enum.all?(game.questions, &(&1.board == nil))
+      assert game.board_cards == %{}
       assert game.phase == :choosing
 
-      # and a null board, as a game that was saved by this version holds it
-      nulls =
-        update_in(map, ["questions"], fn qs ->
-          Enum.map(qs, &Map.merge(&1, %{"board" => nil, "board_cards" => nil}))
-        end)
+      # and a null, as a game saved without any board holds it
+      nulls = old |> Map.put("board_cards", nil)
+      assert Game.from_map(nulls).board_cards == %{}
 
-      assert Enum.all?(
-               Game.from_map(nulls).questions,
-               &(&1.board == nil and &1.board_cards == %{})
-             )
+      # the shape of a game from before boards, written out
+      legacy = %{
+        "format_name" => "Old",
+        "mode" => "free",
+        "start_lp" => 4000,
+        "players" => [%{"name" => "Ann", "lp" => 4000}, %{"name" => "Bob", "lp" => 4000}],
+        "topics" => ["A"],
+        "questions" => [
+          %{
+            "id" => 1,
+            "topic" => "A",
+            "column" => 0,
+            "text" => "Q",
+            "damage" => 100,
+            "choices" => ["a", "b"],
+            "correct" => 0,
+            "cards" => []
+          }
+        ],
+        "round" => 1,
+        "turn_order" => [0, 1],
+        "turn_index" => 0,
+        "phase" => "choosing"
+      }
+
+      assert %Game{board_cards: %{}, questions: [%{board: nil}]} = Game.from_map(legacy)
     end
   end
 

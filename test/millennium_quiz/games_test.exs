@@ -156,7 +156,7 @@ defmodule MillenniumQuiz.GamesTest do
 
       # 8 cards in the pool, 1004 is on the board twice: one entry each
       in_pool = codes |> Map.delete(:missing) |> Map.values() |> Enum.sort()
-      assert q.board_cards |> Map.keys() |> Enum.sort() == Enum.map(in_pool, &to_string/1)
+      assert game.board_cards |> Map.keys() |> Enum.sort() == Enum.map(in_pool, &to_string/1)
 
       assert %{
                name: "Board Card 1001",
@@ -164,13 +164,13 @@ defmodule MillenniumQuiz.GamesTest do
                attribute: "DARK",
                id: card_id
              } =
-               q.board_cards["1001"]
+               game.board_cards["1001"]
 
       assert is_integer(card_id)
 
       # the other questions have no board
       others = Enum.reject(game.questions, &(&1.id == question.id))
-      assert Enum.all?(others, &(&1.board == nil and &1.board_cards == %{}))
+      assert Enum.all?(others, &(&1.board == nil))
 
       # the stored state is plain JSON and loads back the same
       stored = Repo.get!(GameRecord, id).state
@@ -195,7 +195,7 @@ defmodule MillenniumQuiz.GamesTest do
       {:ok, %{game: again}} = Games.fetch_game(id)
       assert again == game
       assert Repo.get!(GameRecord, id).state == stored
-      assert board_question(again, question).board_cards["1001"].name == "Board Card 1001"
+      assert again.board_cards["1001"].name == "Board Card 1001"
     end
 
     test "the board survives the game process being restarted", %{
