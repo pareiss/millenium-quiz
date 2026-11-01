@@ -242,6 +242,51 @@ defmodule MillenniumQuiz.Quiz.ExportImportBoardTest do
     assert [%{board: nil}] = questions()
   end
 
+  # Imports the exported board_quiz with `bad` in place of its board.
+  defp import_with_board(bad) do
+    board_quiz(board())
+    json = Export.to_json()
+    Repo.delete_all(Format)
+
+    file =
+      json
+      |> Jason.decode!()
+      |> put_in(
+        ["formats", Access.at(0), "topics", Access.at(0), "questions", Access.at(0), "board"],
+        bad
+      )
+
+    assert {:ok, summary} = Import.run(file, pause_ms: 0)
+    assert summary.questions == 1
+    assert [%{board: nil}] = questions()
+    summary
+  end
+
+  test "a board with many problems lists three and counts once" do
+    summary = import_with_board(%{"v" => 2, "players" => 5, "hand" => 1, "extra" => 2})
+
+    assert summary.boards == 0 and summary.boards_skipped == 1
+    assert [w] = summary.warnings
+    assert w =~ ~r/; and \d+ more\./
+  end
+
+  test "a board given as a JSON string is refused" do
+    summary = import_with_board(Jason.encode!(board()))
+
+    assert summary.boards_skipped == 1
+    assert [w] = summary.warnings
+    assert w =~ "board: must be an object"
+  end
+
+  test "a board with more than 100 different cards is dropped with a warning" do
+    cards = for n <- 1..101, do: %{"code" => 20_000_000 + n, "pos" => "atk"}
+    summary = import_with_board(board(%{"hand" => cards}))
+
+    assert summary.boards_skipped == 1
+    assert [w] = summary.warnings
+    assert w =~ "101 different cards, the most a board may use is 100"
+  end
+
   test "a backup without boards imports with none and says so" do
     format = format_fixture(%{"name" => "Plain"})
     question_fixture(hd(format.topics))

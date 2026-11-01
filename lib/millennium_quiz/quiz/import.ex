@@ -42,6 +42,7 @@ defmodule MillenniumQuiz.Quiz.Import do
   @max_questions 200
   @max_choices 20
   @max_cards 20
+  @max_board_cards 100
   @max_string 5_000
 
   def max_bytes, do: @max_bytes
@@ -209,15 +210,38 @@ defmodule MillenniumQuiz.Quiz.Import do
   # never the file.
   defp board(nil), do: {nil, nil}
 
-  defp board(input) do
+  # The file carries the stored shape, an object; a JSON string is refused
+  # (Board.cast/1 would decode it). Distinct cards are capped because every
+  # card the pool lacks costs a remote fetch from the shared budget.
+  defp board(input) when is_map(input) do
     case Board.cast(input) do
-      {:ok, board} -> {board, nil}
-      {:error, issues} -> {nil, issues_text(issues)}
+      {:ok, board} ->
+        count = board |> Board.passwords() |> length()
+
+        if count > @max_board_cards,
+          do:
+            {nil, "has #{count} different cards, the most a board may use is #{@max_board_cards}"},
+          else: {board, nil}
+
+      {:error, issues} ->
+        {nil, issues_text(issues)}
     end
   end
 
+  defp board(_), do: {nil, "board: must be an object"}
+
   defp issues_text(issues) do
-    shown = issues |> Enum.take(3) |> Enum.map_join("; ", &"#{&1.path}: #{&1.message}")
+    shown =
+      issues
+      |> Enum.take(3)
+      |> Enum.map_join("; ", fn
+        %{kind: :missing, code: code, path: path} ->
+          "#{path}: card #{code} could not be fetched"
+
+        issue ->
+          "#{issue.path}: #{issue.message}"
+      end)
+
     more = length(issues) - 3
     if more > 0, do: "#{shown}; and #{more} more", else: shown
   end
@@ -619,17 +643,7 @@ defmodule MillenniumQuiz.Quiz.Import do
         {board, []}
 
       {:error, issues} ->
-        reason =
-          issues
-          |> Enum.take(3)
-          |> Enum.map_join("; ", fn
-            %{kind: :missing, code: code, path: path} ->
-              "#{path}: card #{code} could not be fetched"
-
-            issue ->
-              "#{issue.path}: #{issue.message}"
-          end)
-          |> then(&if(length(issues) > 3, do: "#{&1}; and #{length(issues) - 3} more", else: &1))
+        reason = issues_text(issues)
 
         {nil, [board_warning(f, t, i, text, reason)]}
     end
