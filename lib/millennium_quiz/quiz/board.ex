@@ -425,9 +425,11 @@ defmodule MillenniumQuiz.Quiz.Board do
   Returns `:ok` or `{:error, issues}` (see the moduledoc).
   """
   @spec validate(map, Date.t() | MasterRule.key() | nil) :: :ok | {:error, [issue]}
-  def validate(board, date_or_rule) do
+  def validate(board, date_or_rule),
+    do: validate_with(board, date_or_rule, pool(passwords(board)))
+
+  defp validate_with(board, date_or_rule, pool) do
     entries = entries(board)
-    pool = pool(entries |> Enum.flat_map(&codes/1) |> Enum.uniq())
     rule = MasterRule.get(date_or_rule)
     date = if match?(%Date{}, date_or_rule), do: date_or_rule
 
@@ -551,13 +553,16 @@ defmodule MillenniumQuiz.Quiz.Board do
 
   defp zone(path, message), do: %{kind: :zone, path: path, message: message, code: nil}
 
+  # One lookup for validating and resolving: the rows with their release date
+  # and whether they have artwork (`:art?`).
   defp pool([]), do: %{}
 
   defp pool(codes) do
     Repo.all(
       from c in Card,
+        left_join: a in assoc(c, :artwork),
         where: c.password in ^codes,
-        select:
+        select: {
           map(c, [
             :id,
             :password,
@@ -572,9 +577,11 @@ defmodule MillenniumQuiz.Quiz.Board do
             :atk,
             :def,
             :pendulum_scale
-          ])
+          ]),
+          not is_nil(a.id)
+        }
     )
-    |> Map.new(&{&1.password, &1})
+    |> Map.new(fn {row, art?} -> {row.password, Map.put(row, :art?, art?)} end)
   end
 
   # Every card of the board with where it is.
@@ -637,9 +644,28 @@ defmodule MillenniumQuiz.Quiz.Board do
 
   def resolve(%{} = board, rule, opts) do
     board = stringify(board)
+    do_resolve(board, rule, opts, pool(passwords(board)))
+  end
+
+  @doc """
+  Validates a stored board for a format (`validate/2`) and, when it passes,
+  resolves it (`resolve/3`), with one lookup of the cards for both. Returns
+  `{:ok, resolved}` or `{:error, issues}`.
+  """
+  @spec resolve_valid(map, MasterRule.key() | Date.t() | nil, keyword) ::
+          {:ok, map} | {:error, [issue]}
+  def resolve_valid(%{} = board, rule, opts \\ []) do
+    board = stringify(board)
+    pool = pool(passwords(board))
+
+    with :ok <- validate_with(board, rule, pool) do
+      {:ok, do_resolve(board, rule, opts, pool)}
+    end
+  end
+
+  defp do_resolve(board, rule, opts, pool) do
     key = MasterRule.get(rule).key
     width = Keyword.get(opts, :art_width, 200)
-    pool = resolve_pool(passwords(board))
     ctx = %{pool: pool, width: width}
 
     players =
@@ -656,34 +682,6 @@ defmodule MillenniumQuiz.Quiz.Board do
       "emz" => board |> Map.get("emz") |> pad(2) |> Enum.map(&resolve_card(&1, :emz, ctx)),
       "players" => players
     }
-  end
-
-  defp resolve_pool([]), do: %{}
-
-  defp resolve_pool(codes) do
-    Repo.all(
-      from c in Card,
-        left_join: a in assoc(c, :artwork),
-        where: c.password in ^codes,
-        select: {
-          map(c, [
-            :id,
-            :password,
-            :name,
-            :frame_type,
-            :kind,
-            :card_type,
-            :monster_type_line,
-            :level,
-            :rank,
-            :atk,
-            :def,
-            :pendulum_scale
-          ]),
-          not is_nil(a.id)
-        }
-    )
-    |> Map.new(fn {row, art?} -> {row.password, Map.put(row, :art?, art?)} end)
   end
 
   defp resolve_player(player, ctx) do

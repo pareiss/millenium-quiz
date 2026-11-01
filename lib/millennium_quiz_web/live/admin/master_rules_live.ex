@@ -89,9 +89,11 @@ defmodule MillenniumQuizWeb.Admin.MasterRulesLive do
                 A saved question keeps its board. Nothing is rewritten when a date changes.
               </li>
               <li>
-                A board is checked against the dates when it is validated, so a board that no
-                longer fits the new dates is refused then. Nothing warns about such questions
-                in advance.
+                A board is checked against the dates whenever a game is created: a board that
+                no longer fits is left out, and that question is played without a board and
+                without the Board button (the server log names the question). Games that are
+                already running keep the board they started with. Nothing warns about such
+                questions in advance.
               </li>
               <li>
                 The Master Rule 1/2 era has no start date: it lasts until Master Rule 3 starts,
@@ -121,7 +123,7 @@ defmodule MillenniumQuizWeb.Admin.MasterRulesLive do
         >
           <p>
             Master Rule 3 starts on {@defaults.mr3}, Master Rule 4 on {@defaults.mr4} and Xyz
-            Monsters exist from {@defaults.xyz}. Saved questions and games keep their boards.
+            Monsters exist from {@defaults.xyz}. Saved questions keep their boards and running games keep theirs; new games leave out a board that no longer fits.
           </p>
           <:actions>
             <button class="btn btn-ghost" phx-click="cancel" id="reset-dialog-cancel">Cancel</button>

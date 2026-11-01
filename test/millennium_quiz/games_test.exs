@@ -204,7 +204,8 @@ defmodule MillenniumQuiz.GamesTest do
       assert again.board_cards["1001"].name == "Board Card 1001"
     end
 
-    test "a board that does not validate is left out: no board, the game still plays", %{
+    @tag capture_log: true
+    test "a board that does not validate is left out and the game still plays", %{
       format: format,
       question: question,
       codes: codes
@@ -219,21 +220,42 @@ defmodule MillenniumQuiz.GamesTest do
 
       assert board_question(game, question).board == nil
       assert game.board_cards == %{}
+      assert {:ok, _} = Games.choose(id, 0)
     end
 
-    test "a board that no longer fits the format date is left out too", %{
+    @tag capture_log: true
+    test "a board that stops fitting after a Master Rule date change is left out", %{
       format: format,
-      question: question
+      question: question,
+      codes: codes
     } do
-      # an overlay unit before Xyz Monsters existed is refused by Board.validate/2
+      # An overlay unit on an Xyz monster, in a format after Xyz Monsters exist.
+      format |> Ecto.Changeset.change(date: ~D[2012-06-01]) |> Repo.update!()
+
+      Repo.update_all(from(c in MillenniumQuiz.Cards.Card, where: c.password == ^codes.p1_up),
+        set: [frame_type: "xyz"]
+      )
+
       board = MillenniumQuiz.BoardGameFixtures.stored_board()
 
-      bad =
+      with_overlay =
         put_in(board, ["players", Access.at(0), "monsters", Access.at(1), "overlay"], [
-          1001
+          codes.hand
         ])
 
-      question |> Ecto.Changeset.change(board: bad) |> Repo.update!()
+      question |> Ecto.Changeset.change(board: with_overlay) |> Repo.update!()
+
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
+      {:ok, %{game: game}} = Games.fetch_game(id)
+      assert %{"rule" => "mr1_2"} = board_question(game, question).board
+
+      # Xyz Monsters now come out after the format's date
+      assert {:ok, _} =
+               MillenniumQuiz.Quiz.MasterRules.save(%{
+                 "mr3" => "2014-01-01",
+                 "mr4" => "2017-04-01",
+                 "xyz" => "2013-01-01"
+               })
 
       {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"])
       {:ok, %{game: game}} = Games.fetch_game(id)

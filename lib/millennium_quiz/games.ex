@@ -57,9 +57,9 @@ defmodule MillenniumQuiz.Games do
   defp board_snapshots(questions, date) do
     resolved =
       for %{board: %{} = stored} = q <- questions,
-          Board.validate(stored, date) == :ok,
+          {:ok, board} <- [board_or_log(q, Board.resolve_valid(stored, date))],
           into: %{} do
-        {q.id, Board.resolve(stored, date)}
+        {q.id, board}
       end
 
     passwords =
@@ -80,6 +80,18 @@ defmodule MillenniumQuiz.Games do
 
   # The passwords of the cards a resolved board draws (overlay units are only a
   # count, and the Extra Monster Zones only exist under Master Rule 4), once each.
+  defp board_or_log(_question, {:ok, board}), do: {:ok, board}
+
+  defp board_or_log(question, {:error, issues}) do
+    shown = issues |> Enum.take(3) |> Enum.map_join("; ", &"#{&1.path}: #{&1.message}")
+
+    Logger.warning(
+      "Question #{question.id}: its board does not fit the format and is left out of the game: #{shown}"
+    )
+
+    :skip
+  end
+
   defp displayed_passwords(board) do
     zones =
       for player <- board["players"],
