@@ -39,7 +39,7 @@
         const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 
         // the browser bar follows the site's theme, not only the system's
-        const barColors = {light: "#fdfaf4", dark: "#19182a", "duel-light": "#eef2f7", "duel-dark": "#0b0f16"};
+        const barColors = {"duel-light": "#eef2f7", "duel-dark": "#0b0f16"};
         const paintBar = () => {
           const color = barColors[document.documentElement.getAttribute("data-theme")];
           if (color) document.querySelector("meta[name=theme-color]")?.setAttribute("content", color);
@@ -47,11 +47,10 @@
 
         // The duel theme is the site's look: "system" and "duel" (no stored choice) follow
         // the system's light or dark; "duel-light" / "duel-dark" are fixed. Old visitors
-        // may have stored "light" or "dark" (the former Millennium themes): they get the
-        // duel variant. "millennium-light" / "millennium-dark" (only by ?theme=) still
-        // select the old themes, which have no button.
+        // may have stored "light" or "dark" (the former Millennium themes, removed): they get
+        // the duel variant.
         const aliases = {light: "duel-light", dark: "duel-dark", system: "duel"};
-        const fixed = ["duel-light", "duel-dark", "millennium-light", "millennium-dark"];
+        const fixed = ["duel-light", "duel-dark"];
         const known = ["system", "duel", "light", "dark", ...fixed];
         const resolve = () => "duel-" + systemTheme();
         const setTheme = (theme) => {
@@ -65,7 +64,7 @@
           } else {
             root.setAttribute("data-theme-family", "fixed");
             localStorage.setItem("phx:theme", theme);
-            root.setAttribute("data-theme", theme.replace("millennium-", ""));
+            root.setAttribute("data-theme", theme);
             root.setAttribute("data-theme-source", "user");
           }
           paintBar();

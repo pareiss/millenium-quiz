@@ -114,13 +114,11 @@ defmodule MillenniumQuizWeb.DuelThemeTest do
     assert dark =~ "default: false;"
     assert dark =~ "prefersdark: true;"
 
-    # the old Millennium themes stay defined (the shared tokens and tests name them),
-    # but neither is a default any more
-    for name <- ["light", "dark"] do
-      assert [_, block] = Regex.run(~r/name: "#{name}";(.*?)\n\}/s, @css)
-      assert block =~ "default: false;"
-      assert block =~ "prefersdark: false;"
-    end
+    # the old Millennium themes are gone
+    refute @css =~ ~s(name: "light";)
+    refute @css =~ ~s(name: "dark";)
+    refute @css =~ "[data-theme=light]"
+    refute @css =~ "[data-theme=dark]"
 
     for file <- ~w(Orbitron.woff2 Rajdhani-500.woff2 Rajdhani-600.woff2 Rajdhani-700.woff2
                    Orbitron-OFL.txt Rajdhani-OFL.txt) do
@@ -144,7 +142,7 @@ defmodule MillenniumQuizWeb.DuelThemeTest do
   test "the light token block does not beat the dark one on <html>" do
     # the theme attribute sits on <html>, which is also :root: a plain :root selector
     # would out-rank [data-theme=duel-dark] by order and paint the dark theme light
-    assert @css =~ ":where(:root), [data-theme=light], [data-theme=duel-light] {"
+    assert @css =~ ":where(:root), [data-theme=duel-light] {"
   end
 
   describe "the theme script of the root layout" do
@@ -171,12 +169,14 @@ defmodule MillenniumQuizWeb.DuelThemeTest do
       assert html =~ ~s|dark: "duel-dark"|
     end
 
-    test "?theme= keeps working, the old themes only by their millennium- names", %{html: html} do
+    test "?theme= keeps working; the old millennium- names are gone", %{html: html} do
       assert html =~ ~s|get("theme")|
 
-      for name <- ~w(system duel duel-light duel-dark millennium-light millennium-dark) do
+      for name <- ~w(system duel duel-light duel-dark) do
         assert html =~ ~s|"#{name}"|
       end
+
+      for old <- ~w(millennium-light millennium-dark), do: refute(html =~ old)
     end
 
     test "the browser bar colours of the duel themes", %{html: html} do

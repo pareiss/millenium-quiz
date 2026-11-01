@@ -187,14 +187,10 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
 
   describe "contrast of the colours the components add" do
     defp tokens(theme) do
-      # the tokens are shared with the plain themes of the same brightness
       selector =
         case theme do
-          t when t in ["duel-dark", "dark"] ->
-            "[data-theme=dark], [data-theme=duel-dark]"
-
-          t when t in ["duel-light", "light"] ->
-            ":where(:root), [data-theme=light], [data-theme=duel-light]"
+          "duel-dark" -> "[data-theme=duel-dark]"
+          "duel-light" -> ":where(:root), [data-theme=duel-light]"
         end
 
       [_, block] = Regex.run(~r/^#{Regex.escape(selector)} \{(.*?)\n\}/ms, @css)
@@ -207,7 +203,6 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
     defp theme(name) do
       [_, block] = Regex.run(~r/name: "#{name}";(.*?)\n\}/s, @css)
 
-      # the duel themes use hex, the plain light and dark themes oklch()
       ~r/--color-([a-z0-9-]+): (#[0-9a-f]{6}|oklch\([^)]*\));/
       |> Regex.scan(block)
       |> Map.new(fn [_, key, value] -> {key, to_hex(value)} end)
@@ -261,7 +256,7 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
       (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
     end
 
-    for name <- ["duel-dark", "duel-light", "dark", "light"] do
+    for name <- ["duel-dark", "duel-light"] do
       test "#{name}: number, labels, damage, K.O. and the ring are readable" do
         t = tokens(unquote(name))
         c = theme(unquote(name))
