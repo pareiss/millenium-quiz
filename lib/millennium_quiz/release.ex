@@ -181,7 +181,8 @@ defmodule MillenniumQuiz.Release do
         "failed: #{length(s.formats_failed)}",
       "Topics: #{s.topics}, questions: #{s.questions}",
       "Card links: #{s.cards_linked} linked, #{s.cards_missing} missing",
-      "Profile pictures: #{Map.get(s, :avatars, 0)} restored, #{Map.get(s, :avatars_missing, 0)} missing"
+      "Profile pictures: #{Map.get(s, :avatars, 0)} restored, #{Map.get(s, :avatars_missing, 0)} missing",
+      "Boards: #{Map.get(s, :boards, 0)} restored, #{Map.get(s, :boards_skipped, 0)} skipped"
     ] ++
       Enum.map(s.formats_skipped, &"Skipped: #{&1}") ++
       Enum.map(s.formats_failed, fn {name, msg} -> "Failed: #{name}: #{msg}" end) ++
