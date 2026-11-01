@@ -15,329 +15,332 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
       pending_submissions={@pending_submissions}
       width="lg"
     >
-      <.link
-        navigate={~p"/admin/formats"}
-        class="text-sm text-base-content/60 hover:text-base-content"
-      >
-        <span aria-hidden="true">&larr;</span> Formats
-      </.link>
-      <.header>
-        {@format.name}
-        <:subtitle>
-          <span class="inline-flex items-center gap-1" id="format-date">
-            <.icon name="hero-calendar" class="size-4" /> {display_date(@format.date)}
-          </span>
-          <span :if={@format.description} class="block">{@format.description}</span>
-        </:subtitle>
-        <:actions>
-          <div class="flex gap-2">
-            <.button navigate={~p"/admin/formats/#{@format}/edit"} id="edit-format">
-              <.icon name="hero-pencil-square" class="size-4" /> Edit
-            </.button>
-            <.button
-              phx-click="confirm_delete"
-              phx-value-what="format"
-              class="btn btn-ghost text-error"
-              id="delete-format"
-              aria-label="Delete format"
-            >
-              <.icon name="hero-trash" class="size-4" />
-            </.button>
-          </div>
-        </:actions>
-      </.header>
-
-      <p class="text-sm text-base-content/60">
-        Questions are ordered from easiest to hardest. A wrong answer costs life points by
-        position: 100, 400, 900, 1600, 2500, then 3000 (ATK).
-      </p>
-
-      <section
-        :for={topic <- @format.topics}
-        id={"topic-#{topic.id}"}
-        class="rounded-box border border-base-300 bg-base-100 shadow-sm"
-      >
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-base-300 px-4 py-3">
-          <h2 class="min-w-0 flex-1 basis-40 font-semibold">{topic.name}</h2>
-          <span class="text-sm text-base-content/60">{length(topic.questions)} questions</span>
-          <.link
-            navigate={~p"/admin/topics/#{topic.id}/questions/new"}
-            class="btn btn-sm btn-primary btn-soft"
-            id={"add-question-#{topic.id}"}
-          >
-            <.icon name="hero-plus" class="size-4" /> Question
-          </.link>
-        </div>
-        <ol class="divide-y divide-base-300">
-          <li :if={topic.questions == []} class="px-4 py-6 text-center text-sm text-base-content/50">
-            No questions yet.
-          </li>
-          <li
-            :for={{q, i} <- Enum.with_index(topic.questions)}
-            id={"question-#{q.id}"}
-            class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5"
-          >
-            <span class="w-6 text-sm text-base-content/50 tabular-nums">{i + 1}.</span>
-            <%!-- the text gets the row's width on a phone (two lines), the
-                 damage and buttons wrap below it --%>
-            <p class="min-w-0 flex-1 basis-40 line-clamp-2 sm:line-clamp-none sm:truncate">
-              {CardLinks.plain(q.text)}
-            </p>
-            <div class="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:gap-3">
-              <span
-                class="badge badge-sm badge-ghost"
-                title="Damage of a wrong answer, from the position"
+      <div class="duel-admin space-y-6">
+        <.link
+          navigate={~p"/admin/formats"}
+          class="duel-back text-sm text-base-content/60 hover:text-base-content"
+        >
+          <span aria-hidden="true">&larr;</span> Formats
+        </.link>
+        <.header>
+          {@format.name}
+          <:subtitle>
+            <span class="inline-flex items-center gap-1" id="format-date">
+              <.icon name="hero-calendar" class="size-4" /> {display_date(@format.date)}
+            </span>
+            <span :if={@format.description} class="block">{@format.description}</span>
+          </:subtitle>
+          <:actions>
+            <div class="flex gap-2">
+              <.button navigate={~p"/admin/formats/#{@format}/edit"} id="edit-format">
+                <.icon name="hero-pencil-square" class="size-4" /> Edit
+              </.button>
+              <.button
+                phx-click="confirm_delete"
+                phx-value-what="format"
+                class="btn btn-ghost text-error"
+                id="delete-format"
+                aria-label="Delete format"
               >
-                {Question.damage(q.position)} ATK
-              </span>
-              <div class="flex items-center gap-1">
-                <div class="join">
-                  <button
-                    class="btn btn-ghost btn-xs join-item"
-                    phx-click="move"
-                    phx-value-id={q.id}
-                    phx-value-dir="up"
-                    disabled={i == 0}
-                    id={"move-up-#{q.id}"}
-                    aria-label="Easier"
-                    title="Easier"
+                <.icon name="hero-trash" class="size-4" />
+              </.button>
+            </div>
+          </:actions>
+        </.header>
+
+        <p class="text-sm text-base-content/60">
+          Questions are ordered from easiest to hardest. A wrong answer costs life points by
+          position: 100, 400, 900, 1600, 2500, then 3000 (ATK).
+        </p>
+
+        <section
+          :for={topic <- @format.topics}
+          id={"topic-#{topic.id}"}
+          class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 shadow-sm"
+        >
+          <div class="duel-head flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-base-300 px-4 py-3">
+            <h2 class="min-w-0 flex-1 basis-40 break-words font-semibold">{topic.name}</h2>
+            <span class="text-sm text-base-content/60">{length(topic.questions)} questions</span>
+            <.link
+              navigate={~p"/admin/topics/#{topic.id}/questions/new"}
+              class="btn btn-sm btn-primary btn-soft max-sm:min-h-11"
+              id={"add-question-#{topic.id}"}
+            >
+              <.icon name="hero-plus" class="size-4" /> Question
+            </.link>
+          </div>
+          <ol class="divide-y divide-base-300">
+            <li :if={topic.questions == []} class="px-4 py-6 text-center text-sm text-base-content/50">
+              No questions yet.
+            </li>
+            <li
+              :for={{q, i} <- Enum.with_index(topic.questions)}
+              id={"question-#{q.id}"}
+              class="duel-qrow flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3"
+            >
+              <span class="duel-qno w-6 text-sm text-base-content/50 tabular-nums">{i + 1}.</span>
+              <%!-- the whole text is shown, wrapped, never cut off; on a phone the
+                 damage and the buttons wrap below it --%>
+              <p class="min-w-0 flex-1 basis-40 break-words">
+                {CardLinks.plain(q.text)}
+              </p>
+              <div class="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:gap-3">
+                <span
+                  class="duel-tag duel-tag--atk badge badge-sm badge-ghost"
+                  title="Damage of a wrong answer, from the position"
+                >
+                  {Question.damage(q.position)} ATK
+                </span>
+                <div class="flex items-center gap-1">
+                  <div class="join">
+                    <button
+                      class="btn btn-ghost btn-square btn-sm join-item max-sm:size-11"
+                      phx-click="move"
+                      phx-value-id={q.id}
+                      phx-value-dir="up"
+                      disabled={i == 0}
+                      id={"move-up-#{q.id}"}
+                      aria-label="Easier"
+                      title="Easier"
+                    >
+                      <.icon name="hero-chevron-up" class="size-4" />
+                    </button>
+                    <button
+                      class="btn btn-ghost btn-square btn-sm join-item max-sm:size-11"
+                      phx-click="move"
+                      phx-value-id={q.id}
+                      phx-value-dir="down"
+                      disabled={i == length(topic.questions) - 1}
+                      id={"move-down-#{q.id}"}
+                      aria-label="Harder"
+                      title="Harder"
+                    >
+                      <.icon name="hero-chevron-down" class="size-4" />
+                    </button>
+                  </div>
+                  <.link
+                    navigate={~p"/admin/questions/#{q.id}/edit"}
+                    class="btn btn-ghost btn-square btn-sm max-sm:size-11"
+                    id={"edit-question-#{q.id}"}
+                    aria-label="Edit question"
+                    title="Edit question"
                   >
-                    <.icon name="hero-chevron-up" class="size-4" />
-                  </button>
+                    <.icon name="hero-pencil" class="size-4" />
+                  </.link>
                   <button
-                    class="btn btn-ghost btn-xs join-item"
-                    phx-click="move"
+                    class="btn btn-ghost btn-square btn-sm max-sm:size-11 text-error"
+                    phx-click="confirm_delete"
+                    phx-value-what="question"
                     phx-value-id={q.id}
-                    phx-value-dir="down"
-                    disabled={i == length(topic.questions) - 1}
-                    id={"move-down-#{q.id}"}
-                    aria-label="Harder"
-                    title="Harder"
+                    id={"delete-question-#{q.id}"}
+                    aria-label="Delete question"
+                    title="Delete question"
                   >
-                    <.icon name="hero-chevron-down" class="size-4" />
+                    <.icon name="hero-trash" class="size-4" />
                   </button>
                 </div>
-                <.link
-                  navigate={~p"/admin/questions/#{q.id}/edit"}
-                  class="btn btn-ghost btn-xs"
-                  id={"edit-question-#{q.id}"}
-                  aria-label="Edit question"
-                  title="Edit question"
-                >
-                  <.icon name="hero-pencil" class="size-4" />
-                </.link>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section
+          id="avatar-cards"
+          class="duel-plate duel-panel space-y-3 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
+        >
+          <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 class="font-semibold">Profile pictures</h2>
+            <span class="text-sm text-base-content/60" id="avatar-count">
+              {length(@avatar_cards)} of {Quiz.max_avatar_cards()}
+            </span>
+          </div>
+          <p class="text-sm text-base-content/60">
+            Players get a random, different picture from this list and can choose another one.
+            With fewer than {Avatars.min_cards()} cards the list is not used (a game of {Avatars.min_cards()} players needs a different picture for each), and neither is it without
+            a list: then the built-in set for this format's date (or the default pool of eight) is used.
+          </p>
+
+          <ul :if={@avatar_cards != []} class="flex flex-wrap gap-3" id="avatar-card-list">
+            <li
+              :for={card <- @avatar_cards}
+              id={"avatar-card-#{card.id}"}
+              class="flex w-24 flex-col items-center gap-1 text-center"
+            >
+              <.avatar
+                slug={Avatars.card_slug(card.id)}
+                title={card.name}
+                crop={@avatar_crops[Avatars.card_slug(card.id)]}
+                class={[
+                  "size-14",
+                  @crop_edit && @crop_edit.card.id == card.id && "ring-primary! ring-4!"
+                ]}
+              />
+              <span class="w-full break-words text-xs leading-tight">{card.name}</span>
+              <div class="flex">
                 <button
-                  class="btn btn-ghost btn-xs text-error"
+                  type="button"
+                  class="btn btn-ghost btn-sm min-h-11 min-w-11"
+                  phx-click="edit_crop"
+                  phx-value-id={card.id}
+                  id={"crop-avatar-#{card.id}"}
+                  aria-label={"Crop #{card.name}"}
+                  title={"Crop #{card.name}"}
+                >
+                  <.icon name="hero-viewfinder-circle" class="size-5" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm min-h-11 min-w-11 text-error"
                   phx-click="confirm_delete"
-                  phx-value-what="question"
-                  phx-value-id={q.id}
-                  id={"delete-question-#{q.id}"}
-                  aria-label="Delete question"
-                  title="Delete question"
+                  phx-value-what="avatar"
+                  phx-value-id={card.id}
+                  id={"remove-avatar-#{card.id}"}
+                  aria-label={"Remove #{card.name}"}
+                  title={"Remove #{card.name}"}
                 >
                   <.icon name="hero-trash" class="size-4" />
                 </button>
               </div>
-            </div>
-          </li>
-        </ol>
-      </section>
+            </li>
+          </ul>
 
-      <section
-        id="avatar-cards"
-        class="space-y-3 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
-      >
-        <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <h2 class="font-semibold">Profile pictures</h2>
-          <span class="text-sm text-base-content/60" id="avatar-count">
-            {length(@avatar_cards)} of {Quiz.max_avatar_cards()}
-          </span>
-        </div>
-        <p class="text-sm text-base-content/60">
-          Players get a random, different picture from this list and can choose another one.
-          With fewer than {Avatars.min_cards()} cards the list is not used (a game of {Avatars.min_cards()} players needs a different picture for each), and neither is it without
-          a list: then the built-in set for this format's date (or the default pool of eight) is used.
-        </p>
+          <.crop_editor :if={@crop_edit} edit={@crop_edit} form={@crop_form} />
+          <p :if={@avatar_cards == []} class="text-sm text-base-content/50" id="avatar-empty">
+            No pictures chosen yet.
+          </p>
 
-        <ul :if={@avatar_cards != []} class="flex flex-wrap gap-3" id="avatar-card-list">
-          <li
-            :for={card <- @avatar_cards}
-            id={"avatar-card-#{card.id}"}
-            class="flex w-24 flex-col items-center gap-1 text-center"
+          <.form
+            for={@avatar_search_form}
+            id="avatar-search"
+            phx-change="search_avatar_cards"
+            phx-submit="search_avatar_cards"
           >
-            <.avatar
-              slug={Avatars.card_slug(card.id)}
-              title={card.name}
-              crop={@avatar_crops[Avatars.card_slug(card.id)]}
-              class={[
-                "size-14",
-                @crop_edit && @crop_edit.card.id == card.id && "ring-primary! ring-4!"
-              ]}
+            <.input
+              field={@avatar_search_form[:query]}
+              type="search"
+              placeholder={"Search cards released by #{display_date(@format.date)}…"}
+              autocomplete="off"
+              phx-debounce="300"
             />
-            <span class="min-h-[2.5em] w-full break-words text-xs leading-tight line-clamp-2">{card.name}</span>
-            <div class="flex">
+          </.form>
+          <p :if={@avatar_error} class="text-sm text-error" id="avatar-search-error">
+            {@avatar_error}
+          </p>
+          <p class="text-xs text-base-content/50">
+            Search by YGOPRODeck; texts and errata from Yugipedia (CC BY-SA 4.0) and YAML Yugi.
+          </p>
+
+          <ul
+            :if={@avatar_results != []}
+            class="max-h-[min(22rem,50dvh)] divide-y divide-base-300 overflow-y-auto overscroll-contain rounded-field border border-base-300"
+            id="avatar-results"
+            tabindex="0"
+            aria-label="Search results"
+          >
+            <li :for={result <- @avatar_results} class="flex items-center gap-3 px-3 py-2">
+              <div class="min-w-0 flex-1">
+                <p class="truncate font-medium">{result.name}</p>
+                <p class="text-xs text-base-content/60">
+                  {result.card_type} · {display_date(result.tcg_release_date)}
+                  <span :if={result.in_pool} class="badge badge-ghost badge-xs ml-1">in card pool</span>
+                </p>
+              </div>
               <button
                 type="button"
-                class="btn btn-ghost btn-sm min-h-11 min-w-11"
-                phx-click="edit_crop"
-                phx-value-id={card.id}
-                id={"crop-avatar-#{card.id}"}
-                aria-label={"Crop #{card.name}"}
-                title={"Crop #{card.name}"}
+                class="btn btn-sm min-h-11"
+                phx-click="add_avatar_card"
+                phx-value-password={result.password}
+                id={"add-avatar-#{result.password}"}
+                disabled={@avatar_importing != nil}
               >
-                <.icon name="hero-viewfinder-circle" class="size-5" />
+                <span
+                  :if={@avatar_importing == result.password}
+                  class="loading loading-spinner loading-xs"
+                />
+                <.icon :if={@avatar_importing != result.password} name="hero-plus" class="size-4" />
+                Add
               </button>
-              <button
-                type="button"
-                class="btn btn-ghost btn-sm min-h-11 min-w-11 text-error"
-                phx-click="confirm_delete"
-                phx-value-what="avatar"
-                phx-value-id={card.id}
-                id={"remove-avatar-#{card.id}"}
-                aria-label={"Remove #{card.name}"}
-                title={"Remove #{card.name}"}
-              >
-                <.icon name="hero-trash" class="size-4" />
-              </button>
-            </div>
-          </li>
-        </ul>
+            </li>
+          </ul>
+        </section>
 
-        <.crop_editor :if={@crop_edit} edit={@crop_edit} form={@crop_form} />
-        <p :if={@avatar_cards == []} class="text-sm text-base-content/50" id="avatar-empty">
-          No pictures chosen yet.
-        </p>
-
-        <.form
-          for={@avatar_search_form}
-          id="avatar-search"
-          phx-change="search_avatar_cards"
-          phx-submit="search_avatar_cards"
+        <.confirm_dialog
+          :if={@confirm && @confirm.what == :avatar}
+          id="remove-avatar-dialog"
+          title="Remove this picture?"
+          icon="hero-trash"
+          on_cancel="cancel_confirm"
         >
-          <.input
-            field={@avatar_search_form[:query]}
-            type="search"
-            placeholder={"Search cards released by #{display_date(@format.date)}…"}
-            autocomplete="off"
-            phx-debounce="300"
-          />
-        </.form>
-        <p :if={@avatar_error} class="text-sm text-error" id="avatar-search-error">
-          {@avatar_error}
-        </p>
-        <p class="text-xs text-base-content/50">
-          Search by YGOPRODeck; texts and errata from Yugipedia (CC BY-SA 4.0) and YAML Yugi.
-        </p>
-
-        <ul
-          :if={@avatar_results != []}
-          class="max-h-[min(22rem,50dvh)] divide-y divide-base-300 overflow-y-auto overscroll-contain rounded-field border border-base-300"
-          id="avatar-results"
-          tabindex="0"
-          aria-label="Search results"
-        >
-          <li :for={result <- @avatar_results} class="flex items-center gap-3 px-3 py-2">
-            <div class="min-w-0 flex-1">
-              <p class="truncate font-medium">{result.name}</p>
-              <p class="text-xs text-base-content/60">
-                {result.card_type} · {display_date(result.tcg_release_date)}
-                <span :if={result.in_pool} class="badge badge-ghost badge-xs ml-1">in card pool</span>
-              </p>
-            </div>
-            <button
-              type="button"
-              class="btn btn-sm min-h-11"
-              phx-click="add_avatar_card"
-              phx-value-password={result.password}
-              id={"add-avatar-#{result.password}"}
-              disabled={@avatar_importing != nil}
-            >
-              <span
-                :if={@avatar_importing == result.password}
-                class="loading loading-spinner loading-xs"
-              />
-              <.icon :if={@avatar_importing != result.password} name="hero-plus" class="size-4" /> Add
+          <p>{@confirm.label}</p>
+          <p class="mt-2 text-sm text-base-content/60">
+            Games that already started keep the pictures their players have.
+          </p>
+          <:actions>
+            <button class="btn btn-ghost" phx-click="cancel_confirm" id="remove-avatar-dialog-cancel">
+              Cancel
             </button>
-          </li>
-        </ul>
-      </section>
+            <button
+              class="btn btn-error"
+              phx-click="remove_avatar_card"
+              phx-value-id={@confirm.id}
+              id="remove-avatar-dialog-confirm"
+            >
+              <.icon name="hero-trash" class="size-4" /> Remove
+            </button>
+          </:actions>
+        </.confirm_dialog>
 
-      <.confirm_dialog
-        :if={@confirm && @confirm.what == :avatar}
-        id="remove-avatar-dialog"
-        title="Remove this picture?"
-        icon="hero-trash"
-        on_cancel="cancel_confirm"
-      >
-        <p>{@confirm.label}</p>
-        <p class="mt-2 text-sm text-base-content/60">
-          Games that already started keep the pictures their players have.
-        </p>
-        <:actions>
-          <button class="btn btn-ghost" phx-click="cancel_confirm" id="remove-avatar-dialog-cancel">
-            Cancel
-          </button>
-          <button
-            class="btn btn-error"
-            phx-click="remove_avatar_card"
-            phx-value-id={@confirm.id}
-            id="remove-avatar-dialog-confirm"
-          >
-            <.icon name="hero-trash" class="size-4" /> Remove
-          </button>
-        </:actions>
-      </.confirm_dialog>
+        <.confirm_dialog
+          :if={@confirm && @confirm.what == :format}
+          id="delete-format-dialog"
+          title="Delete this format?"
+          icon="hero-trash"
+          on_cancel="cancel_confirm"
+        >
+          <p>
+            <strong>{@format.name}</strong>
+            will be deleted with all its topics and questions. This can't be undone.
+          </p>
+          <:actions>
+            <button class="btn btn-ghost" phx-click="cancel_confirm" id="delete-format-dialog-cancel">
+              Cancel
+            </button>
+            <button class="btn btn-error" phx-click="delete_format" id="delete-format-dialog-confirm">
+              <.icon name="hero-trash" class="size-4" /> Delete format
+            </button>
+          </:actions>
+        </.confirm_dialog>
 
-      <.confirm_dialog
-        :if={@confirm && @confirm.what == :format}
-        id="delete-format-dialog"
-        title="Delete this format?"
-        icon="hero-trash"
-        on_cancel="cancel_confirm"
-      >
-        <p>
-          <strong>{@format.name}</strong>
-          will be deleted with all its topics and questions. This can't be undone.
-        </p>
-        <:actions>
-          <button class="btn btn-ghost" phx-click="cancel_confirm" id="delete-format-dialog-cancel">
-            Cancel
-          </button>
-          <button class="btn btn-error" phx-click="delete_format" id="delete-format-dialog-confirm">
-            <.icon name="hero-trash" class="size-4" /> Delete format
-          </button>
-        </:actions>
-      </.confirm_dialog>
-
-      <.confirm_dialog
-        :if={@confirm && @confirm.what == :question}
-        id="delete-question-dialog"
-        title="Delete this question?"
-        icon="hero-trash"
-        on_cancel="cancel_confirm"
-      >
-        <p>“{@confirm.label}”</p>
-        <p class="mt-2 text-sm text-base-content/60">
-          The questions after it move up one place. This can't be undone.
-        </p>
-        <:actions>
-          <button
-            class="btn btn-ghost"
-            phx-click="cancel_confirm"
-            id="delete-question-dialog-cancel"
-          >
-            Cancel
-          </button>
-          <button
-            class="btn btn-error"
-            phx-click="delete_question"
-            phx-value-id={@confirm.id}
-            id="delete-question-dialog-confirm"
-          >
-            <.icon name="hero-trash" class="size-4" /> Delete question
-          </button>
-        </:actions>
-      </.confirm_dialog>
+        <.confirm_dialog
+          :if={@confirm && @confirm.what == :question}
+          id="delete-question-dialog"
+          title="Delete this question?"
+          icon="hero-trash"
+          on_cancel="cancel_confirm"
+        >
+          <p>“{@confirm.label}”</p>
+          <p class="mt-2 text-sm text-base-content/60">
+            The questions after it move up one place. This can't be undone.
+          </p>
+          <:actions>
+            <button
+              class="btn btn-ghost"
+              phx-click="cancel_confirm"
+              id="delete-question-dialog-cancel"
+            >
+              Cancel
+            </button>
+            <button
+              class="btn btn-error"
+              phx-click="delete_question"
+              phx-value-id={@confirm.id}
+              id="delete-question-dialog-confirm"
+            >
+              <.icon name="hero-trash" class="size-4" /> Delete question
+            </button>
+          </:actions>
+        </.confirm_dialog>
+      </div>
     </Layouts.app>
     """
   end
@@ -369,7 +372,7 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
       id="crop-editor"
       role="group"
       aria-label={"Crop #{@card.name}"}
-      class="space-y-3 rounded-box border border-primary/40 bg-base-200/50 p-3 sm:p-4"
+      class="duel-plate duel-sub space-y-3 rounded-box border border-primary/40 bg-base-200/50 p-3 sm:p-4"
     >
       <div class="flex items-center justify-between gap-2">
         <h3 class="min-w-0 font-semibold break-words">Crop: {@card.name}</h3>

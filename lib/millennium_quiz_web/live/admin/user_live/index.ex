@@ -13,101 +13,106 @@ defmodule MillenniumQuizWeb.Admin.UserLive.Index do
       current_scope={@current_scope}
       pending_submissions={@pending_submissions}
     >
-      <.header>
-        Admins
-        <:subtitle>Everyone listed here can edit all quiz content.</:subtitle>
-      </.header>
+      <div class="duel-admin space-y-6">
+        <.header>
+          Admins
+          <:subtitle>Everyone listed here can edit all quiz content.</:subtitle>
+        </.header>
 
-      <ul class="divide-y divide-base-300 rounded-box border border-base-300 bg-base-100" id="users">
-        <li :for={user <- @users} id={"user-#{user.id}"} class="flex items-center gap-3 px-4 py-3">
-          <.icon name="hero-user-circle" class="size-6 text-base-content/50" />
-          <span class="flex-1 font-medium">{user.username}</span>
-          <span :if={user.id == @current_scope.user.id} class="badge badge-ghost badge-sm">you</span>
-          <button
-            :if={user.id != @current_scope.user.id}
-            class="btn btn-ghost btn-xs text-error"
-            phx-click="confirm_delete"
-            phx-value-id={user.id}
-            id={"delete-user-#{user.id}"}
-            aria-label={"Remove admin #{user.username}"}
-          >
-            <.icon name="hero-trash" class="size-4" />
-          </button>
-        </li>
-      </ul>
-
-      <section class="rounded-box border border-base-300 bg-base-100 p-5 space-y-3">
-        <h2 class="font-semibold">Add admin</h2>
-        <.form for={@new_form} id="new-user-form" phx-change="validate_new" phx-submit="create">
-          <.input field={@new_form[:username]} label="Username" autocomplete="off" />
-          <.input
-            field={@new_form[:password]}
-            type="password"
-            label="Password (min. 12 characters)"
-            autocomplete="new-password"
-          />
-          <.button variant="primary" phx-disable-with="Creating…">Create admin</.button>
-        </.form>
-      </section>
-
-      <section class="rounded-box border border-base-300 bg-base-100 p-5 space-y-3">
-        <h2 class="font-semibold">Change my password</h2>
-        <.form
-          for={@password_form}
-          id="password-form"
-          action={~p"/admin/password"}
-          method="put"
-          phx-change="validate_password"
-          phx-submit="update_password"
-          phx-trigger-action={@trigger_password}
+        <ul
+          class="duel-plate duel-panel divide-y divide-base-300 rounded-box border border-base-300 bg-base-100"
+          id="users"
         >
-          <.input
-            name="current_password"
-            id="current-password"
-            type="password"
-            label="Current password"
-            value={@current_password}
-            autocomplete="current-password"
-            errors={@current_password_errors}
-          />
-          <.input
-            field={@password_form[:password]}
-            type="password"
-            label="New password"
-            autocomplete="new-password"
-          />
-          <.input
-            field={@password_form[:password_confirmation]}
-            type="password"
-            label="Confirm new password"
-            autocomplete="new-password"
-          />
-          <.button variant="primary" phx-disable-with="Saving…">Change password</.button>
-        </.form>
-      </section>
+          <li :for={user <- @users} id={"user-#{user.id}"} class="flex items-center gap-3 px-4 py-3">
+            <.icon name="hero-user-circle" class="size-6 text-base-content/50" />
+            <span class="flex-1 font-medium">{user.username}</span>
+            <span :if={user.id == @current_scope.user.id} class="badge badge-ghost badge-sm">you</span>
+            <button
+              :if={user.id != @current_scope.user.id}
+              class="btn btn-ghost btn-square btn-sm max-sm:size-11 text-error"
+              phx-click="confirm_delete"
+              phx-value-id={user.id}
+              id={"delete-user-#{user.id}"}
+              aria-label={"Remove admin #{user.username}"}
+            >
+              <.icon name="hero-trash" class="size-4" />
+            </button>
+          </li>
+        </ul>
 
-      <.confirm_dialog
-        :if={@confirm}
-        id="delete-user-dialog"
-        title={"Remove admin #{@confirm.username}?"}
-        icon="hero-user-minus"
-        on_cancel="cancel_confirm"
-      >
-        <p>They can no longer log in, and their open sessions end right away.</p>
-        <:actions>
-          <button class="btn btn-ghost" phx-click="cancel_confirm" id="delete-user-dialog-cancel">
-            Cancel
-          </button>
-          <button
-            class="btn btn-error"
-            phx-click="delete"
-            phx-value-id={@confirm.id}
-            id="delete-user-dialog-confirm"
+        <section class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 p-5 space-y-3">
+          <h2 class="font-semibold">Add admin</h2>
+          <.form for={@new_form} id="new-user-form" phx-change="validate_new" phx-submit="create">
+            <.input field={@new_form[:username]} label="Username" autocomplete="off" />
+            <.input
+              field={@new_form[:password]}
+              type="password"
+              label="Password (min. 12 characters)"
+              autocomplete="new-password"
+            />
+            <.button variant="primary" phx-disable-with="Creating…">Create admin</.button>
+          </.form>
+        </section>
+
+        <section class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 p-5 space-y-3">
+          <h2 class="font-semibold">Change my password</h2>
+          <.form
+            for={@password_form}
+            id="password-form"
+            action={~p"/admin/password"}
+            method="put"
+            phx-change="validate_password"
+            phx-submit="update_password"
+            phx-trigger-action={@trigger_password}
           >
-            <.icon name="hero-user-minus" class="size-4" /> Remove admin
-          </button>
-        </:actions>
-      </.confirm_dialog>
+            <.input
+              name="current_password"
+              id="current-password"
+              type="password"
+              label="Current password"
+              value={@current_password}
+              autocomplete="current-password"
+              errors={@current_password_errors}
+            />
+            <.input
+              field={@password_form[:password]}
+              type="password"
+              label="New password"
+              autocomplete="new-password"
+            />
+            <.input
+              field={@password_form[:password_confirmation]}
+              type="password"
+              label="Confirm new password"
+              autocomplete="new-password"
+            />
+            <.button variant="primary" phx-disable-with="Saving…">Change password</.button>
+          </.form>
+        </section>
+
+        <.confirm_dialog
+          :if={@confirm}
+          id="delete-user-dialog"
+          title={"Remove admin #{@confirm.username}?"}
+          icon="hero-user-minus"
+          on_cancel="cancel_confirm"
+        >
+          <p>They can no longer log in, and their open sessions end right away.</p>
+          <:actions>
+            <button class="btn btn-ghost" phx-click="cancel_confirm" id="delete-user-dialog-cancel">
+              Cancel
+            </button>
+            <button
+              class="btn btn-error"
+              phx-click="delete"
+              phx-value-id={@confirm.id}
+              id="delete-user-dialog-confirm"
+            >
+              <.icon name="hero-user-minus" class="size-4" /> Remove admin
+            </button>
+          </:actions>
+        </.confirm_dialog>
+      </div>
     </Layouts.app>
     """
   end

@@ -39,6 +39,9 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - with SMOKE_ADMIN_USER / SMOKE_ADMIN_PASSWORD: the admin question rows show their ATK badge and the form its
     fixed-damage note (no points field), on screen at every viewport; the question form has up and down buttons
     for the cards, on screen at every viewport, and they move a card (nothing is saved);
+    every admin page (formats, new/edit format, format page, profile pictures, question form, suggestions, admins,
+    backup) at every viewport: no horizontal overflow, no cut-off text, every control >= 44px on touch viewports
+    (up to 1180px wide), a long question text in the format page's rows wraps;
     LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip.
     It logs in on the site it is pointed at, so use the throwaway site of CI or a local fixture, not a real one
 Exit code: 0 all passed, 1 at least one check failed.
@@ -683,6 +686,97 @@ with sync_playwright() as p:
             reset_crop()
         page.wait_for_selector("#avatar-card-list")
         check("Reset puts the grid picture back (width 150%)", img_box(grid_img)["width"] == 150.0, str(img_box(grid_img)))
+        # Every admin page at every viewport (a touch context up to 1180px wide, else a mouse one): nothing
+        # runs off the screen sideways, every button, link and field a finger can hit is 44px or more
+        # (the site's top bar is the player-facing chrome and not counted; a checkbox counts by its label),
+        # no text is cut off (no ellipsis, no clamp, no clipped box).
+        print("Admin pages (tap targets, wrapping, no horizontal overflow)")
+        touch_ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+        mouse_ctx = browser.new_context(viewport={"width": 1280, "height": 900})
+        ctxs = {}
+        for key, ctx in (("touch", touch_ctx), ("mouse", mouse_ctx)):
+            pg = ctx.new_page()
+            pg.goto(base + "/admin/login")
+            pg.wait_for_selector("[data-phx-main].phx-connected")
+            pg.fill("#login-form input[name='user[username]']", os.environ["SMOKE_ADMIN_USER"])
+            pg.fill("#login-form input[name='user[password]']", os.environ["SMOKE_ADMIN_PASSWORD"])
+            pg.click("#login-submit")
+            pg.wait_for_url("**/admin/formats")
+            ctxs[key] = pg
+        # the URLs of the fixture format and of its four-card question
+        pg = ctxs["mouse"]
+        pg.goto(base + "/admin/formats")
+        fixture_url = pg.locator(FIXTURE_LINK).first.get_attribute("href")
+        pictures_url = pg.locator(PICTURES_LINK).first.get_attribute("href")
+        pg.goto(base + fixture_url)
+        question_url = pg.locator("li[id^='question-']", has_text="look at four cards").locator("a[id^='edit-question-']").get_attribute("href")
+        admin_pages = [
+            ("formats", "/admin/formats", "#formats a"),
+            ("new format", "/admin/formats/new", "#format-form"),
+            ("format", fixture_url, "li[id^=question-]"),
+            ("format edit", fixture_url + "/edit", "#format-form"),
+            ("format pictures", pictures_url, "#avatar-cards"),
+            ("question", question_url, "#selected-cards li"),
+            ("suggestions", "/admin/submissions", "#submission-filters"),
+            ("admins", "/admin/users", "#new-user-form"),
+            ("backup", "/admin/backup", "#restore-form"),
+        ]
+        AUDIT = """() => {
+          const d = document.documentElement
+          const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden' }
+          const targets = [...document.querySelectorAll('a[href], button, summary, select, textarea, input:not([type=hidden]):not([type=checkbox]):not([type=radio]), .tab')]
+            .filter(e => vis(e) && !e.closest('#site-header') && !e.closest('.sr-only') && !e.classList.contains('sr-only'))
+          // a checkbox is hit through its label
+          const boxes = [...document.querySelectorAll('input[type=checkbox]')].filter(vis)
+            .map(e => e.closest('label') || e)
+          const small = [...targets, ...boxes].filter(e => { const r = e.getBoundingClientRect(); return r.height < 43.5 || r.width < 43.5 })
+          // wide inputs and links inside a sentence are exempt only by being inline text, not here: every
+          // listed element is a control
+          const cut = [...document.querySelectorAll('main p, main h1, main h2, main h3, main li, main span')].filter(vis).filter(e => {
+            const cs = getComputedStyle(e)
+            return cs.textOverflow === 'ellipsis' || cs.webkitLineClamp !== 'none'
+              || (cs.overflowY !== 'visible' && e.scrollHeight > e.clientHeight + 1 && e.children.length === 0 && !e.closest('.overflow-y-auto'))
+          })
+          return {overX: d.scrollWidth - d.clientWidth,
+                  small: small.slice(0, 4).map(e => (e.id || e.tagName + '.' + String(e.className).slice(0, 25)) + ' ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height)),
+                  nsmall: small.length,
+                  cut: cut.slice(0, 3).map(e => (e.id || e.tagName + '.' + String(e.className).slice(0, 25)))}
+        }"""
+        for name, w, h, _, _ in VIEWPORTS:
+            pg = ctxs["touch" if w <= 1180 else "mouse"]
+            pg.set_viewport_size({"width": w, "height": h})
+            for label, url, ready in admin_pages:
+                pg.goto(base + url)
+                pg.wait_for_selector(ready)
+                pg.wait_for_selector("[data-phx-main].phx-connected")
+                pg.wait_for_timeout(100)
+                a = pg.evaluate(AUDIT)
+                touch_vp = w <= 1180
+                ok = a["overX"] <= 0 and not a["cut"] and (not touch_vp or a["nsmall"] == 0)
+                check(f"{name}: admin {label}: no horizontal overflow, no cut-off text"
+                      + (", every control 44px or more" if touch_vp else ""), ok, str(a))
+        # a long question text wraps in the format page's row: the whole text is shown, the row grows
+        long_text = "A very long question text that must wrap over several lines and never be cut off, " * 12
+        for name, w, h, _, _ in VIEWPORTS:
+            pg = ctxs["touch" if w <= 1180 else "mouse"]
+            pg.set_viewport_size({"width": w, "height": h})
+            pg.goto(base + fixture_url)
+            pg.wait_for_selector("li[id^=question-]")
+            r = pg.evaluate(
+                """(t) => {
+                  const p = document.querySelector('li[id^=question-] p')
+                  p.textContent = t
+                  const cs = getComputedStyle(p), r = p.getBoundingClientRect(), li = p.closest('li').getBoundingClientRect()
+                  const lh = parseFloat(cs.lineHeight) || 20
+                  return {ellipsis: cs.textOverflow, clamp: cs.webkitLineClamp, fits: p.scrollHeight <= p.clientHeight + 1,
+                          lines: Math.round(r.height / lh), inside: r.left >= 0 && r.right <= innerWidth && li.right <= innerWidth,
+                          overX: document.documentElement.scrollWidth - document.documentElement.clientWidth}
+                }""", long_text)
+            check(f"{name}: a long question text in the admin row wraps over several lines, is not clipped or ellipsised",
+                  r["ellipsis"] != "ellipsis" and r["clamp"] == "none" and r["fits"] and r["lines"] >= 3 and r["inside"] and r["overX"] <= 0,
+                  str(r))
+        touch_ctx.close()
+        mouse_ctx.close()
     elif os.environ.get("LAYOUT_REQUIRE_ADMIN"):
         # CI sets it: a section that is skipped for a missing login would leave the run green untested
         print("Admin form")

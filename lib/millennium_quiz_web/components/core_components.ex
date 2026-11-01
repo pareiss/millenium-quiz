@@ -329,9 +329,9 @@ defmodule MillenniumQuizWeb.CoreComponents do
     ~H"""
     <details
       id={@id}
-      class="rounded-field border border-base-300 bg-base-200/40 p-3 text-sm text-base-content/80"
+      class="duel-plate duel-sub rounded-field border border-base-300 bg-base-200/40 p-3 text-sm text-base-content/80"
     >
-      <summary class="cursor-pointer font-medium">
+      <summary class="duel-summary cursor-pointer font-medium">
         <.icon name="hero-information-circle" class="size-4 align-text-bottom" />
         Mentioning a card: put its name in [square brackets]
       </summary>
@@ -754,7 +754,7 @@ defmodule MillenniumQuizWeb.CoreComponents do
       phx-mounted={JS.focus(to: "##{@cancel_id}")}
     >
       <div class="absolute inset-0 bg-base-content/60" phx-click={@on_cancel} />
-      <div class="relative w-full max-w-md rounded-box border border-error/50 bg-base-100 shadow-xl p-5 sm:p-6 space-y-6 reveal-pop">
+      <div class="duel-plate duel-dialog relative w-full max-w-md rounded-box border border-error/50 bg-base-100 shadow-xl p-5 sm:p-6 space-y-6 reveal-pop">
         <div class="flex items-start gap-3">
           <span class="grid place-items-center size-10 shrink-0 rounded-full bg-error text-error-content">
             <.icon name={@icon} class="size-5" />

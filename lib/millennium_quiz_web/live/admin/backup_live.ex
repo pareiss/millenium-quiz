@@ -14,105 +14,107 @@ defmodule MillenniumQuizWeb.Admin.BackupLive do
       current_scope={@current_scope}
       pending_submissions={@pending_submissions}
     >
-      <.header>
-        Backup
-        <:subtitle>
-          A backup holds the quiz you wrote: formats, topics, questions, choices and the cards
-          linked to each question. It does not hold games, accounts or the card pool; the cards
-          are fetched again when you restore. Formats whose name already exists are skipped,
-          never overwritten.
-        </:subtitle>
-      </.header>
+      <div class="duel-admin space-y-6">
+        <.header>
+          Backup
+          <:subtitle>
+            A backup holds the quiz you wrote: formats, topics, questions, choices and the cards
+            linked to each question. It does not hold games, accounts or the card pool; the cards
+            are fetched again when you restore. Formats whose name already exists are skipped,
+            never overwritten.
+          </:subtitle>
+        </.header>
 
-      <section class="rounded-box border border-base-300 bg-base-100 p-5 space-y-3">
-        <h2 class="font-semibold">Download backup</h2>
-        <p class="text-sm text-base-content/70">
-          The file is saved on this device, usually in the Downloads folder. Download a new one
-          after every time you change questions, and keep it somewhere safe: a cloud drive, an
-          email to yourself or a USB stick. If the site ever loses its data, restore the file
-          below.
-        </p>
-        <a href={~p"/admin/backup.json"} class="btn btn-primary" id="download-backup" download>
-          <.icon name="hero-arrow-down-tray" class="size-5" /> Download backup
-        </a>
-      </section>
-
-      <section class="rounded-box border border-base-300 bg-base-100 p-5 space-y-3">
-        <h2 class="font-semibold">Restore from a backup file</h2>
-        <.form for={%{}} id="restore-form" phx-change="validate" phx-submit="ask" class="space-y-3">
-          <.live_file_input
-            upload={@uploads.backup}
-            id="backup-file"
-            class="file-input w-full pointer-coarse:min-h-11"
-          />
-          <p
-            :for={entry <- @uploads.backup.entries}
-            id={"backup-entry-#{entry.ref}"}
-            class="text-sm text-base-content/70"
-          >
-            {entry.client_name} ({entry.progress}%)
+        <section class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 p-5 space-y-3">
+          <h2 class="font-semibold">Download backup</h2>
+          <p class="text-sm text-base-content/70">
+            The file is saved on this device, usually in the Downloads folder. Download a new one
+            after every time you change questions, and keep it somewhere safe: a cloud drive, an
+            email to yourself or a USB stick. If the site ever loses its data, restore the file
+            below.
           </p>
-          <p
-            :for={error <- upload_errors(@uploads.backup)}
-            class="text-sm text-error"
-            id="backup-upload-error"
-          >
-            {upload_error(error)}
+          <a href={~p"/admin/backup.json"} class="btn btn-primary" id="download-backup" download>
+            <.icon name="hero-arrow-down-tray" class="size-5" /> Download backup
+          </a>
+        </section>
+
+        <section class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 p-5 space-y-3">
+          <h2 class="font-semibold">Restore from a backup file</h2>
+          <.form for={%{}} id="restore-form" phx-change="validate" phx-submit="ask" class="space-y-3">
+            <.live_file_input
+              upload={@uploads.backup}
+              id="backup-file"
+              class="file-input w-full pointer-coarse:min-h-11"
+            />
+            <p
+              :for={entry <- @uploads.backup.entries}
+              id={"backup-entry-#{entry.ref}"}
+              class="text-sm text-base-content/70"
+            >
+              {entry.client_name} ({entry.progress}%)
+            </p>
+            <p
+              :for={error <- upload_errors(@uploads.backup)}
+              class="text-sm text-error"
+              id="backup-upload-error"
+            >
+              {upload_error(error)}
+            </p>
+            <p
+              :for={entry <- @uploads.backup.entries}
+              :if={upload_errors(@uploads.backup, entry) != []}
+              class="text-sm text-error"
+              id={"backup-entry-error-#{entry.ref}"}
+            >
+              {Enum.map_join(upload_errors(@uploads.backup, entry), " ", &upload_error/1)}
+            </p>
+            <.button variant="primary" id="restore-button" disabled={not ready?(@uploads.backup)}>
+              <.icon name="hero-arrow-up-tray" class="size-5" /> Restore
+            </.button>
+          </.form>
+        </section>
+
+        <section
+          :if={@importing}
+          id="restore-running"
+          class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 p-5"
+        >
+          <span class="loading loading-spinner loading-sm"></span>
+          Restoring. Missing cards are fetched one at a time, this can take a while. The restore
+          keeps going if you leave this page, and its result is written to the server log; stay
+          here to see it.
+        </section>
+
+        <section
+          :if={@result}
+          id="restore-result"
+          class="duel-plate duel-panel rounded-box border border-base-300 bg-base-100 p-5 space-y-3"
+        >
+          <h2 class="font-semibold">Result</h2>
+          <ul class="list-disc pl-5 space-y-1 text-sm" id="restore-summary">
+            <li :for={{line, i} <- Enum.with_index(@report)} id={"restore-line-#{i}"}>{line}</li>
+          </ul>
+        </section>
+
+        <.confirm_dialog
+          :if={@confirm}
+          id="restore-dialog"
+          title="Restore this backup?"
+          icon="hero-arrow-up-tray"
+          on_cancel="cancel"
+        >
+          <p>
+            Formats that are not yet here are created from the file. Formats with the same name are
+            skipped and stay as they are.
           </p>
-          <p
-            :for={entry <- @uploads.backup.entries}
-            :if={upload_errors(@uploads.backup, entry) != []}
-            class="text-sm text-error"
-            id={"backup-entry-error-#{entry.ref}"}
-          >
-            {Enum.map_join(upload_errors(@uploads.backup, entry), " ", &upload_error/1)}
-          </p>
-          <.button variant="primary" id="restore-button" disabled={not ready?(@uploads.backup)}>
-            <.icon name="hero-arrow-up-tray" class="size-5" /> Restore
-          </.button>
-        </.form>
-      </section>
-
-      <section
-        :if={@importing}
-        id="restore-running"
-        class="rounded-box border border-base-300 bg-base-100 p-5"
-      >
-        <span class="loading loading-spinner loading-sm"></span>
-        Restoring. Missing cards are fetched one at a time, this can take a while. The restore
-        keeps going if you leave this page, and its result is written to the server log; stay
-        here to see it.
-      </section>
-
-      <section
-        :if={@result}
-        id="restore-result"
-        class="rounded-box border border-base-300 bg-base-100 p-5 space-y-3"
-      >
-        <h2 class="font-semibold">Result</h2>
-        <ul class="list-disc pl-5 space-y-1 text-sm" id="restore-summary">
-          <li :for={{line, i} <- Enum.with_index(@report)} id={"restore-line-#{i}"}>{line}</li>
-        </ul>
-      </section>
-
-      <.confirm_dialog
-        :if={@confirm}
-        id="restore-dialog"
-        title="Restore this backup?"
-        icon="hero-arrow-up-tray"
-        on_cancel="cancel"
-      >
-        <p>
-          Formats that are not yet here are created from the file. Formats with the same name are
-          skipped and stay as they are.
-        </p>
-        <:actions>
-          <button class="btn btn-ghost" phx-click="cancel" id="restore-dialog-cancel">Cancel</button>
-          <button class="btn btn-primary" phx-click="restore" id="restore-dialog-confirm">
-            <.icon name="hero-arrow-up-tray" class="size-4" /> Restore
-          </button>
-        </:actions>
-      </.confirm_dialog>
+          <:actions>
+            <button class="btn btn-ghost" phx-click="cancel" id="restore-dialog-cancel">Cancel</button>
+            <button class="btn btn-primary" phx-click="restore" id="restore-dialog-confirm">
+              <.icon name="hero-arrow-up-tray" class="size-4" /> Restore
+            </button>
+          </:actions>
+        </.confirm_dialog>
+      </div>
     </Layouts.app>
     """
   end

@@ -815,6 +815,122 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
 }
 [data-theme=duel-dark] .duel-headline { text-shadow: 0 0 1rem color-mix(in oklab, currentColor 55%, transparent); }
 
+/* The admin pages (every LiveView under /admin wraps its content in .duel-admin). The
+   markup carries plain daisyUI/Tailwind classes, so the pages work in every theme; the
+   structural rules here (wrapping, 44 px targets) apply everywhere, the duel themes add the
+   cut corners, Orbitron headings and the glow. Targets: a finger (coarse pointer) or a
+   narrow window gets 44 px. */
+.duel-admin > header { flex-wrap: wrap; row-gap: 0.75rem; }
+.duel-admin > header > div:first-child { min-width: 0; flex: 1 1 14rem; }
+.duel-admin :is(h1, h2, h3) { overflow-wrap: anywhere; }
+.duel-back { display: inline-flex; align-items: center; gap: 0.3rem; }
+.duel-qrow > p { overflow-wrap: anywhere; }
+@media (pointer: coarse), (max-width: 39.99rem) {
+  .duel-admin :is(.input, .select, .file-input, .tab) { min-height: 2.75rem; }
+  .duel-admin :is(.duel-back, .duel-summary) { min-height: 2.75rem; }
+  .duel-admin .duel-summary { display: list-item; padding-block: 0.6rem; }
+  .duel-admin .duel-back { padding-inline-end: 0.75rem; }
+}
+
+[data-theme=duel-dark], [data-theme=duel-light] {
+  /* the page title: Orbitron, upper case, a short cyan bar under it */
+  .duel-admin > header { position: relative; padding-bottom: 1.1rem; }
+  .duel-admin > header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0.35rem;
+    width: 4.5rem;
+    height: 3px;
+    background: var(--color-primary);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
+  }
+  .duel-admin > header h1 {
+    font-size: clamp(1.2rem, 5.5vw, 1.75rem);
+    font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .duel-admin > header p { font-weight: 500; font-size: 0.95rem; }
+  .duel-admin h2 {
+    font-family: var(--duel-font-display);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+  }
+  .duel-admin .duel-back { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+
+  /* a smaller plate (rows, cards, hints inside a panel) */
+  .duel-sub {
+    --plate-clip: polygon(0.5rem 0, 100% 0, 100% calc(100% - 0.5rem),
+      calc(100% - 0.5rem) 100%, 0 100%, 0 0.5rem);
+    --plate-border: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+    --plate-fill: color-mix(in oklab, var(--color-base-200) 60%, var(--color-base-100));
+  }
+  .duel-sub.duel-hover:hover, .duel-sub.duel-hover:focus-visible {
+    --plate-border: var(--color-primary);
+    --plate-fill: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
+  }
+  .duel-name { font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .duel-dialog { --plate-border: color-mix(in oklab, var(--color-error) 75%, transparent); }
+
+  /* the strip on top of a panel: tinted metal, the top left corner cut like the plate */
+  .duel-head {
+    margin: 1px 1px 0;
+    border-bottom-color: color-mix(in oklab, var(--color-primary) 35%, transparent);
+    background: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-300));
+    clip-path: polygon(calc(var(--duel-cut) - 1px) 0, 100% 0, 100% 100%, 0 100%, 0 calc(var(--duel-cut) - 1px));
+  }
+  /* question rows of the format page: the number in Orbitron, a cyan edge on hover */
+  .duel-qrow { box-shadow: inset 0 0 0 0 var(--color-primary); transition: background-color 0.15s, box-shadow 0.15s; }
+  .duel-qrow:hover { background: color-mix(in oklab, var(--color-primary) 6%, transparent); box-shadow: inset 3px 0 0 0 var(--color-primary); }
+  .duel-qno { font-family: var(--duel-font-display); font-weight: 700; color: var(--color-primary); }
+  .duel-qrow .duel-tag { font-size: 0.7rem; letter-spacing: 0.08em; height: 1.5rem; }
+
+  /* buttons with a face get the slanted shape (not the icon-only ghosts, which stay square
+     targets); a focused one drops the clip so its focus ring is visible */
+  .duel-admin .btn:not(.btn-ghost, .btn-square, .btn-circle, .btn-link) {
+    border-radius: 0;
+    clip-path: var(--duel-clip-foot);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .duel-admin .btn:not(.btn-ghost, .btn-square, .btn-circle, .btn-link):focus-visible { clip-path: none; }
+  .duel-admin .btn.btn-ghost:not(.btn-square, .btn-circle) { letter-spacing: 0.06em; text-transform: uppercase; }
+  .duel-admin .btn-sm { font-size: 0.7rem; }
+
+  /* fields: square, a darker well, a cyan edge and glow on focus */
+  .duel-admin :is(.input, .textarea, .select, .file-input) {
+    border-radius: 0;
+    background: color-mix(in oklab, var(--color-base-200) 75%, var(--color-base-100));
+    border-color: color-mix(in oklab, var(--color-base-content) 24%, transparent);
+    font-weight: 500;
+    font-size: 1.02rem;
+  }
+  .duel-admin :is(.input, .textarea, .select, .file-input):focus,
+  .duel-admin :is(.input, .textarea, .select, .file-input):focus-within {
+    border-color: var(--color-primary);
+    outline: 2px solid color-mix(in oklab, var(--color-primary) 55%, transparent);
+    outline-offset: 0;
+  }
+  .duel-admin .fieldset .label, .duel-admin legend {
+    font-family: var(--duel-font-body);
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--color-primary) 75%, var(--color-base-content));
+    opacity: 1;
+  }
+  .duel-admin .tab { font-family: var(--duel-font-display); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .duel-admin .kbd { border-radius: 0; }
+  .duel-admin .checkbox { border-radius: 0; }
+}
+[data-theme=duel-dark] .duel-admin > header h1 { text-shadow: 0 0 1rem color-mix(in oklab, currentColor 45%, transparent); }
+
 /* Old paper, after real cards: soft, round clouds of lighter and darker
    colour (isotropic noise in a fixed-size tile, never stretched) and a fine
    grain. Neutral, so they only shade the colour underneath. The frame has

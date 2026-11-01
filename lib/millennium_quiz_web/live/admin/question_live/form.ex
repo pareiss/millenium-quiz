@@ -12,319 +12,335 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
       current_scope={@current_scope}
       pending_submissions={@pending_submissions}
     >
-      <.link navigate={@return_to} class="text-sm text-base-content/60 hover:text-base-content">
-        <span aria-hidden="true">&larr;</span> {@topic.format.name}
-      </.link>
-      <.header>
-        {@page_title}
-        <:subtitle>Topic: {@topic.name}</:subtitle>
-      </.header>
+      <div class="duel-admin space-y-6">
+        <.link
+          navigate={@return_to}
+          class="duel-back text-sm text-base-content/60 hover:text-base-content"
+        >
+          <span aria-hidden="true">&larr;</span> {@topic.format.name}
+        </.link>
+        <.header>
+          {@page_title}
+          <:subtitle>Topic: {@topic.name}</:subtitle>
+        </.header>
 
-      <section
-        :if={@submission}
-        class="space-y-2 rounded-box border border-primary/40 bg-primary/5 p-4"
-        id="submission-original"
-      >
-        <h2 class="font-medium">
-          <.icon name="hero-light-bulb" class="size-5 text-primary" /> Suggested by a player
-        </h2>
-        <p class="text-sm text-base-content/60">
-          {if @submission.submitter_name,
-            do: "From #{@submission.submitter_name}",
-            else: "No name given"} · what they wrote is kept as it is; the form below is yours to edit. Saving adds it to this topic and marks the suggestion approved.
-        </p>
-        <p class="font-semibold whitespace-pre-line" id="original-text">{@submission.text}</p>
-        <ol class="list-[upper-alpha] pl-6 text-sm" id="original-choices">
-          <li :for={c <- @submission.choices} class={c.correct && "font-semibold"}>{c.text}</li>
-        </ol>
-      </section>
-
-      <section
-        class="space-y-3 rounded-box border border-base-300 bg-base-100 p-4"
-        id="question-cards"
-      >
-        <div>
-          <h2 class="font-medium">Cards</h2>
+        <section
+          :if={@submission}
+          class="duel-plate duel-sub space-y-2 rounded-box border border-primary/40 bg-primary/5 p-4"
+          id="submission-original"
+        >
+          <h2 class="font-medium">
+            <.icon name="hero-light-bulb" class="size-5 text-primary" /> Suggested by a player
+          </h2>
           <p class="text-sm text-base-content/60">
-            The cards this question is about. Texts are shown as of the format's date, {display_date(
-              @topic.format.date
-            )}.
+            {if @submission.submitter_name,
+              do: "From #{@submission.submitter_name}",
+              else: "No name given"} · what they wrote is kept as it is; the form below is yours to edit. Saving adds it to this topic and marks the suggestion approved.
           </p>
-        </div>
+          <p class="font-semibold whitespace-pre-line" id="original-text">{@submission.text}</p>
+          <ol class="list-[upper-alpha] pl-6 text-sm" id="original-choices">
+            <li :for={c <- @submission.choices} class={c.correct && "font-semibold"}>{c.text}</li>
+          </ol>
+        </section>
 
-        <% first_id = @cards |> List.first() |> then(&(&1 && &1.id)) %>
-        <% last_id = @cards |> List.last() |> then(&(&1 && &1.id)) %>
-        <ol :if={@cards != []} class="space-y-2" id="selected-cards">
-          <li
-            :for={card <- @cards}
-            id={"selected-card-#{card.id}"}
-            class="rounded-field border border-base-300 p-3 space-y-1"
-          >
-            <% text = Cards.text_on(card, @topic.format.date) %>
-            <div class="flex items-start gap-2">
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold">{card.name}</p>
-                <p class="text-xs text-base-content/60">
-                  {card.card_type}
-                  <span :if={text.set}>
-                    · as printed in {text.set}<span :if={text.released_on}> ({text.released_on.year})</span>
-                  </span>
-                </p>
-              </div>
-              <div
-                :if={length(@cards) > 1}
-                class="flex shrink-0"
-                role="group"
-                aria-label={"Move #{card.name}"}
-              >
+        <section
+          class="duel-plate duel-panel space-y-3 rounded-box border border-base-300 bg-base-100 p-4"
+          id="question-cards"
+        >
+          <div>
+            <h2 class="font-medium">Cards</h2>
+            <p class="text-sm text-base-content/60">
+              The cards this question is about. Texts are shown as of the format's date, {display_date(
+                @topic.format.date
+              )}.
+            </p>
+          </div>
+
+          <% first_id = @cards |> List.first() |> then(&(&1 && &1.id)) %>
+          <% last_id = @cards |> List.last() |> then(&(&1 && &1.id)) %>
+          <ol :if={@cards != []} class="space-y-2" id="selected-cards">
+            <li
+              :for={card <- @cards}
+              id={"selected-card-#{card.id}"}
+              class="duel-plate duel-sub rounded-field border border-base-300 p-3 space-y-1"
+            >
+              <% text = Cards.text_on(card, @topic.format.date) %>
+              <div class="flex items-start gap-2">
+                <div class="flex-1 min-w-0">
+                  <p class="font-semibold">{card.name}</p>
+                  <p class="text-xs text-base-content/60">
+                    {card.card_type}
+                    <span :if={text.set}>
+                      · as printed in {text.set}<span :if={text.released_on}> ({text.released_on.year})</span>
+                    </span>
+                  </p>
+                </div>
+                <div
+                  :if={length(@cards) > 1}
+                  class="flex shrink-0"
+                  role="group"
+                  aria-label={"Move #{card.name}"}
+                >
+                  <button
+                    :for={{dir, icon} <- [{"up", "hero-chevron-up"}, {"down", "hero-chevron-down"}]}
+                    type="button"
+                    class="btn btn-ghost btn-square btn-sm"
+                    phx-click="move_card"
+                    phx-value-id={card.id}
+                    phx-value-dir={dir}
+                    id={"move-card-#{card.id}-#{dir}"}
+                    aria-label={"Move #{card.name} #{dir}"}
+                    disabled={card.id == if(dir == "up", do: first_id, else: last_id)}
+                  >
+                    <.icon name={icon} class="size-4" />
+                  </button>
+                </div>
                 <button
-                  :for={{dir, icon} <- [{"up", "hero-chevron-up"}, {"down", "hero-chevron-down"}]}
                   type="button"
                   class="btn btn-ghost btn-square btn-sm"
-                  phx-click="move_card"
+                  phx-click="remove_card"
                   phx-value-id={card.id}
-                  phx-value-dir={dir}
-                  id={"move-card-#{card.id}-#{dir}"}
-                  aria-label={"Move #{card.name} #{dir}"}
-                  disabled={card.id == if(dir == "up", do: first_id, else: last_id)}
+                  id={"remove-card-#{card.id}"}
+                  aria-label={"Remove #{card.name}"}
                 >
-                  <.icon name={icon} class="size-4" />
+                  <.icon name="hero-x-mark" class="size-4" />
                 </button>
+              </div>
+              <div
+                class="flex flex-wrap items-center gap-2 text-sm"
+                role="group"
+                aria-label={"Whose card is #{card.name}?"}
+                id={"owner-#{card.id}"}
+              >
+                <span class="text-base-content/60">Belongs to</span>
+                <button
+                  :for={{value, label} <- [{"none", "Nobody"}, {"1", "Player 1"}, {"2", "Player 2"}]}
+                  type="button"
+                  aria-pressed={to_string(owner_value(@owners, card.id) == value)}
+                  phx-click="set_owner"
+                  phx-value-id={card.id}
+                  phx-value-owner={value}
+                  id={"owner-#{card.id}-#{value}"}
+                  class={[
+                    "btn btn-sm",
+                    owner_value(@owners, card.id) == value && owner_active(value)
+                  ]}
+                >
+                  {label}
+                </button>
+              </div>
+              <p class="text-sm whitespace-pre-line">{text.text}</p>
+            </li>
+          </ol>
+
+          <.form
+            for={@search_form}
+            id="card-search"
+            phx-change="search_cards"
+            phx-submit="search_cards"
+          >
+            <.input
+              field={@search_form[:query]}
+              type="search"
+              placeholder={"Search cards released by #{display_date(@topic.format.date)}…"}
+              autocomplete="off"
+              phx-debounce="300"
+            />
+          </.form>
+
+          <p :if={@search_error} class="text-sm text-error" id="card-search-error">{@search_error}</p>
+          <p class="text-xs text-base-content/50">
+            Search by YGOPRODeck; texts and errata from Yugipedia (CC BY-SA 4.0) and YAML Yugi.
+          </p>
+
+          <ul
+            :if={@results != []}
+            class="max-h-[min(22rem,50dvh)] divide-y divide-base-300 overflow-y-auto overscroll-contain rounded-field border border-base-300"
+            id="card-results"
+            tabindex="0"
+            aria-label="Search results"
+          >
+            <li :for={result <- @results} class="flex items-center gap-3 px-3 py-2">
+              <div class="flex-1 min-w-0">
+                <p class="font-medium truncate">{result.name}</p>
+                <p class="text-xs text-base-content/60">
+                  {result.card_type} · {display_date(result.tcg_release_date)}
+                  <span :if={result.in_pool} class="badge badge-ghost badge-xs ml-1">in card pool</span>
+                </p>
               </div>
               <button
                 type="button"
-                class="btn btn-ghost btn-square btn-sm"
-                phx-click="remove_card"
-                phx-value-id={card.id}
-                id={"remove-card-#{card.id}"}
-                aria-label={"Remove #{card.name}"}
+                class="btn btn-sm"
+                phx-click="add_card"
+                phx-value-password={result.password}
+                id={"add-card-#{result.password}"}
+                disabled={@importing != nil}
               >
-                <.icon name="hero-x-mark" class="size-4" />
+                <span
+                  :if={importing_password(@importing) == result.password}
+                  class="loading loading-spinner loading-xs"
+                />
+                <.icon
+                  :if={importing_password(@importing) != result.password}
+                  name="hero-plus"
+                  class="size-4"
+                /> Add
               </button>
-            </div>
-            <div
-              class="flex flex-wrap items-center gap-2 text-sm"
-              role="group"
-              aria-label={"Whose card is #{card.name}?"}
-              id={"owner-#{card.id}"}
-            >
-              <span class="text-base-content/60">Belongs to</span>
-              <button
-                :for={{value, label} <- [{"none", "Nobody"}, {"1", "Player 1"}, {"2", "Player 2"}]}
-                type="button"
-                aria-pressed={to_string(owner_value(@owners, card.id) == value)}
-                phx-click="set_owner"
-                phx-value-id={card.id}
-                phx-value-owner={value}
-                id={"owner-#{card.id}-#{value}"}
-                class={[
-                  "btn btn-sm",
-                  owner_value(@owners, card.id) == value && owner_active(value)
-                ]}
-              >
-                {label}
-              </button>
-            </div>
-            <p class="text-sm whitespace-pre-line">{text.text}</p>
-          </li>
-        </ol>
-
-        <.form for={@search_form} id="card-search" phx-change="search_cards" phx-submit="search_cards">
-          <.input
-            field={@search_form[:query]}
-            type="search"
-            placeholder={"Search cards released by #{display_date(@topic.format.date)}…"}
-            autocomplete="off"
-            phx-debounce="300"
-          />
-        </.form>
-
-        <p :if={@search_error} class="text-sm text-error" id="card-search-error">{@search_error}</p>
-        <p class="text-xs text-base-content/50">
-          Search by YGOPRODeck; texts and errata from Yugipedia (CC BY-SA 4.0) and YAML Yugi.
-        </p>
-
-        <ul
-          :if={@results != []}
-          class="max-h-[min(22rem,50dvh)] divide-y divide-base-300 overflow-y-auto overscroll-contain rounded-field border border-base-300"
-          id="card-results"
-          tabindex="0"
-          aria-label="Search results"
-        >
-          <li :for={result <- @results} class="flex items-center gap-3 px-3 py-2">
-            <div class="flex-1 min-w-0">
-              <p class="font-medium truncate">{result.name}</p>
-              <p class="text-xs text-base-content/60">
-                {result.card_type} · {display_date(result.tcg_release_date)}
-                <span :if={result.in_pool} class="badge badge-ghost badge-xs ml-1">in card pool</span>
-              </p>
-            </div>
-            <button
-              type="button"
-              class="btn btn-sm"
-              phx-click="add_card"
-              phx-value-password={result.password}
-              id={"add-card-#{result.password}"}
-              disabled={@importing != nil}
-            >
-              <span
-                :if={importing_password(@importing) == result.password}
-                class="loading loading-spinner loading-xs"
-              />
-              <.icon
-                :if={importing_password(@importing) != result.password}
-                name="hero-plus"
-                class="size-4"
-              /> Add
-            </button>
-          </li>
-        </ul>
-      </section>
-
-      <.form for={@form} id="question-form" phx-change="validate" phx-submit="save" class="space-y-4">
-        <div class="relative">
-          <.input
-            field={@form[:text]}
-            type="textarea"
-            label="Question"
-            rows="3"
-            maxlength="1000"
-            phx-hook="CardLinkInput"
-            data-suggestions="question-text-suggestions"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-controls="question-text-suggestions"
-          />
-          <ul
-            id="question-text-suggestions"
-            class="mq-suggestions"
-            role="listbox"
-            aria-label="Card suggestions"
-            phx-update="ignore"
-            hidden
-          >
+            </li>
           </ul>
-        </div>
-        <p
-          :if={@unlinked_names != []}
-          class="-mt-2 flex items-start gap-2 text-sm text-warning"
-          id="unlinked-names"
-          role="status"
+        </section>
+
+        <.form
+          for={@form}
+          id="question-form"
+          phx-change="validate"
+          phx-submit="save"
+          class="space-y-4"
         >
-          <.icon name="hero-exclamation-triangle" class="mt-0.5 size-4 shrink-0" />
-          <span>
-            No card attached for: {Enum.map_join(@unlinked_names, ", ", &"[#{&1}]")} — they show as plain text to players.
-          </span>
-        </p>
-        <p class="-mt-2 text-xs text-base-content/60" id="card-link-hint">
-          Type <kbd class="kbd kbd-xs">[</kbd>
-          and a card name to link a card<span class="hidden [@media(hover:hover)]:inline">;
+          <div class="relative">
+            <.input
+              field={@form[:text]}
+              type="textarea"
+              label="Question"
+              rows="3"
+              maxlength="1000"
+              phx-hook="CardLinkInput"
+              data-suggestions="question-text-suggestions"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="question-text-suggestions"
+            />
+            <ul
+              id="question-text-suggestions"
+              class="mq-suggestions"
+              role="listbox"
+              aria-label="Card suggestions"
+              phx-update="ignore"
+              hidden
+            >
+            </ul>
+          </div>
+          <p
+            :if={@unlinked_names != []}
+            class="-mt-2 flex items-start gap-2 text-sm text-warning"
+            id="unlinked-names"
+            role="status"
+          >
+            <.icon name="hero-exclamation-triangle" class="mt-0.5 size-4 shrink-0" />
+            <span>
+              No card attached for: {Enum.map_join(@unlinked_names, ", ", &"[#{&1}]")} — they show as plain text to players.
+            </span>
+          </p>
+          <p class="-mt-2 text-xs text-base-content/60" id="card-link-hint">
+            Type <kbd class="kbd kbd-xs">[</kbd>
+            and a card name to link a card<span class="hidden [@media(hover:hover)]:inline">;
             <kbd class="kbd kbd-xs">Tab</kbd>
             or <kbd class="kbd kbd-xs">Enter</kbd>
             accepts the suggestion</span>.
-          <span class="[@media(hover:hover)]:hidden">Tap a suggestion to insert it.</span>
-          <kbd class="kbd kbd-xs">{"{P1}"}</kbd>
-          and <kbd class="kbd kbd-xs">{"{P2}"}</kbd>
-          mark the two players, in the question or an answer (a blue and a red badge).
-        </p>
-        <.card_markup_help audience={:admin} />
-
-        <% number = @question.position + 1 %>
-        <p class="text-sm text-base-content/60" id="question-damage-note">
-          A wrong answer costs {Question.damage(@question.position)} LP, fixed by the question's position ({number}).
-        </p>
-
-        <.input
-          :if={@show_submitter}
-          field={@form[:submitted_by]}
-          label="Suggested by (shown on the reveal; empty for none)"
-          maxlength={Question.max_submitter_length()}
-        />
-
-        <fieldset class="space-y-2">
-          <legend class="font-medium mb-1">
-            Answers <span class="text-sm text-base-content/60">(2–6, tick the correct one)</span>
-          </legend>
-          <.answer_markup_hint />
-          <.inputs_for :let={choice} field={@form[:choices]}>
-            <%!-- letter, answer, remove; "Correct" sits under the answer on a
-                 phone and in the row from sm up --%>
-            <div class="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
-              <input type="hidden" name="question[choices_sort][]" value={choice.index} />
-              <span class="mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-base-200 text-sm font-semibold">
-                {<<?A + choice.index>>}
-              </span>
-              <div class="relative">
-                <.input
-                  field={choice[:text]}
-                  placeholder="Answer"
-                  maxlength="200"
-                  autocomplete="off"
-                  phx-hook="CardLinkInput"
-                  data-mode="plain"
-                  aria-describedby="choice-hint"
-                  data-suggestions={"choice-suggestions-#{choice.index}"}
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-controls={"choice-suggestions-#{choice.index}"}
-                />
-                <ul
-                  id={"choice-suggestions-#{choice.index}"}
-                  class="mq-suggestions"
-                  role="listbox"
-                  aria-label="Card suggestions"
-                  phx-update="ignore"
-                  hidden
-                >
-                </ul>
-              </div>
-              <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:mt-2">
-                <.input
-                  field={choice[:correct]}
-                  type="checkbox"
-                  label="Correct"
-                  class="checkbox checkbox-success checkbox-sm mr-1"
-                />
-              </div>
-              <button
-                type="button"
-                name="question[choices_drop][]"
-                value={choice.index}
-                phx-click={JS.dispatch("change")}
-                class="btn btn-ghost btn-square col-start-3 row-start-1 mt-0.5 sm:col-start-4"
-                id={"remove-choice-#{choice.index}"}
-                aria-label="Remove answer"
-                title="Remove answer"
-              >
-                <.icon name="hero-x-mark" class="size-5" />
-              </button>
-            </div>
-          </.inputs_for>
-          <input type="hidden" name="question[choices_drop][]" />
-          <p
-            :for={msg <- choice_errors(@form)}
-            class="text-sm text-error flex gap-2 items-center"
-            id="choice-errors"
-          >
-            <.icon name="hero-exclamation-circle" class="size-5" /> {msg}
+            <span class="[@media(hover:hover)]:hidden">Tap a suggestion to insert it.</span>
+            <kbd class="kbd kbd-xs">{"{P1}"}</kbd>
+            and <kbd class="kbd kbd-xs">{"{P2}"}</kbd>
+            mark the two players, in the question or an answer (a blue and a red badge).
           </p>
-          <button
-            type="button"
-            name="question[choices_sort][]"
-            value="new"
-            phx-click={JS.dispatch("change")}
-            class="btn btn-ghost btn-sm"
-            id="add-choice"
-          >
-            <.icon name="hero-plus" class="size-4" /> Add answer
-          </button>
-        </fieldset>
+          <.card_markup_help audience={:admin} />
 
-        <div class="flex gap-2 pt-2">
-          <.button variant="primary" phx-disable-with="Saving…" id="save-question">Save</.button>
-          <.button navigate={@return_to}>Cancel</.button>
-        </div>
-      </.form>
+          <% number = @question.position + 1 %>
+          <p class="text-sm text-base-content/60" id="question-damage-note">
+            A wrong answer costs {Question.damage(@question.position)} LP, fixed by the question's position ({number}).
+          </p>
+
+          <.input
+            :if={@show_submitter}
+            field={@form[:submitted_by]}
+            label="Suggested by (shown on the reveal; empty for none)"
+            maxlength={Question.max_submitter_length()}
+          />
+
+          <fieldset class="space-y-2">
+            <legend class="font-medium mb-1">
+              Answers <span class="text-sm text-base-content/60">(2–6, tick the correct one)</span>
+            </legend>
+            <.answer_markup_hint />
+            <.inputs_for :let={choice} field={@form[:choices]}>
+              <%!-- letter, answer, remove; "Correct" sits under the answer on a
+                 phone and in the row from sm up --%>
+              <div class="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_auto_auto]">
+                <input type="hidden" name="question[choices_sort][]" value={choice.index} />
+                <span class="mt-2 grid place-items-center size-8 shrink-0 rounded-full bg-base-200 text-sm font-semibold">
+                  {<<?A + choice.index>>}
+                </span>
+                <div class="relative">
+                  <.input
+                    field={choice[:text]}
+                    placeholder="Answer"
+                    maxlength="200"
+                    autocomplete="off"
+                    phx-hook="CardLinkInput"
+                    data-mode="plain"
+                    aria-describedby="choice-hint"
+                    data-suggestions={"choice-suggestions-#{choice.index}"}
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-controls={"choice-suggestions-#{choice.index}"}
+                  />
+                  <ul
+                    id={"choice-suggestions-#{choice.index}"}
+                    class="mq-suggestions"
+                    role="listbox"
+                    aria-label="Card suggestions"
+                    phx-update="ignore"
+                    hidden
+                  >
+                  </ul>
+                </div>
+                <div class="col-start-2 row-start-2 sm:col-start-3 sm:row-start-1 sm:mt-2">
+                  <.input
+                    field={choice[:correct]}
+                    type="checkbox"
+                    label="Correct"
+                    class="checkbox checkbox-success checkbox-sm mr-1"
+                  />
+                </div>
+                <button
+                  type="button"
+                  name="question[choices_drop][]"
+                  value={choice.index}
+                  phx-click={JS.dispatch("change")}
+                  class="btn btn-ghost btn-square col-start-3 row-start-1 mt-0.5 sm:col-start-4"
+                  id={"remove-choice-#{choice.index}"}
+                  aria-label="Remove answer"
+                  title="Remove answer"
+                >
+                  <.icon name="hero-x-mark" class="size-5" />
+                </button>
+              </div>
+            </.inputs_for>
+            <input type="hidden" name="question[choices_drop][]" />
+            <p
+              :for={msg <- choice_errors(@form)}
+              class="text-sm text-error flex gap-2 items-center"
+              id="choice-errors"
+            >
+              <.icon name="hero-exclamation-circle" class="size-5" /> {msg}
+            </p>
+            <button
+              type="button"
+              name="question[choices_sort][]"
+              value="new"
+              phx-click={JS.dispatch("change")}
+              class="btn btn-ghost btn-sm"
+              id="add-choice"
+            >
+              <.icon name="hero-plus" class="size-4" /> Add answer
+            </button>
+          </fieldset>
+
+          <div class="flex gap-2 pt-2">
+            <.button variant="primary" phx-disable-with="Saving…" id="save-question">Save</.button>
+            <.button navigate={@return_to}>Cancel</.button>
+          </div>
+        </.form>
+      </div>
     </Layouts.app>
     """
   end
