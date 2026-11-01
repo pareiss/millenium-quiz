@@ -128,10 +128,7 @@ while the page is open). The toggle's sun and moon select `duel-light` and
 or `?theme=system` replaces it. The theme script in `root.html.heex` applies it
 before the first paint (the server sets no `data-theme`), and a stored `light` or
 `dark` from before the redesign counts as `duel-light` or `duel-dark`. `?theme=duel`,
-`duel-dark`, `duel-light` and `system` work on any page. The former "Millennium"
-themes `light` and `dark` (gold on parchment or indigo) are still defined in
-`app.css` (the shared token blocks and some tests name them) but have no button;
-`?theme=millennium-light` or `?theme=millennium-dark` shows them for debugging.
+`duel-dark`, `duel-light` and `system` work on any page. The former "Millennium" themes `light` and `dark` (gold on parchment or indigo) are gone.
 Orbitron (headings, buttons, badges) and Rajdhani (body) apply under the duel
 themes, and the CSS variables `--duel-p1`..`--duel-p4` (player colours, darker in
 the light variant), `--duel-cut`, `--duel-clip-cut` and `--duel-clip-tab` (cut-corner

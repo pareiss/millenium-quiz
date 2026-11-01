@@ -18,79 +18,6 @@
   themes: false;
 }
 
-/* daisyUI themes "dark" and "light": the former "Millennium" look (gold on deep indigo,
-   parchment). No longer reachable from the toggle (only by ?theme=millennium-dark or
-   -light); kept because the shared token blocks below and some tests still name them. */
-@plugin "daisyui/packages/bundle/daisyui-theme" {
-  name: "dark";
-  default: false;
-  prefersdark: false;
-  color-scheme: "dark";
-  --color-base-100: oklch(22% 0.035 285);
-  --color-base-200: oklch(18% 0.03 285);
-  --color-base-300: oklch(14% 0.025 285);
-  --color-base-content: oklch(94% 0.015 85);
-  --color-primary: oklch(80% 0.145 85);
-  --color-primary-content: oklch(22% 0.04 60);
-  --color-secondary: oklch(55% 0.2 300);
-  --color-secondary-content: oklch(97% 0.015 300);
-  --color-accent: oklch(68% 0.16 230);
-  --color-accent-content: oklch(15% 0.03 230);
-  --color-neutral: oklch(32% 0.04 285);
-  --color-neutral-content: oklch(96% 0.01 285);
-  --color-info: oklch(68% 0.14 240);
-  --color-info-content: oklch(15% 0.03 240);
-  --color-success: oklch(70% 0.15 155);
-  --color-success-content: oklch(15% 0.04 155);
-  --color-warning: oklch(78% 0.16 70);
-  --color-warning-content: oklch(20% 0.04 70);
-  --color-error: oklch(64% 0.21 25);
-  --color-error-content: oklch(97% 0.015 25);
-  --radius-selector: 0.5rem;
-  --radius-field: 0.5rem;
-  --radius-box: 0.875rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 1;
-  --noise: 0;
-}
-
-@plugin "daisyui/packages/bundle/daisyui-theme" {
-  name: "light";
-  default: false;
-  prefersdark: false;
-  color-scheme: "light";
-  --color-base-100: oklch(98.5% 0.008 85);
-  --color-base-200: oklch(95.5% 0.014 85);
-  --color-base-300: oklch(91% 0.02 85);
-  --color-base-content: oklch(24% 0.03 285);
-  --color-primary: oklch(74% 0.15 80);
-  --color-primary-content: oklch(22% 0.04 60);
-  --color-secondary: oklch(45% 0.19 300);
-  --color-secondary-content: oklch(98% 0.01 300);
-  --color-accent: oklch(52% 0.15 240);
-  --color-accent-content: oklch(98% 0.01 240);
-  --color-neutral: oklch(30% 0.04 285);
-  --color-neutral-content: oklch(97% 0.01 285);
-  --color-info: oklch(55% 0.16 245);
-  --color-info-content: oklch(98% 0.01 245);
-  --color-success: oklch(55% 0.14 155);
-  --color-success-content: oklch(98% 0.01 155);
-  --color-warning: oklch(72% 0.16 65);
-  --color-warning-content: oklch(20% 0.04 65);
-  --color-error: oklch(55% 0.21 25);
-  --color-error-content: oklch(98% 0.01 25);
-  --radius-selector: 0.5rem;
-  --radius-field: 0.5rem;
-  --radius-box: 0.875rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 1;
-  --noise: 0;
-}
-
 /* daisyUI themes "duel-dark" and "duel-light": the Neo Domino / 5D's look (metal,
    neon cyan, red, Synchro green): the site's default look (duel-light is the plain default,
    duel-dark the one for a dark system; the toggle and ?theme= are in root.html.heex).
@@ -174,7 +101,7 @@
 @custom-variant phx-offline (.phx-client-error &, .phx-server-error &);
 
 /* Use the data attribute for dark mode  */
-@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, [data-theme=duel-dark], [data-theme=duel-dark] *));
+@custom-variant dark (&:where([data-theme=duel-dark], [data-theme=duel-dark] *));
 
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
@@ -297,7 +224,7 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
    upper case, cut corners, glow) is below; here is what the game screens need to
    look right in any theme. --duel-radius, --duel-font-display, --duel-case and
    --duel-track are the plain values and the duel themes replace them. */
-[data-theme=dark], [data-theme=duel-dark] {
+[data-theme=duel-dark] {
   --duel-p1: #19d3ff;
   --duel-p2: #ff3d4f;
   --duel-p3: #ffb020;
@@ -310,7 +237,7 @@ body:has(#game-reconnecting) :is(#client-error, #server-error) { display: none !
 }
 /* :where(): the theme attribute sits on <html> itself, so a plain :root (same
    specificity, later in the file) would beat the dark block above */
-:where(:root), [data-theme=light], [data-theme=duel-light] {
+:where(:root), [data-theme=duel-light] {
   --duel-p1: #076f96;
   --duel-p2: #c9202f;
   --duel-p3: #8a5a00;

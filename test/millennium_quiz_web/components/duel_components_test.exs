@@ -187,17 +187,17 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
 
   describe "contrast of the colours the components add" do
     defp tokens(theme) do
-      # the tokens are shared with the plain themes of the same brightness
       selector =
         case theme do
-          t when t in ["duel-dark", "dark"] ->
-            "[data-theme=dark], [data-theme=duel-dark]"
-
-          t when t in ["duel-light", "light"] ->
-            ":where(:root), [data-theme=light], [data-theme=duel-light]"
+          "duel-dark" -> "[data-theme=duel-dark]"
+          "duel-light" -> ":where(:root), [data-theme=duel-light]"
         end
 
-      [_, block] = Regex.run(~r/^#{Regex.escape(selector)} \{(.*?)\n\}/ms, @css)
+      # other rules start with the same selector: the token block is the one with --duel-p1
+      assert [[_, block]] =
+               ~r/^#{Regex.escape(selector)} \{(.*?)\n\}/ms
+               |> Regex.scan(@css)
+               |> Enum.filter(fn [_, b] -> b =~ "--duel-p1:" end)
 
       ~r/--duel-([a-z0-9-]+): (#[0-9a-f]{6});/
       |> Regex.scan(block)
@@ -207,45 +207,9 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
     defp theme(name) do
       [_, block] = Regex.run(~r/name: "#{name}";(.*?)\n\}/s, @css)
 
-      # the duel themes use hex, the plain light and dark themes oklch()
-      ~r/--color-([a-z0-9-]+): (#[0-9a-f]{6}|oklch\([^)]*\));/
+      ~r/--color-([a-z0-9-]+): (#[0-9a-f]{6});/
       |> Regex.scan(block)
-      |> Map.new(fn [_, key, value] -> {key, to_hex(value)} end)
-    end
-
-    defp to_hex("#" <> _ = hex), do: hex
-
-    defp to_hex("oklch(" <> rest) do
-      [l, c, h] =
-        rest |> String.trim_trailing(")") |> String.split(" ", trim: true) |> Enum.map(&number/1)
-
-      # oklab -> linear sRGB -> sRGB (Bjorn Ottosson's matrices)
-      l = l / 100
-      a = c * :math.cos(h * :math.pi() / 180)
-      b = c * :math.sin(h * :math.pi() / 180)
-      l_ = :math.pow(l + 0.3963377774 * a + 0.2158037573 * b, 3)
-      m_ = :math.pow(l - 0.1055613458 * a - 0.0638541728 * b, 3)
-      s_ = :math.pow(l - 0.0894841775 * a - 1.2914855480 * b, 3)
-
-      [
-        4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
-        -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
-        -0.0041960863 * l_ - 0.7034186147 * m_ + 1.7076147010 * s_
-      ]
-      |> Enum.map(fn v ->
-        v = v |> max(0.0) |> min(1.0)
-        v = if v <= 0.0031308, do: 12.92 * v, else: 1.055 * :math.pow(v, 1 / 2.4) - 0.055
-        v |> Kernel.*(255) |> round() |> Integer.to_string(16) |> String.pad_leading(2, "0")
-      end)
-      |> then(&("#" <> Enum.join(&1)))
-      |> String.downcase()
-    end
-
-    defp number(text) do
-      text
-      |> String.trim_trailing("%")
-      |> then(&if &1 =~ ".", do: &1, else: &1 <> ".0")
-      |> String.to_float()
+      |> Map.new(fn [_, key, hex] -> {key, hex} end)
     end
 
     defp channel(hex, from) do
@@ -261,7 +225,7 @@ defmodule MillenniumQuizWeb.DuelComponentsTest do
       (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
     end
 
-    for name <- ["duel-dark", "duel-light", "dark", "light"] do
+    for name <- ["duel-dark", "duel-light"] do
       test "#{name}: number, labels, damage, K.O. and the ring are readable" do
         t = tokens(unquote(name))
         c = theme(unquote(name))
