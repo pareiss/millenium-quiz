@@ -13,8 +13,17 @@
 # checkout the command runs from.
 #
 # Reviews that an older version left in another worktree's own reviews/ are
-# not moved. Once per run (REVIEW_STRAY_NOTICED), a notice names them and the
-# cp+rm command; nothing is moved or deleted automatically.
+# not moved. Once per run (REVIEW_STRAY_NOTICED), a notice names them and
+# suggests mv -n commands for the files that do not clash with one already in
+# the main checkout; clashing files are listed for manual handling and are
+# never overwritten or deleted. Only emptied directories are removed.
+# Nothing is moved or deleted automatically.
+#
+# Why not `git worktree list --porcelain` (first entry = main worktree)? Tried
+# (git 2.43): in a repo made with --separate-git-dir the first entry is the git
+# dir itself, not the working tree, and in a bare repo it is the bare dir (marked
+# "bare"). So it does not give the main checkout in exactly the layouts where
+# <common dir>/.. does not either.
 
 review_main_checkout() {
   local common gitdir main
@@ -46,15 +55,33 @@ review_notice_stray() {
   [[ -d "$top/reviews" && "$top/reviews" != "$main_reviews" ]] || return 0
   [[ "$(cd "$top/reviews" && pwd -P)" != "$(cd "$main_reviews" 2>/dev/null && pwd -P)" ]] || return 0
   [[ -z "${REVIEW_STRAY_NOTICED:-}" ]] || return 0
-  local files
+  local files f rel clash="" move="" q
   files="$(find "$top/reviews" -type f | sort)"
   [[ -n "$files" ]] || return 0
   export REVIEW_STRAY_NOTICED=1
+  while IFS= read -r f; do
+    rel="${f#"$top/reviews/"}"
+    if [[ -e "$main_reviews/$rel" || -L "$main_reviews/$rel" ]]; then
+      clash+="  $f"$'\n'
+    else
+      printf -v q 'mkdir -p %q && mv -n %q %q' \
+        "$(dirname "$main_reviews/$rel")" "$f" "$main_reviews/$rel"
+      move+="  $q"$'\n'
+    fi
+  done <<<"$files"
   {
     echo "review-dirs: reviews now live in $main_reviews, but this worktree still has:"
     sed 's/^/  /' <<<"$files"
-    echo "These are not seen by the review scripts. To keep them, run:"
-    echo "  mkdir -p '$main_reviews' && cp -rn '$top/reviews/.' '$main_reviews/' && rm -r '$top/reviews'"
+    echo "These are not seen by the review scripts."
+    if [[ -n "$clash" ]]; then
+      echo "These already exist in the main checkout; compare and merge them by hand (they are not touched by the commands below):"
+      printf '%s' "$clash"
+    fi
+    if [[ -n "$move" ]]; then
+      echo "To keep the others, run (mv -n never overwrites):"
+      printf '%s' "$move"
+    fi
+    printf 'Then remove the emptied directories (files that are left stay):\n  find %q -depth -empty -delete\n' "$top/reviews"
   } >&2
 }
 

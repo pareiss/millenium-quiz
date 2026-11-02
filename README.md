@@ -454,6 +454,18 @@ run a command from, so reviews do not vanish with a worktree. `bin/review-dirs`
 throwaway PR worktrees, `.review/` and `REVIEWING.md` stay relative to the
 checkout you run from.
 
+The rule has exceptions for uncommon layouts. If the common git dir is not
+named `.git` (a repo made with `--separate-git-dir`, or a submodule), the
+checkout is only known from the primary working tree, so it is that tree's
+top level; from a linked worktree of such a repo the command stops with a
+message, and so it does in a bare repository (`git worktree list` does not
+help: there its first entry is the git dir, not the checkout). Run the command
+from the main checkout instead. If an older version left a `reviews/` in
+another worktree, the first run prints a notice: files that do not clash with
+one in the main checkout get a `mv -n` command each, clashing files are listed
+for manual merging, and only emptied directories are removed afterwards.
+Nothing is moved or deleted automatically.
+
 ## Specialist agents
 
 Claude Code sessions on this repo can hand work to three specialists, defined

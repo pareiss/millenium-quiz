@@ -52,7 +52,11 @@ class ReviewDirsTest(unittest.TestCase):
             git(main, "commit", "-q", "--allow-empty", "-m", "init")
             git(main, "worktree", "add", "-q", "-b", "other", wt)
             self.assertEqual(reviews_dir_from(main), os.path.join(main, "reviews"))
-            # a linked worktree cannot tell where the main checkout is: clear error
+            # a linked worktree cannot tell where the main checkout is (git worktree
+            # list names the git dir, not the checkout): clear error
+            lst = subprocess.run(["git", "worktree", "list", "--porcelain"], cwd=wt,
+                                 capture_output=True, text=True).stdout
+            self.assertEqual(lst.splitlines()[0], "worktree " + os.path.join(tmp, "elsewhere"))
             r = run_helper(wt)
             self.assertNotEqual(r.returncode, 0)
             self.assertIn("cannot find the main checkout", r.stderr)
@@ -105,11 +109,66 @@ class ReviewDirsTest(unittest.TestCase):
             r = run_helper(wt)
             self.assertEqual(r.returncode, 0)
             self.assertIn(os.path.join(wt, "reviews", "pr-old.md"), r.stderr)
-            self.assertIn("cp -rn", r.stderr)
+            self.assertIn("mv -n", r.stderr)
+            self.assertNotIn("rm -r", r.stderr)
             self.assertTrue(os.path.exists(os.path.join(wt, "reviews", "pr-old.md")))
             # once per run: nested sourcing with the marker set stays quiet
             r = run_helper(wt, REVIEW_STRAY_NOTICED="1")
             self.assertEqual(r.stderr, "")
+
+    def test_suggested_commands_never_lose_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = os.path.realpath(tmp)
+            main = os.path.join(tmp, "ma'in")  # a quote in the path
+            wt = os.path.join(tmp, "wt")
+            os.mkdir(main)
+            git(main, "init", "-q")
+            git(main, "commit", "-q", "--allow-empty", "-m", "init")
+            git(main, "worktree", "add", "-q", "-b", "other", wt)
+            def put(base, rel, text):
+                path = os.path.join(base, "reviews", rel)
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "w") as f:
+                    f.write(text)
+            put(main, "pr-a.md", "main a")
+            put(wt, "pr-a.md", "stray a")          # clashes
+            put(wt, "pr-b.md", "stray b")          # does not
+            put(wt, "archive/pr-c.md", "stray c")  # does not, new subdirectory
+            r = run_helper(wt)
+            self.assertEqual(r.returncode, 0)
+            lines = r.stderr.splitlines()
+            # the clash is listed apart from the commands
+            self.assertIn("by hand", r.stderr)
+            self.assertFalse([l for l in lines if "mv -n" in l and "pr-a.md" in l])
+            cmds = [l.strip() for l in lines if l.strip().startswith(("mkdir", "find"))]
+            self.assertEqual(len(cmds), 3)
+            for c in cmds:
+                subprocess.run(["bash", "-c", c], check=True, cwd=tmp)
+            def read(base, rel):
+                with open(os.path.join(base, "reviews", rel)) as f:
+                    return f.read()
+            self.assertEqual(read(main, "pr-a.md"), "main a")
+            self.assertEqual(read(wt, "pr-a.md"), "stray a")  # still there
+            self.assertEqual(read(main, "pr-b.md"), "stray b")
+            self.assertEqual(read(main, "archive/pr-c.md"), "stray c")
+            self.assertFalse(os.path.exists(os.path.join(wt, "reviews", "archive")))  # emptied dir gone
+
+    def test_fully_moved_stray_dir_is_removed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = os.path.realpath(tmp)
+            main = os.path.join(tmp, "main")
+            wt = os.path.join(tmp, "wt")
+            os.mkdir(main)
+            git(main, "init", "-q")
+            git(main, "commit", "-q", "--allow-empty", "-m", "init")
+            git(main, "worktree", "add", "-q", "-b", "other", wt)
+            os.mkdir(os.path.join(wt, "reviews"))
+            open(os.path.join(wt, "reviews", "pr-x.md"), "w").close()
+            r = run_helper(wt)
+            for c in [l.strip() for l in r.stderr.splitlines() if l.strip().startswith(("mkdir", "find"))]:
+                subprocess.run(["bash", "-c", c], check=True, cwd=tmp)
+            self.assertTrue(os.path.exists(os.path.join(main, "reviews", "pr-x.md")))
+            self.assertFalse(os.path.exists(os.path.join(wt, "reviews")))
 
 
 if __name__ == "__main__":
