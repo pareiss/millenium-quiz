@@ -268,7 +268,8 @@ The technical details follow.
   created at all when none of its questions comes through. A question the topic
   already has (same text, choices and board) is counted as "already there", so
   importing a pack twice adds nothing; the text is compared without the `[card]`
-  brackets and card names, so a card that could not be fetched the first time
+  brackets and with each whole card name replaced by the card's password (so
+  questions about different cards stay different), so a card that could not be fetched the first time
   or was renamed since does not make the question new. Only a pack that is not JSON, too large
   (5 MB, 200 questions per topic after entries of the same name are merged, 500 in all) or not a pack (version, topics,
   names) is rejected whole. Every other problem is **per question**: the

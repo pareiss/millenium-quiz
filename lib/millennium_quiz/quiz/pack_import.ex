@@ -421,6 +421,8 @@ defmodule MillenniumQuiz.Quiz.PackImport do
   # (`[Ghost]`), and a card renamed in between has another name. So both texts
   # are compared with the link brackets removed and every name of a card of the
   # question (in the pack, in the pool now, on the stored question) blanked out.
+  # Each name is blanked with a placeholder tied to the card's password, so
+  # "Can [Dark Magician] ...?" and "Can [Blue-Eyes White Dragon] ...?" differ.
   defp duplicate?(db_topic, q, pool) do
     choices = Enum.map(q.choices, &{&1["text"], &1["correct"]})
     pack_names = pack_names(q, pool)
@@ -431,7 +433,11 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     )
     |> Repo.all()
     |> Enum.any?(fn x ->
-      names = pack_names ++ Enum.flat_map(x.question_cards, &List.wrap(&1.card && &1.card.name))
+      stored =
+        for %{card: %{name: name, password: pw}} when is_binary(name) <- x.question_cards,
+            do: {name, pw}
+
+      names = pack_names ++ stored
 
       x.board == q.board and
         Enum.map(x.choices, &{&1.text, &1.correct}) == choices and
@@ -439,30 +445,40 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     end)
   end
 
+  # `{name, password}` of every name a card of the pack question may have.
   defp pack_names(q, pool) do
     Enum.flat_map(q.cards, fn card ->
       current =
         case Map.get(pool, card.password) do
-          {:ok, _id, name} -> [name]
+          {:ok, _id, name} -> [{name, card.password}]
           _ -> []
         end
 
-      List.wrap(card.name) ++ current
+      Enum.map(List.wrap(card.name), &{&1, card.password}) ++ current
     end)
   end
 
   defp canonical(text, names) do
     names =
       names
-      |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
-      |> Enum.reject(&(&1 == ""))
+      |> Enum.map(fn {name, pw} -> {name |> String.trim() |> String.downcase(), pw} end)
+      |> Enum.reject(fn {name, _} -> name == "" end)
       |> Enum.uniq()
-      |> Enum.sort_by(&String.length/1, :desc)
+      |> Enum.sort_by(fn {name, _} -> String.length(name) end, :desc)
 
     text
     |> String.replace(["[", "]"], "")
     |> String.downcase()
-    |> then(fn t -> Enum.reduce(names, t, &String.replace(&2, &1, "\0")) end)
+    |> then(fn t ->
+      Enum.reduce(names, t, fn {name, pw}, acc ->
+        # Whole names only, never a piece of another word.
+        Regex.replace(
+          ~r/(?<![\p{L}\p{N}])#{Regex.escape(name)}(?![\p{L}\p{N}])/u,
+          acc,
+          "\0#{pw}\0"
+        )
+      end)
+    end)
   end
 
   defp fail(report, topic_name, {number, raw, {:error, reason}}) do

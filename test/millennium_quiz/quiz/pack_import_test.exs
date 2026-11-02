@@ -292,6 +292,29 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
              )
   end
 
+  test "same text and choices but different cards are different questions", %{format: format} do
+    a = [%{"password" => @plain, "name" => "Plain Card"}]
+    b = [%{"password" => @reborn, "name" => "Monster Reborn"}]
+    qa = q("Can [Plain Card] be Special Summoned?", %{"cards" => a})
+    qb = q("Can [Monster Reborn] be Special Summoned?", %{"cards" => b})
+
+    # within one pack
+    assert {:ok, %{imported: 2, skipped: 0}} = run(format, pack([topic("One", [qa, qb])]))
+
+    # against stored questions
+    assert {:ok, %{imported: 1, skipped: 0}} = run(format, pack([topic("Two", [qa])]))
+    assert {:ok, %{imported: 1, skipped: 0}} = run(format, pack([topic("Two", [qb])]))
+    assert {:ok, %{imported: 0, skipped: 2}} = run(format, pack([topic("Two", [qa, qb])]))
+  end
+
+  test "a card name inside another word is not blanked", %{format: format} do
+    cards = [%{"password" => @plain, "name" => "Plain Card"}]
+    one = q("Is [Plain Card] in the plain card game?", %{"cards" => cards})
+    two = q("Is [Plain Card] in the xplain cardy game?", %{"cards" => cards})
+
+    assert {:ok, %{imported: 2, skipped: 0}} = run(format, pack([topic("P", [one, two])]))
+  end
+
   test "the limit of 200 questions per topic counts entries of the same name together", %{
     format: format
   } do
