@@ -81,7 +81,7 @@ review_notice_stray() {
       echo "To keep the others, run (mv -n never overwrites):"
       printf '%s' "$move"
     fi
-    printf 'Then remove the emptied directories (files that are left stay):\n  find %q -depth -empty -delete\n' "$top/reviews"
+    printf 'Then remove the emptied directories (files that are left stay):\n  find %q -depth -type d -empty -delete\n' "$top/reviews"
   } >&2
 }
 

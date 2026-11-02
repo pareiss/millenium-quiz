@@ -170,6 +170,26 @@ class ReviewDirsTest(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(main, "reviews", "pr-x.md")))
             self.assertFalse(os.path.exists(os.path.join(wt, "reviews")))
 
+    def test_cleanup_never_deletes_an_empty_file_that_is_left_behind(self):
+        # a zero-byte stray review that clashes with the main one is not moved;
+        # the final find must remove emptied directories only, not it
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = os.path.realpath(tmp)
+            main = os.path.join(tmp, "main")
+            wt = os.path.join(tmp, "wt")
+            os.mkdir(main)
+            git(main, "init", "-q")
+            git(main, "commit", "-q", "--allow-empty", "-m", "init")
+            git(main, "worktree", "add", "-q", "-b", "other", wt)
+            for base in (main, wt):
+                os.makedirs(os.path.join(base, "reviews"), exist_ok=True)
+                open(os.path.join(base, "reviews", "pr-e.md"), "w").close()
+            open(os.path.join(wt, "reviews", "pr-f.md"), "w").write("keep me")
+            r = run_helper(wt)
+            for c in [l.strip() for l in r.stderr.splitlines() if l.strip().startswith(("mkdir", "find"))]:
+                subprocess.run(["bash", "-c", c], check=True, cwd=tmp)
+            self.assertTrue(os.path.exists(os.path.join(wt, "reviews", "pr-e.md")))
+            self.assertTrue(os.path.exists(os.path.join(main, "reviews", "pr-f.md")))
 
 if __name__ == "__main__":
     unittest.main()
