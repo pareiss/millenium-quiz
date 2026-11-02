@@ -248,7 +248,16 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     Enum.map(q.cards, & &1.password) ++ board_missing
   end
 
+  # The failures of one topic are listed in question order, whichever step
+  # (judging, board re-check, insert) found them.
   defp import_topic(topic, format, pool, report) do
+    earlier = report.failed
+    report = do_import_topic(topic, format, pool, %{report | failed: []})
+    in_order = Enum.sort_by(report.failed, & &1.number, :desc)
+    %{report | failed: in_order ++ earlier}
+  end
+
+  defp do_import_topic(topic, format, pool, report) do
     {valid, invalid} =
       Enum.split_with(topic.questions, &match?({_, _, {:ok, _}}, &1))
 
@@ -326,7 +335,7 @@ defmodule MillenniumQuiz.Quiz.PackImport do
         fail(report, topic_name, {number, raw, {:error, "board: " <> Import.issues_text(issues)}})
 
       _ok ->
-        if duplicate?(db_topic, q) do
+        if duplicate?(db_topic, q, text) do
           %{report | skipped: report.skipped + 1}
         else
           attrs = %{
@@ -352,12 +361,14 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     end
   end
 
-  defp duplicate?(db_topic, q) do
+  # `text` is the text as it is stored (after the card links were rewritten),
+  # so a second import of the same pack finds the question again.
+  defp duplicate?(db_topic, q, text) do
     choices = Enum.map(q.choices, &{&1["text"], &1["correct"]})
 
     Repo.all(from x in Quiz.Question, where: x.topic_id == ^db_topic.id)
     |> Enum.any?(fn x ->
-      x.text == q.text and x.board == q.board and
+      x.text == text and x.board == q.board and
         Enum.map(x.choices, &{&1.text, &1.correct}) == choices
     end)
   end

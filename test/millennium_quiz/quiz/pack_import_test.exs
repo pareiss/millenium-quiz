@@ -137,6 +137,20 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
     assert Enum.any?(lines, &(&1 =~ "Failed: Puzzle, question 3"))
   end
 
+  test "failures of a topic are listed in question order", %{format: format} do
+    bad_choices =
+      q("No answer?", %{
+        "choices" => [%{"text" => "a", "correct" => false}, %{"text" => "b", "correct" => false}]
+      })
+
+    # Question 1 only fails once its card could not be fetched, question 2 fails
+    # when it is judged; the report still lists 1 before 2.
+    missing = q("Unknown card?", %{"board" => board(424_242)})
+
+    assert {:ok, r} = run(format, pack([topic("Puzzle", [missing, bad_choices, q("Good?")])]))
+    assert [1, 2] = Enum.map(r.failed, & &1.number)
+  end
+
   test "a card released after the format's date fails that question only", %{format: format} do
     pool =
       Repo.insert!(%MillenniumQuiz.Cards.Card{
@@ -183,6 +197,10 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
     assert w =~ "Ghost (424242) could not be fetched"
     assert [%{text: text}] = topic_questions(format, "Puzzle")
     assert text =~ "Ghost" and not (text =~ "[Ghost]")
+
+    # The stored text differs from the pack's: importing again must still find it.
+    assert {:ok, %{imported: 0, skipped: 1}} = run(format, pack)
+    assert [_] = topic_questions(format, "Puzzle")
   end
 
   test "a format with six topics cannot take a new one, existing ones still work", %{
