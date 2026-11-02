@@ -33,7 +33,12 @@ defmodule MillenniumQuiz.Quiz.PackImport do
       format has fewer than `Format.max_topics/0`; a topic left without any
       imported question is not created.
     * A question that the topic already has (same text, choices and board) is
-      counted in `skipped`, so importing a pack twice adds nothing.
+      counted in `skipped`, so importing a pack twice adds nothing. The text is
+      compared without the `[card]` brackets and card names, so it does not
+      matter whether a card was fetched or renamed between two imports.
+    * Two imports into the same format never run their writes at the same time
+      (an advisory lock on the format); the second waits up to `:lock_timeout_ms`
+      (30 s) and then fails with "Another import into this format is running".
     * Cards the pool lacks are fetched like in `Import`: one at a time with a
       pause, before anything is written. A question card that cannot be
       fetched is unlinked with a warning (as in `Import`).
@@ -51,6 +56,10 @@ defmodule MillenniumQuiz.Quiz.PackImport do
   @max_questions 200
   @max_total 500
   @max_credits 2_000
+  @lock_timeout_ms 30_000
+  @lock_poll_ms 100
+  # first key of the two-key advisory lock; the second is the format id
+  @lock_namespace 7_301
 
   @type failure :: %{topic: String.t(), number: pos_integer, text: String.t(), reason: String.t()}
 
@@ -85,7 +94,8 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     with {:ok, pack} <- parse(data) do
       format = Quiz.get_format!(format_id)
       pause = Keyword.get_lazy(opts, :pause_ms, &Import.default_pause/0)
-      {:ok, import_pack(format, pack, pause)}
+      lock_ms = Keyword.get(opts, :lock_timeout_ms, @lock_timeout_ms)
+      import_pack(format, pack, pause, lock_ms)
     end
   end
 
@@ -96,7 +106,8 @@ defmodule MillenniumQuiz.Quiz.PackImport do
   defp parse(%{"version" => 1, "topics" => topics} = data) when is_list(topics) do
     with {:ok, credits} <- credits(data["credits"]),
          :ok <- size(topics),
-         {:ok, topics} <- parse_topics(topics) do
+         {:ok, topics} <- parse_topics(topics),
+         :ok <- merged_size(topics) do
       {:ok, %{credits: credits, topics: topics}}
     end
   end
@@ -122,9 +133,6 @@ defmodule MillenniumQuiz.Quiz.PackImport do
       length(topics) > @max_topics ->
         {:error, "Too many topics (at most #{@max_topics})."}
 
-      Enum.any?(topics, &(is_map(&1) and is_list(&1["questions"]) and too_long?(&1["questions"]))) ->
-        {:error, "Too many questions in a topic (at most #{@max_questions})."}
-
       total(topics) > @max_total ->
         {:error, "Too many questions (at most #{@max_total})."}
 
@@ -133,7 +141,12 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     end
   end
 
-  defp too_long?(questions), do: length(questions) > @max_questions
+  # Entries with the same name are one topic, so the limit counts the merged one.
+  defp merged_size(topics) do
+    if Enum.any?(topics, &(length(&1.raw) > @max_questions)),
+      do: {:error, "Too many questions in a topic (at most #{@max_questions})."},
+      else: :ok
+  end
 
   defp total(topics) do
     topics
@@ -204,20 +217,62 @@ defmodule MillenniumQuiz.Quiz.PackImport do
 
   ## Writing
 
-  defp import_pack(format, pack, pause) do
+  # The cards are fetched first, without any lock (slow, and it touches no
+  # format). Only the writes are serialised per format, so two imports cannot
+  # create the same topic twice, exceed the topic limit or give two questions
+  # one position. A session-level lock on one checked-out connection is used,
+  # not `pg_advisory_xact_lock` in a transaction: the writes report problems
+  # as `{:error, changeset}` and go on (e.g. a constraint violation of one
+  # question), which would poison a surrounding Postgres transaction. The
+  # lock is polled with `pg_try_advisory_lock` so that waiting is bounded, and
+  # released in `after`; the connection is held only for the fast writes.
+  defp import_pack(format, pack, pause, lock_ms) do
     topics = Enum.map(pack.topics, &judge/1)
+    pool = fetch_pool(topics, format, pause)
 
-    pool =
-      topics
-      |> Enum.flat_map(& &1.questions)
-      |> Enum.flat_map(fn
-        {_n, _raw, {:ok, q}} -> passwords(q, format.date)
-        _ -> []
-      end)
-      |> Enum.uniq()
-      |> Import.resolve(%{pool: %{}, fetches: 0}, pause)
-      |> Map.fetch!(:pool)
+    Repo.checkout(fn ->
+      if acquire_lock(format.id, lock_ms) do
+        try do
+          {:ok, write(topics, format, pool, pack.credits)}
+        after
+          Repo.query!("SELECT pg_advisory_unlock($1, $2)", [@lock_namespace, format.id])
+        end
+      else
+        {:error, "Another import into this format is running. Try again in a moment."}
+      end
+    end)
+  end
 
+  defp acquire_lock(format_id, ms_left) do
+    %{rows: [[locked]]} =
+      Repo.query!("SELECT pg_try_advisory_lock($1, $2)", [@lock_namespace, format_id])
+
+    cond do
+      locked ->
+        true
+
+      ms_left <= 0 ->
+        false
+
+      true ->
+        Process.sleep(@lock_poll_ms)
+        acquire_lock(format_id, ms_left - @lock_poll_ms)
+    end
+  end
+
+  defp fetch_pool(topics, format, pause) do
+    topics
+    |> Enum.flat_map(& &1.questions)
+    |> Enum.flat_map(fn
+      {_n, _raw, {:ok, q}} -> passwords(q, format.date)
+      _ -> []
+    end)
+    |> Enum.uniq()
+    |> Import.resolve(%{pool: %{}, fetches: 0}, pause)
+    |> Map.fetch!(:pool)
+  end
+
+  defp write(topics, format, pool, credits) do
     empty = %{
       imported: 0,
       boards: 0,
@@ -225,7 +280,7 @@ defmodule MillenniumQuiz.Quiz.PackImport do
       topics_created: [],
       failed: [],
       warnings: [],
-      credits: pack.credits
+      credits: credits
     }
 
     report = Enum.reduce(topics, empty, &import_topic(&1, format, pool, &2))
@@ -335,7 +390,7 @@ defmodule MillenniumQuiz.Quiz.PackImport do
         fail(report, topic_name, {number, raw, {:error, "board: " <> Import.issues_text(issues)}})
 
       _ok ->
-        if duplicate?(db_topic, q, text) do
+        if duplicate?(db_topic, q, pool) do
           %{report | skipped: report.skipped + 1}
         else
           attrs = %{
@@ -361,16 +416,53 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     end
   end
 
-  # `text` is the text as it is stored (after the card links were rewritten),
-  # so a second import of the same pack finds the question again.
-  defp duplicate?(db_topic, q, text) do
+  # The match must not depend on how the cards resolved: a card that could not
+  # be fetched the first time is unlinked (`Ghost`), the retry links it
+  # (`[Ghost]`), and a card renamed in between has another name. So both texts
+  # are compared with the link brackets removed and every name of a card of the
+  # question (in the pack, in the pool now, on the stored question) blanked out.
+  defp duplicate?(db_topic, q, pool) do
     choices = Enum.map(q.choices, &{&1["text"], &1["correct"]})
+    pack_names = pack_names(q, pool)
 
-    Repo.all(from x in Quiz.Question, where: x.topic_id == ^db_topic.id)
+    from(x in Quiz.Question,
+      where: x.topic_id == ^db_topic.id,
+      preload: [question_cards: :card]
+    )
+    |> Repo.all()
     |> Enum.any?(fn x ->
-      x.text == text and x.board == q.board and
-        Enum.map(x.choices, &{&1.text, &1.correct}) == choices
+      names = pack_names ++ Enum.flat_map(x.question_cards, &List.wrap(&1.card && &1.card.name))
+
+      x.board == q.board and
+        Enum.map(x.choices, &{&1.text, &1.correct}) == choices and
+        canonical(x.text, names) == canonical(q.text, names)
     end)
+  end
+
+  defp pack_names(q, pool) do
+    Enum.flat_map(q.cards, fn card ->
+      current =
+        case Map.get(pool, card.password) do
+          {:ok, _id, name} -> [name]
+          _ -> []
+        end
+
+      List.wrap(card.name) ++ current
+    end)
+  end
+
+  defp canonical(text, names) do
+    names =
+      names
+      |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
+      |> Enum.sort_by(&String.length/1, :desc)
+
+    text
+    |> String.replace(["[", "]"], "")
+    |> String.downcase()
+    |> then(fn t -> Enum.reduce(names, t, &String.replace(&2, &1, "\0")) end)
   end
 
   defp fail(report, topic_name, {number, raw, {:error, reason}}) do

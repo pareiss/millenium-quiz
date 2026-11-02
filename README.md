@@ -267,8 +267,10 @@ The technical details follow.
   that is not there is created while the format has fewer than 6 topics, and not
   created at all when none of its questions comes through. A question the topic
   already has (same text, choices and board) is counted as "already there", so
-  importing a pack twice adds nothing. Only a pack that is not JSON, too large
-  (5 MB, 200 questions per topic, 500 in all) or not a pack (version, topics,
+  importing a pack twice adds nothing; the text is compared without the `[card]`
+  brackets and card names, so a card that could not be fetched the first time
+  or was renamed since does not make the question new. Only a pack that is not JSON, too large
+  (5 MB, 200 questions per topic after entries of the same name are merged, 500 in all) or not a pack (version, topics,
   names) is rejected whole. Every other problem is **per question**: the
   question is listed with its topic, number and reason, and the rest is still
   imported. Unlike the backup restore, a question whose board is invalid (does not
@@ -277,7 +279,10 @@ The technical details follow.
   imported without it, because in a puzzle the board is the question. Cards the
   pool lacks are fetched one at a time with a pause before anything is written;
   a question card that cannot be fetched is unlinked with a warning as in the
-  restore. The import runs in a task of its own, so it goes on when the admin
+  restore. The writes of two imports into the same format are serialised by a
+  Postgres advisory lock on the format (taken after the card fetches, so it is
+  held only briefly); a second import waits up to 30 seconds and then fails with
+  "Another import into this format is running". The import runs in a task of its own, so it goes on when the admin
   leaves the page, and logs its result. `credits` is only shown in the result
   (nothing is stored yet). The page is in `bin/layout-test`'s list of admin
   pages (tablet and phone: no sideways overflow, controls of 44px or more).

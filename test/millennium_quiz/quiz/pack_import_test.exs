@@ -246,4 +246,132 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
     assert {:ok, %{imported: 2, topics_created: ["Puzzle"]}} = run(format, pack)
     assert ["One?", "Two?"] = Enum.map(topic_questions(format, "Puzzle"), & &1.text)
   end
+
+  test "a card unfetchable on the first import and fetched on the retry is not imported twice", %{
+    format: format
+  } do
+    cards = [%{"password" => 424_242, "name" => "Ghost"}]
+    pack = pack([topic("Puzzle", [q("Is [Ghost] here?", %{"cards" => cards})])])
+
+    # first run: the source does not know the card, so it is unlinked
+    assert {:ok, %{imported: 1}} = run(format, pack)
+    assert [%{text: "Is Ghost here?"}] = topic_questions(format, "Puzzle")
+
+    # the retry: the card can be fetched now, the text would be "[Ghost]"
+    CardSourcesStub.stub_with_card!(%{password: 424_242, name: "Ghost", date: "2002-03-08"})
+    assert {:ok, %{imported: 0, skipped: 1}} = run(format, pack)
+    assert [_] = topic_questions(format, "Puzzle")
+  end
+
+  test "a card renamed between two imports does not make the question new", %{format: format} do
+    cards = [%{"password" => @plain, "name" => "Plain Card"}]
+    pack = pack([topic("Puzzle", [q("Is [Plain Card] here?", %{"cards" => cards})])])
+
+    assert {:ok, %{imported: 1}} = run(format, pack)
+    assert [%{text: "Is [Plain Card] here?"}] = topic_questions(format, "Puzzle")
+
+    Repo.get_by!(MillenniumQuiz.Cards.Card, password: @plain)
+    |> Ecto.Changeset.change(name: "Renamed Monster")
+    |> Repo.update!()
+
+    assert {:ok, %{imported: 0, skipped: 1}} = run(format, pack)
+    assert [_] = topic_questions(format, "Puzzle")
+  end
+
+  test "different choices are still a different question even with card links", %{format: format} do
+    cards = [%{"password" => @plain, "name" => "Plain Monster"}]
+    other = [%{"text" => "A", "correct" => false}, %{"text" => "B", "correct" => true}]
+
+    assert {:ok, %{imported: 1}} =
+             run(format, pack([topic("P", [q("[Plain Monster]?", %{"cards" => cards})])]))
+
+    assert {:ok, %{imported: 1, skipped: 0}} =
+             run(
+               format,
+               pack([topic("P", [q("Plain Monster?", %{"cards" => cards, "choices" => other})])])
+             )
+  end
+
+  test "the limit of 200 questions per topic counts entries of the same name together", %{
+    format: format
+  } do
+    many = fn prefix -> for n <- 1..120, do: q("#{prefix} #{n}?") end
+
+    assert {:error, "Too many questions in a topic (at most 200)."} =
+             run(format, pack([topic("Puzzle", many.("a")), topic("puzzle", many.("b"))]))
+
+    assert {:ok, %{imported: 240}} =
+             run(format, pack([topic("One", many.("a")), topic("Two", many.("b"))]))
+  end
+
+  describe "two imports into the same format" do
+    # a second database session holds the lock, like a running import would
+    defp hold_lock(format_id) do
+      {:ok, conn} =
+        Postgrex.start_link(
+          Keyword.merge(Repo.config(), pool: DBConnection.ConnectionPool, pool_size: 1)
+        )
+
+      assert %{rows: [[true]]} =
+               Postgrex.query!(conn, "SELECT pg_try_advisory_lock(7301, $1)", [format_id])
+
+      conn
+    end
+
+    test "the second one fails with a clear message when the lock stays taken", %{format: format} do
+      conn = hold_lock(format.id)
+
+      assert {:error, "Another import into this format is running" <> _} =
+               PackImport.run(format, pack([topic("Puzzle", [q("Hi?")])]),
+                 pause_ms: 0,
+                 lock_timeout_ms: 200
+               )
+
+      assert topic_questions(format, "Puzzle") == []
+      GenServer.stop(conn)
+    end
+
+    test "the second one waits and then imports once the first is done", %{format: format} do
+      conn = hold_lock(format.id)
+      pack = pack([topic("Puzzle", [q("Hi?")])])
+
+      task = Task.async(fn -> PackImport.run(format, pack, pause_ms: 0) end)
+      Process.sleep(300)
+      assert Task.yield(task, 0) == nil
+
+      Postgrex.query!(conn, "SELECT pg_advisory_unlock(7301, $1)", [format.id])
+      assert {:ok, %{imported: 1}} = Task.await(task)
+      GenServer.stop(conn)
+    end
+
+    test "two simultaneous imports of the same pack create the topic and question once", %{
+      format: format
+    } do
+      pack = pack([topic("Brand new", [q("Once?")])])
+
+      results =
+        1..2
+        |> Enum.map(fn _ -> Task.async(fn -> PackImport.run(format, pack, pause_ms: 0) end) end)
+        |> Task.await_many()
+
+      assert [{:ok, %{imported: 1}}, {:ok, %{imported: 0, skipped: 1}}] =
+               Enum.sort_by(results, fn {:ok, r} -> -r.imported end)
+
+      assert [_] = topic_questions(format, "Brand new")
+      assert Quiz.get_format!(format.id).topics |> Enum.count(&(&1.name == "Brand new")) == 1
+    end
+
+    test "different formats do not block each other", %{format: format} do
+      other = format_fixture(%{"name" => "GOAT", "date" => "2005-01-01"})
+      conn = hold_lock(other.id)
+
+      assert {:ok, %{imported: 1}} =
+               PackImport.run(format, pack([topic("Puzzle", [q("Hi?")])]),
+                 pause_ms: 0,
+                 lock_timeout_ms: 0
+               )
+
+      GenServer.stop(conn)
+    end
+  end
 end
