@@ -32,7 +32,7 @@ defmodule MillenniumQuiz.Quiz.PackImport do
       hardest end). A topic that is not there is created, as long as the
       format has fewer than `Format.max_topics/0`; a topic left without any
       imported question is not created.
-    * A question that the topic already has (same text, choices and board) is
+    * A question that the topic already has (same identity, see `duplicate?/3`) is
       counted in `skipped`, so importing a pack twice adds nothing. The text is
       compared without the `[card]` brackets and card names, so it does not
       matter whether a card was fetched or renamed between two imports.
@@ -416,15 +416,26 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     end
   end
 
+  # Identity of a question: everything that makes it a different question,
+  # computed in ONE place (`identity/4`) for the pack question and for each
+  # stored one, and compared as a hash. A new field that matters is added there.
+  #
+  #   * the canonical text: `[`/`]` removed, every name of a card of the question
+  #     (pack, pool now, stored) replaced by a placeholder tied to the card's
+  #     password, matched case-insensitively and as whole names only; the rest of
+  #     the text is compared exactly (case included);
+  #   * the choices in order, with the correct flag;
+  #   * the board;
+  #   * the ordered list of `{card password, owner}`.
+  #
   # The match must not depend on how the cards resolved: a card that could not
-  # be fetched the first time is unlinked (`Ghost`), the retry links it
-  # (`[Ghost]`), and a card renamed in between has another name. So both texts
-  # are compared with the link brackets removed and every name of a card of the
-  # question (in the pack, in the pool now, on the stored question) blanked out.
-  # Each name is blanked with a placeholder tied to the card's password, so
-  # "Can [Dark Magician] ...?" and "Can [Blue-Eyes White Dragon] ...?" differ.
+  # be fetched the first time is unlinked (`Ghost`, no card row), the retry links
+  # it (`[Ghost]`), and a card may have been renamed in between. So a card of
+  # the pack that the stored question does not have attached is left out of the
+  # comparison when it has a name and that name stands in the stored text (that
+  # is how an unlinked card looks). A pack card without a name that was never
+  # linked cannot be recognised and counts as a difference.
   defp duplicate?(db_topic, q, pool) do
-    choices = Enum.map(q.choices, &{&1["text"], &1["correct"]})
     pack_names = pack_names(q, pool)
 
     from(x in Quiz.Question,
@@ -433,16 +444,50 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     )
     |> Repo.all()
     |> Enum.any?(fn x ->
-      stored =
-        for %{card: %{name: name, password: pw}} when is_binary(name) <- x.question_cards,
-            do: {name, pw}
+      stored_cards = Enum.filter(x.question_cards, &(&1.card && is_binary(&1.card.name)))
+      stored_names = for %{card: %{name: name, password: pw}} <- stored_cards, do: {name, pw}
+      stored_pws = MapSet.new(stored_names, &elem(&1, 1))
+      names = pack_names ++ stored_names
 
-      names = pack_names ++ stored
+      pack_cards =
+        q.cards
+        |> Enum.reject(fn card ->
+          not MapSet.member?(stored_pws, card.password) and
+            unlinked_in?(x.text, card, pack_names)
+        end)
+        |> Enum.map(&{&1.password, &1.owner})
 
-      x.board == q.board and
-        Enum.map(x.choices, &{&1.text, &1.correct}) == choices and
-        canonical(x.text, names) == canonical(q.text, names)
+      stored = Enum.map(x.question_cards, &{&1.card && &1.card.password, &1.owner})
+
+      identity(
+        q.text,
+        Enum.map(q.choices, &{&1["text"], &1["correct"]}),
+        q.board,
+        pack_cards,
+        names
+      ) ==
+        identity(
+          x.text,
+          Enum.map(x.choices, &{&1.text, &1.correct}),
+          x.board,
+          stored,
+          names
+        )
     end)
+  end
+
+  defp identity(text, choices, board, cards, names) do
+    :crypto.hash(
+      :sha256,
+      :erlang.term_to_binary({canonical(text, names), choices, board, cards})
+    )
+  end
+
+  # Does the stored text mention a name of this pack card as plain text?
+  defp unlinked_in?(text, card, pack_names) do
+    pack_names
+    |> Enum.filter(fn {_name, pw} -> pw == card.password end)
+    |> Enum.any?(fn {name, _} -> Regex.match?(name_regex(name), text) end)
   end
 
   # `{name, password}` of every name a card of the pack question may have.
@@ -458,26 +503,20 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     end)
   end
 
+  # Whole names only, never a piece of another word; case-insensitive.
+  defp name_regex(name),
+    do: ~r/(?<![\p{L}\p{N}])#{Regex.escape(String.trim(name))}(?![\p{L}\p{N}])/iu
+
   defp canonical(text, names) do
     names =
       names
-      |> Enum.map(fn {name, pw} -> {name |> String.trim() |> String.downcase(), pw} end)
+      |> Enum.map(fn {name, pw} -> {String.trim(name), pw} end)
       |> Enum.reject(fn {name, _} -> name == "" end)
-      |> Enum.uniq()
+      |> Enum.uniq_by(fn {name, pw} -> {String.downcase(name), pw} end)
       |> Enum.sort_by(fn {name, _} -> String.length(name) end, :desc)
 
-    text
-    |> String.replace(["[", "]"], "")
-    |> String.downcase()
-    |> then(fn t ->
-      Enum.reduce(names, t, fn {name, pw}, acc ->
-        # Whole names only, never a piece of another word.
-        Regex.replace(
-          ~r/(?<![\p{L}\p{N}])#{Regex.escape(name)}(?![\p{L}\p{N}])/u,
-          acc,
-          "\0#{pw}\0"
-        )
-      end)
+    Enum.reduce(names, String.replace(text, ["[", "]"], ""), fn {name, pw}, acc ->
+      Regex.replace(name_regex(name), acc, "\0#{pw}\0")
     end)
   end
 

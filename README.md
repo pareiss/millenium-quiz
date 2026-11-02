@@ -266,11 +266,18 @@ The technical details follow.
   appended after the existing ones (so the damage follows the position); a topic
   that is not there is created while the format has fewer than 6 topics, and not
   created at all when none of its questions comes through. A question the topic
-  already has (same text, choices and board) is counted as "already there", so
-  importing a pack twice adds nothing; the text is compared without the `[card]`
-  brackets and with each whole card name replaced by the card's password (so
-  questions about different cards stay different), so a card that could not be fetched the first time
-  or was renamed since does not make the question new. Only a pack that is not JSON, too large
+  already has is counted as "already there", so importing a pack twice adds
+  nothing. "The same" means the same identity over everything that matters
+  (computed in one place, `Quiz.PackImport`): the text, the choices in order
+  with the correct flag, the board, and the ordered list of cards with their owner
+  (P1/P2). The text is compared without the `[card]` brackets and with each whole
+  card name replaced by the card's password (names match regardless of case, the
+  rest of the text is compared exactly), so questions about different cards, or
+  the same cards for another player, stay different. A card that could not be
+  fetched the first time (stored unlinked, its name in plain text) or was renamed
+  since does not make the question new: a named pack card the stored question
+  does not have attached, whose name stands in the stored text, is left out of
+  the comparison. (An unnamed card that was never linked cannot be recognised.) Only a pack that is not JSON, too large
   (5 MB, 200 questions per topic after entries of the same name are merged, 500 in all) or not a pack (version, topics,
   names) is rejected whole. Every other problem is **per question**: the
   question is listed with its topic, number and reason, and the rest is still

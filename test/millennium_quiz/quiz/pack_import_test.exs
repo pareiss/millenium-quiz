@@ -307,6 +307,58 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
     assert {:ok, %{imported: 0, skipped: 2}} = run(format, pack([topic("Two", [qa, qb])]))
   end
 
+  test "same text and choices that do not name the cards, but other cards, are different", %{
+    format: format
+  } do
+    a = [%{"password" => @plain}]
+    b = [%{"password" => @reborn}]
+    qa = q("Which Attribute does this card have?", %{"cards" => a})
+    qb = q("Which Attribute does this card have?", %{"cards" => b})
+
+    # within one pack
+    assert {:ok, %{imported: 2, skipped: 0}} = run(format, pack([topic("One", [qa, qb])]))
+
+    # against stored questions
+    assert {:ok, %{imported: 1, skipped: 0}} = run(format, pack([topic("Two", [qa])]))
+    assert {:ok, %{imported: 1, skipped: 0}} = run(format, pack([topic("Two", [qb])]))
+    assert {:ok, %{imported: 0, skipped: 2}} = run(format, pack([topic("Two", [qa, qb])]))
+  end
+
+  test "the same cards with another owner are a different question", %{format: format} do
+    one = q("Whose card is this?", %{"cards" => [%{"password" => @plain, "owner" => 1}]})
+    two = q("Whose card is this?", %{"cards" => [%{"password" => @plain, "owner" => 2}]})
+
+    assert {:ok, %{imported: 2, skipped: 0}} = run(format, pack([topic("One", [one, two])]))
+    assert {:ok, %{imported: 0, skipped: 2}} = run(format, pack([topic("One", [one, two])]))
+
+    assert {:ok, %{imported: 1}} = run(format, pack([topic("Two", [one])]))
+    assert {:ok, %{imported: 1, skipped: 0}} = run(format, pack([topic("Two", [two])]))
+  end
+
+  test "the order of the cards matters", %{format: format} do
+    a = %{"password" => @plain}
+    b = %{"password" => @reborn}
+    one = q("Which comes first?", %{"cards" => [a, b]})
+    two = q("Which comes first?", %{"cards" => [b, a]})
+
+    assert {:ok, %{imported: 2, skipped: 0}} = run(format, pack([topic("One", [one, two])]))
+  end
+
+  test "text that differs only in case is a different question", %{format: format} do
+    pack = pack([topic("P", [q("Is it the ATK?"), q("Is it the atk?")])])
+    assert {:ok, %{imported: 2, skipped: 0}} = run(format, pack)
+  end
+
+  test "a card name is still matched regardless of case", %{format: format} do
+    cards = [%{"password" => @plain, "name" => "Plain Card"}]
+
+    assert {:ok, %{imported: 1}} =
+             run(format, pack([topic("P", [q("Is [Plain Card] here?", %{"cards" => cards})])]))
+
+    assert {:ok, %{imported: 0, skipped: 1}} =
+             run(format, pack([topic("P", [q("Is [PLAIN CARD] here?", %{"cards" => cards})])]))
+  end
+
   test "a card name inside another word is not blanked", %{format: format} do
     cards = [%{"password" => @plain, "name" => "Plain Card"}]
     one = q("Is [Plain Card] in the plain card game?", %{"cards" => cards})
