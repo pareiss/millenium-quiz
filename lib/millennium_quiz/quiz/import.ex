@@ -104,7 +104,8 @@ defmodule MillenniumQuiz.Quiz.Import do
   defp add_master_rules(summary, {:ignored, msg}),
     do: %{summary | warnings: summary.warnings ++ ["Master Rules section ignored: #{msg}"]}
 
-  defp default_pause do
+  @doc false
+  def default_pause do
     Application.get_env(:millennium_quiz, Cards, [])[:refresh_pause_ms] || 250
   end
 
@@ -197,7 +198,8 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   defp topic(_), do: {:error, "needs a name and a list of questions."}
 
-  defp question(%{"text" => text, "choices" => choices} = q) when is_list(choices) do
+  @doc false
+  def question(%{"text" => text, "choices" => choices} = q) when is_list(choices) do
     cards = Map.get(q, "cards") || []
     submitted_by = Map.get(q, "submitted_by")
 
@@ -223,7 +225,7 @@ defmodule MillenniumQuiz.Quiz.Import do
     end
   end
 
-  defp question(_), do: {:error, "needs a text and a list of choices."}
+  def question(_), do: {:error, "needs a text and a list of choices."}
 
   # Optional. A board that does not cast costs the board (a warning later),
   # never the file.
@@ -249,7 +251,8 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   defp board(_), do: {nil, "board: must be an object"}
 
-  defp issues_text(issues) do
+  @doc false
+  def issues_text(issues) do
     shown =
       issues
       |> Enum.take(3)
@@ -397,7 +400,8 @@ defmodule MillenniumQuiz.Quiz.Import do
     end
   end
 
-  defp check_question(q) do
+  @doc false
+  def check_question(q) do
     cond do
       is_binary(q.submitted_by) and
           String.length(q.submitted_by) > Question.max_submitter_length() ->
@@ -474,7 +478,8 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   # Pool first; only what the pool lacks is fetched, one card at a time with
   # a pause (the sources are rate limited). Failures are remembered.
-  defp resolve(passwords, state, pause) do
+  @doc false
+  def resolve(passwords, state, pause) do
     Enum.reduce(passwords, state, fn password, %{pool: pool, fetches: fetches} = st ->
       cond do
         Map.has_key?(pool, password) ->
@@ -673,7 +678,8 @@ defmodule MillenniumQuiz.Quiz.Import do
       "the board was not restored and the question has none: #{reason}."
   end
 
-  defp link_cards(q, pool, format_name, topic_name, i) do
+  @doc false
+  def link_cards(q, pool, format_name, topic_name, i) do
     where = "#{format_name} / #{topic_name} / question #{i}"
 
     Enum.reduce(q.cards, {[], q.text, [], 0}, fn card, {entries, text, warnings, missing} ->
@@ -705,7 +711,8 @@ defmodule MillenniumQuiz.Quiz.Import do
 
   defp same_name?(a, b), do: String.downcase(String.trim(a)) == String.downcase(String.trim(b))
 
-  defp errors(changeset) do
+  @doc false
+  def errors(changeset) do
     changeset
     |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
       Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
