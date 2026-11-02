@@ -2,15 +2,66 @@
 # Where the review files live. Sourced by every bin/review-* script that
 # touches reviews/, so they all agree.
 #
-# reviews_dir is always <main checkout>/reviews, where the main checkout is the
-# parent of the primary checkout's .git directory (git's common dir), no matter
-# which worktree the command runs from. Reviews therefore survive removing a
-# worktree. reviews_dir/archive and reviews_dir/logs live under it.
+# reviews_dir is always <main checkout>/reviews, no matter which worktree the
+# command runs from. The main checkout is the parent of git's common dir when
+# that is named .git. With a separate git dir or a submodule it is only known
+# from the primary tree itself; from a linked worktree of such a repo, and in a
+# bare repository, sourcing fails with a message and reviews_dir stays unset.
+# Reviews therefore survive removing a worktree. reviews_dir/archive and
+# reviews_dir/logs live under it.
 # Throwaway PR worktrees, .review/ and REVIEWING.md stay relative to the
 # checkout the command runs from.
+#
+# Reviews that an older version left in another worktree's own reviews/ are
+# not moved. Once per run (REVIEW_STRAY_NOTICED), a notice names them and the
+# cp+rm command; nothing is moved or deleted automatically.
+
 review_main_checkout() {
-  local common
+  local common gitdir main
+  if [[ "$(git rev-parse --is-bare-repository 2>/dev/null)" == true ]]; then
+    echo "review-dirs: bare repository; there is no main checkout to keep reviews/ in" >&2
+    return 1
+  fi
   common="$(git rev-parse --path-format=absolute --git-common-dir)" || return 1
-  dirname "$common"
+  gitdir="$(git rev-parse --path-format=absolute --git-dir)" || return 1
+  if [[ "$(basename "$common")" == .git ]]; then
+    main="$(dirname "$common")"
+  elif [[ "$gitdir" == "$common" ]]; then
+    # Separate git dir or submodule, run from its own working tree.
+    main="$(git rev-parse --show-toplevel)" || return 1
+  else
+    echo "review-dirs: cannot find the main checkout from a worktree whose git dir ($common) is not <checkout>/.git; run the command from the main checkout" >&2
+    return 1
+  fi
+  if [[ -z "$main" || "$main" != /* ]]; then
+    echo "review-dirs: cannot determine the main checkout (got '${main}')" >&2
+    return 1
+  fi
+  printf '%s\n' "$main"
 }
-reviews_dir="$(review_main_checkout)/reviews"
+
+review_notice_stray() {
+  local main_reviews="$1" top
+  top="$(git rev-parse --show-toplevel 2>/dev/null)" || return 0
+  [[ -d "$top/reviews" && "$top/reviews" != "$main_reviews" ]] || return 0
+  [[ "$(cd "$top/reviews" && pwd -P)" != "$(cd "$main_reviews" 2>/dev/null && pwd -P)" ]] || return 0
+  [[ -z "${REVIEW_STRAY_NOTICED:-}" ]] || return 0
+  local files
+  files="$(find "$top/reviews" -type f | sort)"
+  [[ -n "$files" ]] || return 0
+  export REVIEW_STRAY_NOTICED=1
+  {
+    echo "review-dirs: reviews now live in $main_reviews, but this worktree still has:"
+    sed 's/^/  /' <<<"$files"
+    echo "These are not seen by the review scripts. To keep them, run:"
+    echo "  mkdir -p '$main_reviews' && cp -rn '$top/reviews/.' '$main_reviews/' && rm -r '$top/reviews'"
+  } >&2
+}
+
+if reviews_dir="$(review_main_checkout)"; then
+  reviews_dir+=/reviews
+  review_notice_stray "$reviews_dir"
+else
+  unset reviews_dir
+  return 1
+fi
