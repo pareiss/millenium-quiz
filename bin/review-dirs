@@ -3,8 +3,9 @@
 # touches reviews/, so they all agree.
 #
 # reviews_dir is always <main checkout>/reviews, no matter which worktree the
-# command runs from. The main checkout is the parent of git's common dir when
-# that is named .git. With a separate git dir or a submodule it is only known
+# command runs from. In the primary tree it is the top level. From a linked
+# worktree it is the parent of git's common dir when that is named .git and
+# that parent really is a work tree with that common dir. With a separate git dir or a submodule it is only known
 # from the primary tree itself; from a linked worktree of such a repo, and in a
 # bare repository, sourcing fails with a message and reviews_dir stays unset.
 # Reviews therefore survive removing a worktree. reviews_dir/archive and
@@ -25,6 +26,13 @@
 # "bare"). So it does not give the main checkout in exactly the layouts where
 # <common dir>/.. does not either.
 
+# Is $1 a work tree whose own git dir is the common dir $2?
+_review_is_checkout_of() {
+  local cand="$1" common="$2" g="env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR git -C $1"
+  [[ "$($g rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" == "$common" ]] &&
+    [[ "$($g rev-parse --show-toplevel 2>/dev/null)" == "$cand" ]]
+}
+
 review_main_checkout() {
   local common gitdir main
   if [[ "$(git rev-parse --is-bare-repository 2>/dev/null)" == true ]]; then
@@ -33,13 +41,15 @@ review_main_checkout() {
   fi
   common="$(git rev-parse --path-format=absolute --git-common-dir)" || return 1
   gitdir="$(git rev-parse --path-format=absolute --git-dir)" || return 1
-  if [[ "$(basename "$common")" == .git ]]; then
-    main="$(dirname "$common")"
-  elif [[ "$gitdir" == "$common" ]]; then
-    # Separate git dir or submodule, run from its own working tree.
+  if [[ "$gitdir" == "$common" ]]; then
+    # Run from the primary tree itself (also a separate git dir or submodule).
     main="$(git rev-parse --show-toplevel)" || return 1
+  elif [[ "$(basename "$common")" == .git ]] && _review_is_checkout_of "$(dirname "$common")" "$common"; then
+    # Linked worktree: <common dir>/.. really is a work tree whose own .git is
+    # that common dir.
+    main="$(dirname "$common")"
   else
-    echo "review-dirs: cannot find the main checkout from a worktree whose git dir ($common) is not <checkout>/.git; run the command from the main checkout" >&2
+    echo "review-dirs: cannot find the main checkout: the git dir ($common) is not <checkout>/.git; run the command from the main checkout" >&2
     return 1
   fi
   if [[ -z "$main" || "$main" != /* ]]; then
@@ -56,7 +66,7 @@ review_notice_stray() {
   [[ "$(cd "$top/reviews" && pwd -P)" != "$(cd "$main_reviews" 2>/dev/null && pwd -P)" ]] || return 0
   [[ -z "${REVIEW_STRAY_NOTICED:-}" ]] || return 0
   local files f rel clash="" move="" q
-  files="$(find "$top/reviews" -type f | sort)"
+  files="$(find "$top/reviews" -type f 2>/dev/null | sort)" || true
   [[ -n "$files" ]] || return 0
   export REVIEW_STRAY_NOTICED=1
   while IFS= read -r f; do
@@ -87,7 +97,8 @@ review_notice_stray() {
 
 if reviews_dir="$(review_main_checkout)"; then
   reviews_dir+=/reviews
-  review_notice_stray "$reviews_dir"
+  # the notice is optional: it must never abort a `set -e` caller
+  review_notice_stray "$reviews_dir" || true
 else
   unset reviews_dir
   return 1
