@@ -1,0 +1,16 @@
+# shellcheck shell=bash
+# Where the review files live. Sourced by every bin/review-* script that
+# touches reviews/, so they all agree.
+#
+# reviews_dir is always <main checkout>/reviews, where the main checkout is the
+# parent of the primary checkout's .git directory (git's common dir), no matter
+# which worktree the command runs from. Reviews therefore survive removing a
+# worktree. reviews_dir/archive and reviews_dir/logs live under it.
+# Throwaway PR worktrees, .review/ and REVIEWING.md stay relative to the
+# checkout the command runs from.
+review_main_checkout() {
+  local common
+  common="$(git rev-parse --path-format=absolute --git-common-dir)" || return 1
+  dirname "$common"
+}
+reviews_dir="$(review_main_checkout)/reviews"

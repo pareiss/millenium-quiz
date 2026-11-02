@@ -446,6 +446,14 @@ The reviewer is defined in `.claude/agents/pr-reviewer.md`. The scripts need
 `gh`, `claude`, `git` and `python3`; `python3 -m unittest discover -s test/review`
 tests the review helpers (CI runs it too). `reviews/` is gitignored.
 
+**Where reviews live.** Always in `<main checkout>/reviews/` (with `archive/`,
+`logs/` and `.selfcheck/` under it), the parent directory of
+`git rev-parse --path-format=absolute --git-common-dir`, whichever worktree you
+run a command from, so reviews do not vanish with a worktree. `bin/review-dirs`
+(sourced by every `bin/review-*` script) defines it as `reviews_dir`. The
+throwaway PR worktrees, `.review/` and `REVIEWING.md` stay relative to the
+checkout you run from.
+
 ## Specialist agents
 
 Claude Code sessions on this repo can hand work to three specialists, defined

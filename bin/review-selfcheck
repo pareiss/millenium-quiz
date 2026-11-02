@@ -17,6 +17,8 @@ set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
+# shellcheck source=bin/review-dirs
+source bin/review-dirs
 # shellcheck source=bin/review-flags
 source bin/review-flags
 
@@ -27,8 +29,8 @@ done
 
 version="$(claude --version | awk '{print $1}')"
 key="$(printf '%s\n' "${review_flags[@]}" | sha256sum | cut -c1-12)"
-mkdir -p reviews/.selfcheck
-stamp="reviews/.selfcheck/claude-${version}-${key}"
+mkdir -p "$reviews_dir"/.selfcheck
+stamp="$reviews_dir/.selfcheck/claude-${version}-${key}"
 if [[ -e "$stamp" && "${1:-}" != --force ]]; then
   exit 0
 fi
