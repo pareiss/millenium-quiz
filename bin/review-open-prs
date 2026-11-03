@@ -21,7 +21,9 @@ done
 
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
-mkdir -p reviews/logs
+# shellcheck source=bin/review-dirs
+source bin/review-dirs
+mkdir -p "$reviews_dir"/logs
 
 bin/review-cleanup
 export REVIEW_CLEANED=1
@@ -50,7 +52,7 @@ status_dir="$(mktemp -d)"
 trap 'rm -rf "$status_dir"' EXIT
 
 run() {
-  local n="$1" log="reviews/logs/pr-${slug[$1]}.log" code=0
+  local n="$1" log="$reviews_dir/logs/pr-${slug[$1]}.log" code=0
   bin/review-pr "$n" "${force[@]}" >"$log" 2>&1 || code=$?
   echo "$code" >"$status_dir/$n"
   case "$code" in
@@ -71,7 +73,7 @@ printf '%-5s %-9s %-8s %-10s %-4s %-8s %-10s %s\n' PR status blocker should-fix 
 failed=0
 for n in "${numbers[@]}"; do
   code="$(cat "$status_dir/$n" 2>/dev/null || echo 1)"
-  file="reviews/pr-${slug[$n]}.md"
+  file="$reviews_dir/pr-${slug[$n]}.md"
   [[ -e "$file" ]] || file=""
   case "$code" in
     0) status=reviewed ;;
