@@ -11,6 +11,8 @@ defmodule MillenniumQuiz.Quiz.PackImport do
          {"name": "Next play: GX B08",
           "questions": [
             {"text": "...", "choices": [{"text": "...", "correct": true}, ...],
+             "explanation": "optional, shown on the reveal",
+             "source": "optional credit line, shown in the board dialog",
              "cards": [{"password": 123, "owner": 1}],
              "board": { ... board.v1 ... }}]}]}
 
@@ -398,6 +400,8 @@ defmodule MillenniumQuiz.Quiz.PackImport do
           attrs = %{
             "text" => text,
             "submitted_by" => q.submitted_by,
+            "explanation" => q.explanation,
+            "source" => q.source,
             "choices" => q.choices,
             "board" => q.board
           }

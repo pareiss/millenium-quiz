@@ -47,6 +47,9 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
   - the explanation of a question (format 'Explanation fixture'; LAYOUT_REQUIRE_GAME_BOARD=1 makes the missing format a
     failure): on the reveal below the correct answer, on screen and wrapped at every viewport, none for a question without one,
     nothing of it while answering; and the optional explanation field of the admin question form on screen at every viewport
+  - the credit line of a question (format 'Source fixture'; LAYOUT_ONLY=source runs only this): "Source: ..." in the board
+    dialog, wrapped (long word) and on screen at every viewport with the close button still on screen, none for a question
+    without a source; and the optional source field of the admin question form on screen at every viewport
   - the board section of the admin question form (same admin login): at every viewport the collapsed section opens, the
     textarea, the preview and remove buttons are on screen (44px or more on touch viewports), the pasted empty board
     is valid and its preview dialog opens with the close button >= 44px and the mat on screen, a bad board lists its
@@ -182,6 +185,7 @@ PICTURES_LINK = "a:has-text('Layout check pictures')"
 DUEL_LINK = "a:has-text('LP duel fixture')"
 BOARD_GAME_LINK = "a:has-text('Board in game fixture')"
 EXPLANATION_LINK = "a:has-text('Explanation fixture')"
+SOURCE_LINK = "a:has-text('Source fixture')"
 
 
 def start_game(page, link=FIXTURE_LINK):
@@ -651,11 +655,81 @@ with sync_playwright() as p:
         check("a question without an explanation shows no explanation block", pg.locator("#explanation").count() == 0)
         pg.context.close()
 
-    if os.environ.get("LAYOUT_ONLY") != "explanation":
+    # The credit line of a question (format 'Source fixture'): "Source: ..." between the header and the mat of the board
+    # dialog, wrapped, never wider than the screen, the close button still on screen; none for a question without one.
+    def source_checks():
+        probe = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+        probe.goto(base + "/")
+        if probe.locator(SOURCE_LINK).count() == 0:
+            probe.context.close()
+            if os.environ.get("LAYOUT_REQUIRE_GAME_BOARD"):
+                check("the format 'Source fixture' is seeded", False, "priv/repo/layout_fixture.exs")
+            else:
+                print("Source: skipped, no format 'Source fixture' (run priv/repo/layout_fixture.exs)")
+            return
+        probe.context.close()
+        print("Source (format 'Source fixture', the board dialog)")
+        pg = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+        start_game(pg, SOURCE_LINK)
+        pg.click("#question-0")
+        pg.wait_for_selector("#board-button")
+        game_url = pg.url
+        for name, w, h, _, _ in VIEWPORTS:
+            pg.set_viewport_size({"width": w, "height": h})
+            pg.goto(game_url)
+            pg.wait_for_selector("[data-phx-main].phx-connected")
+            pg.click("#board-button")
+            pg.wait_for_selector("#board-dialog-source")
+            pg.wait_for_timeout(200)
+            m = pg.evaluate(
+                """() => {
+                  const r = (e) => e.getBoundingClientRect()
+                  const s = document.querySelector('#board-dialog-source')
+                  const mat = document.querySelector('#board-dialog .duel-board-mat')
+                  const close = r(document.querySelector('#board-dialog-close'))
+                  const b = r(s)
+                  return {
+                    inside: b.left >= 0 && b.right <= innerWidth + 0.5,
+                    overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                    dlgOverX: document.querySelector('#board-dialog').scrollWidth - document.querySelector('#board-dialog').clientWidth,
+                    textInside: s.scrollWidth <= s.clientWidth + 1,
+                    beforeMat: !!(s.compareDocumentPosition(mat) & Node.DOCUMENT_POSITION_FOLLOWING),
+                    text: s.textContent.includes('Source:') && s.textContent.includes('Puzzle by Someone') && s.textContent.includes('WWWWWWWWWW'),
+                    closeOn: close.left >= 0 && close.right <= innerWidth + 0.5 && close.top >= 0 && close.bottom <= innerHeight + 0.5
+                             && close.width >= 43.5 && close.height >= 43.5,
+                  }
+                }"""
+            )
+            check(f"{name}: the board dialog shows the source line, wrapped, on screen, above the mat, the close button on screen (44px or more)",
+                  m["inside"] and m["overX"] <= 0 and m["dlgOverX"] <= 0 and m["textInside"] and m["beforeMat"] and m["text"] and m["closeOn"],
+                  str(m))
+        # a question with a board but without a source: no line
+        pg.set_viewport_size({"width": 390, "height": 844})
+        pg.goto(game_url)
+        pg.wait_for_selector("[data-phx-main].phx-connected")
+        pg.keyboard.press("Escape")
+        for _ in range(2):
+            pg.wait_for_timeout(4200)  # the server's turn guard and the pass-the-device bar
+            pg.click("#choice-0")
+            pg.wait_for_timeout(300)
+        pg.wait_for_selector("#reveal")
+        pg.click("#next-round")
+        pg.wait_for_selector("#question-1")
+        pg.click("#question-1")
+        pg.wait_for_selector("#board-button")
+        pg.click("#board-button")
+        pg.wait_for_selector("#board-dialog")
+        check("a question without a source shows no source line in its board dialog",
+              pg.locator("#board-dialog-source").count() == 0 and "Source:" not in pg.content())
+        pg.context.close()
+
+    if os.environ.get("LAYOUT_ONLY") not in ("explanation", "source"):
         board_checks()
         game_board_checks()
-    explanation_checks()
-    if os.environ.get("LAYOUT_ONLY") == "explanation":
+    if os.environ.get("LAYOUT_ONLY") != "source":
+        explanation_checks()
+    source_checks()
+    if os.environ.get("LAYOUT_ONLY") in ("explanation", "source"):
         browser.close()
         print()
         print(f"{passed} passed, {failed} failed")
@@ -991,6 +1065,24 @@ with sync_playwright() as p:
             )
             check(f"{name}: admin question form has the optional explanation field, on screen (44px or more), no horizontal overflow",
                   f["there"] and f["inside"] and f["h"] >= 44 and f["overX"] <= 0, str(f))
+        for name, w, h, _, _ in VIEWPORTS:
+            page.set_viewport_size({"width": w, "height": h})
+            page.wait_for_timeout(100)
+            f = page.evaluate(
+                """() => {
+                  const t = document.querySelector('input#question_source')
+                  const r = t && t.getBoundingClientRect()
+                  const hint = document.querySelector('#source-hint')
+                  return {
+                    there: !!t, inside: !!r && r.left >= 0 && r.right <= innerWidth, h: r && r.height,
+                    hintInside: !!hint && hint.getBoundingClientRect().right <= innerWidth,
+                    overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                  }
+                }"""
+            )
+            # (the 44px of .input is only for coarse pointers in app.css and these contexts are not touch, so no height rule here)
+            check(f"{name}: admin question form has the optional source field and its hint, on screen, no horizontal overflow",
+                  f["there"] and f["inside"] and f["h"] >= 36 and f["hintInside"] and f["overX"] <= 0, str(f))
         page.set_viewport_size({"width": 1280, "height": 900})
 
         def card_order():

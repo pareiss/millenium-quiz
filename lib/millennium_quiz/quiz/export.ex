@@ -145,6 +145,7 @@ defmodule MillenniumQuiz.Quiz.Export do
     }
     |> then(&if(q.board, do: Map.put(&1, "board", q.board), else: &1))
     |> then(&if(q.explanation, do: Map.put(&1, "explanation", q.explanation), else: &1))
+    |> then(&if(q.source, do: Map.put(&1, "source", q.source), else: &1))
   end
 
   # "owner" only when a player owns the card, so a backup without owners is

@@ -88,6 +88,44 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
     assert length(Quiz.get_format!(format.id).topics) == 2
   end
 
+  test "explanation and source are carried; an exported question goes back in with them", %{
+    format: format
+  } do
+    extra = %{"explanation" => "Why: lethal.", "source" => "By Someone, CC BY-SA"}
+    pack = pack([topic("Puzzle", [q("With?", extra), q("Without?")])])
+    assert {:ok, %{imported: 2}} = run(format, pack)
+
+    assert %{"With?" => {"Why: lethal.", "By Someone, CC BY-SA"}, "Without?" => {nil, nil}} =
+             Map.new(topic_questions(format, "Puzzle"), &{&1.text, {&1.explanation, &1.source}})
+
+    # the backup writes them, and a pack made of the backup's topics keeps them
+    [exported] =
+      Enum.filter(MillenniumQuiz.Quiz.Export.build()["formats"], &(&1["name"] == "Edison"))
+
+    other = format_fixture(%{"name" => "Other", "date" => "2020-01-01"})
+
+    assert {:ok, %{imported: 2}} =
+             run(other, %{"version" => 1, "topics" => exported["topics"]})
+
+    assert %{"With?" => {"Why: lethal.", "By Someone, CC BY-SA"}, "Without?" => {nil, nil}} =
+             Map.new(topic_questions(other, "Puzzle"), &{&1.text, {&1.explanation, &1.source}})
+  end
+
+  test "a source that is too long or not text fails that question only", %{format: format} do
+    pack =
+      pack([
+        topic("Puzzle", [
+          q("Long?", %{"source" => String.duplicate("x", 301)}),
+          q("Number?", %{"source" => 5}),
+          q("Fine?", %{"source" => "ok"})
+        ])
+      ])
+
+    assert {:ok, %{imported: 1, failed: failed}} = run(format, pack)
+    assert length(failed) == 2
+    assert Enum.any?(failed, &(inspect(&1) =~ "source is too long"))
+  end
+
   test "importing the same pack twice adds nothing", %{format: format} do
     pack = pack([topic("Puzzle", [q("Step 1?", %{"board" => board()})])])
     assert {:ok, %{imported: 1}} = run(format, pack)

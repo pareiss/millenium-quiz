@@ -276,6 +276,19 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
             </p>
           </div>
 
+          <div>
+            <.input
+              field={@form[:source]}
+              type="text"
+              label="Source (optional)"
+              maxlength={Question.max_source_length()}
+              aria-describedby="source-hint"
+            />
+            <p class="-mt-2 text-xs text-base-content/60 [overflow-wrap:anywhere]" id="source-hint">
+              A credit line, for example who made the puzzle. Shown as "Source: ..." in the board dialog, so it only appears for a question with a board. Leave it empty for none.
+            </p>
+          </div>
+
           <fieldset class="space-y-2">
             <legend class="font-medium mb-1">
               Answers <span class="text-sm text-base-content/60">(2–6, tick the correct one)</span>

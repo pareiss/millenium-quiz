@@ -203,10 +203,12 @@ defmodule MillenniumQuiz.Quiz.Import do
     cards = Map.get(q, "cards") || []
     submitted_by = Map.get(q, "submitted_by")
     explanation = Map.get(q, "explanation")
+    source = Map.get(q, "source")
 
     with :ok <- text(text, "text"),
          :ok <- optional_text(submitted_by, "submitted_by"),
          :ok <- optional_text(explanation, "explanation"),
+         :ok <- optional_text(source, "source"),
          :ok <- legacy_points(Map.get(q, "points")),
          :ok <- count(choices, @max_choices, "choices"),
          {:ok, choices} <- each(choices, &choice/1, "choice"),
@@ -220,6 +222,7 @@ defmodule MillenniumQuiz.Quiz.Import do
          text: text,
          submitted_by: submitted_by,
          explanation: explanation,
+         source: source,
          choices: choices,
          cards: cards,
          board: board,
@@ -415,6 +418,9 @@ defmodule MillenniumQuiz.Quiz.Import do
           String.length(q.explanation) > Question.max_explanation_length() ->
         {:error,
          "explanation is too long (at most #{Question.max_explanation_length()} characters)"}
+
+      is_binary(q.source) and String.length(q.source) > Question.max_source_length() ->
+        {:error, "source is too long (at most #{Question.max_source_length()} characters)"}
 
       String.length(q.text) > Question.max_text_length() ->
         {:error, "text is too long (at most #{Question.max_text_length()} characters)"}
@@ -641,6 +647,7 @@ defmodule MillenniumQuiz.Quiz.Import do
         "text" => text,
         "submitted_by" => q.submitted_by,
         "explanation" => q.explanation,
+        "source" => q.source,
         "choices" => q.choices,
         "board" => board
       }
