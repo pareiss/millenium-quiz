@@ -8,6 +8,7 @@ defmodule MillenniumQuiz.Quiz.Question do
   @max_choices 6
   @max_text_length 1000
   @max_submitter_length 30
+  @max_explanation_length 2000
 
   schema "questions" do
     field :text, :string
@@ -15,6 +16,8 @@ defmodule MillenniumQuiz.Quiz.Question do
     field :position, :integer, default: 0
     # Name of the player who suggested the question, if it came from one.
     field :submitted_by, :string
+    # Optional explanation of the answer, shown on the reveal. nil for none.
+    field :explanation, :string
     # A read-only board shown with the question (`Quiz.Board`), or nil.
     field :board, :map
 
@@ -34,6 +37,7 @@ defmodule MillenniumQuiz.Quiz.Question do
   def max_choices, do: @max_choices
   def max_text_length, do: @max_text_length
   def max_submitter_length, do: @max_submitter_length
+  def max_explanation_length, do: @max_explanation_length
 
   @max_damage 3000
 
@@ -46,11 +50,13 @@ defmodule MillenniumQuiz.Quiz.Question do
 
   def changeset(question, attrs) do
     question
-    |> cast(attrs, [:text, :submitted_by])
+    |> cast(attrs, [:text, :submitted_by, :explanation])
     |> update_change(:submitted_by, &blank_to_nil/1)
+    |> update_change(:explanation, &blank_to_nil/1)
     |> validate_required([:text])
     |> validate_length(:text, max: @max_text_length)
     |> validate_length(:submitted_by, max: @max_submitter_length)
+    |> validate_length(:explanation, max: @max_explanation_length)
     |> cast_embed(:choices,
       required: true,
       sort_param: :choices_sort,

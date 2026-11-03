@@ -262,6 +262,20 @@ defmodule MillenniumQuizWeb.Admin.QuestionLive.Form do
             maxlength={Question.max_submitter_length()}
           />
 
+          <div>
+            <.input
+              field={@form[:explanation]}
+              type="textarea"
+              label="Explanation (optional)"
+              rows="3"
+              maxlength={Question.max_explanation_length()}
+              aria-describedby="explanation-hint"
+            />
+            <p class="-mt-2 text-xs text-base-content/60" id="explanation-hint">
+              Shown to the players after the correct answer is revealed, before they go back to the board. Leave it empty for none.
+            </p>
+          </div>
+
           <fieldset class="space-y-2">
             <legend class="font-medium mb-1">
               Answers <span class="text-sm text-base-content/60">(2–6, tick the correct one)</span>

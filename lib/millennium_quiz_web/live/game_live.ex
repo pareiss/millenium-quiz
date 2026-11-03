@@ -674,6 +674,17 @@ defmodule MillenniumQuizWeb.GameLive do
             </li>
           </ul>
 
+          <div
+            :if={@question[:explanation]}
+            id="explanation"
+            class="min-w-0 rounded-field border border-base-300 bg-base-200/60 p-3 space-y-1"
+          >
+            <p class="flex items-center gap-2 text-sm font-semibold text-base-content/70">
+              <.icon name="hero-information-circle" class="size-5 text-primary" /> Explanation
+            </p>
+            <p class="whitespace-pre-line [overflow-wrap:anywhere]">{@question.explanation}</p>
+          </div>
+
           <p
             :if={Game.correct_count(@question) == 0}
             id="all-wrong"

@@ -272,3 +272,40 @@ else
 
   IO.puts("Seeded format #{format.name}.")
 end
+
+# A fifth format for the explanation of a question (the reveal and the admin form): the first question has
+# a long explanation (several lines, a very long word), the second none.
+if Repo.get_by(Format, name: "Explanation fixture") do
+  IO.puts("Explanation fixture already exists, skipping.")
+else
+  {:ok, format} =
+    Quiz.create_format(%{
+      "name" => "Explanation fixture",
+      "date" => Date.utc_today(),
+      "description" => "Fixture for bin/layout-test: the first question has an explanation, the second none.",
+      "topics" => %{"0" => %{"name" => "Explained"}, "1" => %{"name" => "Unexplained"}}
+    })
+
+  [explained, unexplained] = format.topics
+
+  choices = %{
+    "0" => %{"text" => "Draw two cards", "correct" => "true"},
+    "1" => %{"text" => "Draw three cards"},
+    "2" => %{"text" => "Draw nothing"}
+  }
+
+  explanation =
+    "Pot of Greed lets you draw 2 cards from your Deck. It was Forbidden in 2005, which is why a list from that year does not have it.\n" <>
+      "Second paragraph with an unbroken word: " <> String.duplicate("Supercalifragilistic", 4)
+
+  {:ok, _} =
+    Quiz.create_question(
+      explained,
+      %{"text" => "What does Pot of Greed do?", "choices" => choices, "explanation" => explanation},
+      []
+    )
+
+  {:ok, _} = Quiz.create_question(unexplained, %{"text" => "A question without an explanation?", "choices" => choices}, [])
+
+  IO.puts("Seeded format #{format.name}.")
+end
