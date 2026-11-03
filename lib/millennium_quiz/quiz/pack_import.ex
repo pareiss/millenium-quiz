@@ -384,12 +384,14 @@ defmodule MillenniumQuiz.Quiz.PackImport do
     {entries, text, warnings, _missing} =
       Import.link_cards(q, pool, format.name, topic_name, number)
 
-    # The board is judged again now that the cards are fetched.
-    case q.board && Board.validate(q.board, format.date) do
-      {:error, issues} ->
-        fail(report, topic_name, {number, raw, {:error, "board: " <> Import.issues_text(issues)}})
+    # The board is judged again now that the cards are fetched, and so are the
+    # cards of the question (the admin form refuses a card released after the
+    # format's date, so an import must too).
+    case problem(q, format.date) do
+      {:error, reason} ->
+        fail(report, topic_name, {number, raw, {:error, reason}})
 
-      _ok ->
+      :ok ->
         if duplicate?(db_topic, q, pool) do
           %{report | skipped: report.skipped + 1}
         else
@@ -413,6 +415,43 @@ defmodule MillenniumQuiz.Quiz.PackImport do
               fail(report, topic_name, {number, raw, {:error, Import.errors(cs)}})
           end
         end
+    end
+  end
+
+  defp problem(q, date) do
+    with {:board, :ok} <- {:board, if(q.board, do: Board.validate(q.board, date), else: :ok)},
+         :ok <- check_released(q.cards, date) do
+      :ok
+    else
+      {:board, {:error, issues}} -> {:error, "board: " <> Import.issues_text(issues)}
+      {:error, _} = error -> error
+    end
+  end
+
+  # Same rule as the admin form's `released_by?/2`: a card released after the
+  # format's date is refused; a card without a release date, or a format
+  # without a date, is not checked.
+  defp check_released(_cards, nil), do: :ok
+
+  defp check_released(cards, date) do
+    passwords = Enum.map(cards, & &1.password)
+
+    Repo.all(
+      from c in MillenniumQuiz.Cards.Card,
+        where: c.password in ^passwords and c.tcg_release_date > ^date,
+        order_by: c.name,
+        select: {c.name, c.password, c.tcg_release_date}
+    )
+    |> case do
+      [] ->
+        :ok
+
+      late ->
+        {:error,
+         "cards: " <>
+           Enum.map_join(late, "; ", fn {name, pw, released} ->
+             "#{name} (#{pw}) was released on #{released}, after the format's date #{date}"
+           end)}
     end
   end
 
@@ -451,6 +490,8 @@ defmodule MillenniumQuiz.Quiz.PackImport do
 
       pack_cards =
         q.cards
+        # `Question.put_cards/2` keeps the first entry of a card listed twice
+        |> Enum.uniq_by(& &1.password)
         |> Enum.reject(fn card ->
           not MapSet.member?(stored_pws, card.password) and
             unlinked_in?(x.text, card, pack_names)

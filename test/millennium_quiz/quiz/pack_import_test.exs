@@ -175,6 +175,43 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
     assert f.reason =~ "Newcomer (555) was released on 2021-01-01"
   end
 
+  test "a question card released after the format's date fails that question only", %{
+    format: format
+  } do
+    Repo.insert!(%MillenniumQuiz.Cards.Card{
+      name: "Newcomer",
+      password: 555,
+      frame_type: "effect",
+      tcg_release_date: ~D[2021-01-01],
+      fetched_at: DateTime.utc_now(:second)
+    })
+
+    late = [%{"password" => 555, "name" => "Newcomer"}]
+    ok = [%{"password" => @plain, "name" => "Plain Monster"}]
+
+    pack =
+      pack([
+        topic("Puzzle", [
+          q("Is [Newcomer] here?", %{"cards" => late}),
+          q("Is [Plain Monster] here?", %{"cards" => ok})
+        ])
+      ])
+
+    assert {:ok, %{imported: 1, failed: [f]}} = run(format, pack)
+    assert f.number == 1
+    assert f.reason =~ "Newcomer (555) was released on 2021-01-01, after the format's date"
+    assert [_] = topic_questions(format, "Puzzle")
+  end
+
+  test "a card listed twice does not make a re-import add the question again", %{format: format} do
+    card = %{"password" => @plain, "name" => "Plain Monster"}
+    pack = pack([topic("Puzzle", [q("Is [Plain Monster] here?", %{"cards" => [card, card]})])])
+
+    assert {:ok, %{imported: 1}} = run(format, pack)
+    assert {:ok, %{imported: 0, skipped: 1}} = run(format, pack)
+    assert [_] = topic_questions(format, "Puzzle")
+  end
+
   test "a board card the pool lacks is fetched", %{format: format} do
     assert {:ok, %{imported: 1, failed: []}} =
              run(format, pack([topic("Puzzle", [q("Fetch?", %{"board" => board(@reborn)})])]))
@@ -419,21 +456,53 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
       GenServer.stop(conn)
     end
 
-    test "two simultaneous imports of the same pack create the topic and question once", %{
-      format: format
-    } do
+    # The sandbox runs everything on ONE connection, and a session advisory lock
+    # is re-entrant within a session, so there the lock would never be tested
+    # (the tasks would be serialised by the shared connection alone). This test
+    # leaves the sandbox: every task gets its own committed connection, the data
+    # is created for real and deleted again afterwards.
+    test "two simultaneous imports of the same pack create the topic and question once" do
+      Ecto.Adapters.SQL.Sandbox.mode(Repo, :auto)
+
+      own_connection = fn fun ->
+        Task.async(fn ->
+          # no $callers: the sandbox must not lend this task the test's connection
+          Process.delete(:"$callers")
+          fun.()
+        end)
+      end
+
+      format =
+        own_connection.(fn ->
+          format_fixture(%{"name" => "Lock test #{System.unique_integer([:positive])}"})
+        end)
+        |> Task.await()
+
+      on_exit(fn ->
+        own_connection.(fn -> Repo.delete!(format) end) |> Task.await()
+      end)
+
       pack = pack([topic("Brand new", [q("Once?")])])
 
       results =
         1..2
-        |> Enum.map(fn _ -> Task.async(fn -> PackImport.run(format, pack, pause_ms: 0) end) end)
+        |> Enum.map(fn _ ->
+          own_connection.(fn -> PackImport.run(format, pack, pause_ms: 0) end)
+        end)
         |> Task.await_many()
 
       assert [{:ok, %{imported: 1}}, {:ok, %{imported: 0, skipped: 1}}] =
                Enum.sort_by(results, fn {:ok, r} -> -r.imported end)
 
-      assert [_] = topic_questions(format, "Brand new")
-      assert Quiz.get_format!(format.id).topics |> Enum.count(&(&1.name == "Brand new")) == 1
+      {topics, questions} =
+        own_connection.(fn ->
+          topics = Quiz.get_format!(format.id).topics |> Enum.filter(&(&1.name == "Brand new"))
+          {topics, topic_questions(format, "Brand new")}
+        end)
+        |> Task.await()
+
+      assert [_] = topics
+      assert [_] = questions
     end
 
     test "different formats do not block each other", %{format: format} do
