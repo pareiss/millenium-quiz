@@ -59,6 +59,7 @@ defmodule MillenniumQuizWeb.Router do
       live "/formats/new", FormatLive.Form, :new
       live "/formats/:id", FormatLive.Show, :show
       live "/formats/:id/edit", FormatLive.Form, :edit
+      live "/formats/:id/pack", FormatLive.Pack, :import
       live "/topics/:topic_id/questions/new", QuestionLive.Form, :new
       live "/questions/:id/edit", QuestionLive.Form, :edit
       live "/submissions", SubmissionLive.Index, :index

@@ -253,6 +253,47 @@ The technical details follow.
   warning names the question and the reason. The result list says
   `Boards: N restored, M skipped`. The backup `version` stays 1 (older files
   have no board and import as before; an older importer ignores the key).
+- **Question packs** (`/admin/formats/:id/pack`, button "Import pack" on the
+  format page; `Quiz.PackImport`): adds the topics of a JSON pack to an
+  **existing** format, for puzzles and sets of board questions written by the
+  authoring tool (`millennium-quiz-authoring`). The file is the backup's topic
+  shape without the format around it:
+  `{"version": 1, "credits": "optional", "topics": [{"name": "...", "questions":
+  [{"text", "choices": [{"text", "correct"}], "cards": [{"password", "owner"}],
+  "board": {...}}]}]}`; `cards` and `board` are optional, a question is an
+  ordinary multiple-choice question (one correct answer). Topics are matched by
+  name, case-insensitive, with the topics of the format and their questions are
+  appended after the existing ones (so the damage follows the position); a topic
+  that is not there is created while the format has fewer than 6 topics, and not
+  created at all when none of its questions comes through. A question the topic
+  already has is counted as "already there", so importing a pack twice adds
+  nothing. "The same" means the same identity over everything that matters
+  (computed in one place, `Quiz.PackImport`): the text, the choices in order
+  with the correct flag, the board, and the ordered list of cards with their owner
+  (P1/P2). The text is compared without the `[card]` brackets and with each whole
+  card name replaced by the card's password (names match regardless of case, the
+  rest of the text is compared exactly), so questions about different cards, or
+  the same cards for another player, stay different. A card that could not be
+  fetched the first time (stored unlinked, its name in plain text) or was renamed
+  since does not make the question new: a named pack card the stored question
+  does not have attached, whose name stands in the stored text, is left out of
+  the comparison. (An unnamed card that was never linked cannot be recognised.) Only a pack that is not JSON, too large
+  (5 MB, 200 questions per topic after entries of the same name are merged, 500 in all) or not a pack (version, topics,
+  names) is rejected whole. Every other problem is **per question**: the
+  question is listed with its topic, number and reason, and the rest is still
+  imported. Unlike the backup restore, a question whose board is invalid (does not
+  cast, fails `Board.validate/2` on the format's date: card missing from the
+  pool after the fetch, released later, zone the Master Rule lacks) is not
+  imported without it, because in a puzzle the board is the question. Cards the
+  pool lacks are fetched one at a time with a pause before anything is written;
+  a question card that cannot be fetched is unlinked with a warning as in the
+  restore. The writes of two imports into the same format are serialised by a
+  Postgres advisory lock on the format (taken after the card fetches, so it is
+  held only briefly); a second import waits up to 30 seconds and then fails with
+  "Another import into this format is running". The import runs in a task of its own, so it goes on when the admin
+  leaves the page, and logs its result. `credits` is only shown in the result
+  (nothing is stored yet). The page is in `bin/layout-test`'s list of admin
+  pages (tablet and phone: no sideways overflow, controls of 44px or more).
 - **Restoring** never overwrites: a format whose name already exists is
   skipped, so importing the same file twice is harmless. Each format is created
   on its own; one that breaks a rule (for example fewer than 2 topics) is
