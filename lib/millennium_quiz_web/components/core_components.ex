@@ -388,7 +388,10 @@ defmodule MillenniumQuizWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
+    <header class={[
+      @actions != [] && "flex flex-wrap items-center justify-between gap-x-6 gap-y-2",
+      "pb-4"
+    ]}>
       <div>
         <h1 class="text-lg font-semibold leading-8">
           {render_slot(@inner_block)}
@@ -397,7 +400,7 @@ defmodule MillenniumQuizWeb.CoreComponents do
           {render_slot(@subtitle)}
         </p>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
+      <div class="flex-none max-w-full">{render_slot(@actions)}</div>
     </header>
     """
   end
