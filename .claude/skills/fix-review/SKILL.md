@@ -3,12 +3,12 @@ name: fix-review
 description: After the user ticked the verdicts of a review of millennium-quiz (the trivia app): post the review, fix the valid findings, push, post again with the fix commits, and say whether another review round is needed.
 argument-hint: <pr-number>
 disable-model-invocation: true
-allowed-tools: Bash(bin/review-post:*), Bash(mix precommit:*), Bash(mix test:*), Bash(python3 -m unittest:*), Bash(podman start mq-db), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(git pull:*), Bash(git worktree:*), Bash(git rev-parse:*), Bash(gh pr view:*), Bash(gh pr edit:*), Bash(sleep:*), Read, Edit, Write, Grep, Glob
+allowed-tools: Bash(bin/review-post:*), Bash(mix precommit:*), Bash(mix test:*), Bash(python3 -m unittest:*), Bash(podman start mq-db), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git pull:*), Bash(git fetch:*), Bash(git worktree:*), Bash(git rev-parse:*), Bash(gh pr view:*), Bash(gh pr edit:*), Bash(sleep:*), Read, Edit, Write, Grep, Glob
 ---
 
 The user ran this command, so that is their go-ahead to post the review and to
 push fix commits to the PR's branch. Nothing else is authorised: do not merge,
-do not start a review (`bin/review-pr`) yourself, do not touch other PRs.
+do not start a review (`bin/review-pr`) yourself, do not touch other PRs. Every `gh` call carries `-R pareiss/millenium-quiz`.
 It only ever talks to `pareiss/millenium-quiz`.
 
 1. **Find the review.** The file is `reviews/pr-<number>-<branch>.md` in the
@@ -27,17 +27,22 @@ It only ever talks to `pareiss/millenium-quiz`.
    finding or an earlier decision, say so instead of guessing). Skip findings
    marked **wrong**. Keep fixes small and inside the PR's scope; when a fix
    makes the PR description, README or docs untrue, change them in the same go.
-4. **Check.** `mix precommit` (needs Postgres at localhost:5432: `podman start mq-db`); when the fix touched `bin/review-*` or `test/review/`, also `python3 -m unittest discover -s test/review` (CI runs it); in general the checks of `.github/workflows/ci.yml` that apply; if the fix touched markup or `bin/layout-test`, say that the browser smoke test only runs in CI unless you ran it. Say honestly what was not run.
+4. **Check.** `mix precommit` (needs Postgres at localhost:5432: `podman start mq-db`); when the fix touched `bin/review-*` or `test/review/`, also `python3 -m unittest discover -s test/review` (CI runs it); `mix precommit` covers CI's compile, unused-deps, format and test checks and the unittest covers the review tools; if the fix touched markup or `bin/layout-test`, say that the browser smoke test only runs in CI unless you ran it. Say honestly what was not run.
 5. **Commit and push.** One commit, message `Review findings of PR #<n>` plus a
    line `- F<k>: <what changed>` per finding (`bin/review-post` links the commit
    to the findings by these lines), ending with the model trailer
    `Co-Authored-By: Claude <Model name and version> <noreply@anthropic.com>` (the
-   model you are; the trailer the system prompt names for commits). Push.
-6. **Post again.** GitHub lags: poll `gh pr view <n> --json commits --jq
+   model you are; the trailer the system prompt names for commits). Never
+   `--no-verify`, `--amend` of a pushed commit or `--force`. **Push** only
+   `HEAD` to the PR's own branch (`git push origin HEAD:<branch>`), never to
+   `master`; a push is not pre-approved, so the user sees a prompt for it.
+6. **Post again.** GitHub lags: poll `gh pr view <n> -R pareiss/millenium-quiz --json commits --jq
    '.commits[-1].oid'` (sleep 5, at most a minute) until it matches `git
-   rev-parse HEAD`, then `bin/review-post <number>` (it updates the same
+   rev-parse HEAD`, then `bin/review-post <number>` (plus `--confirm-unreviewed` if the user
+   confirmed it in step 2: the same unreviewed commits are still there; if new
+   ones show up, stop and ask; it updates the same
    comment) and read the table back: every valid finding must show the commit,
-   not "not yet". Update the PR description (`gh pr edit`) if the fix changed
+   not "not yet". Update the PR description (`gh pr edit <n> -R pareiss/millenium-quiz --body-file <file>`; only the body) if the fix changed
    what it says.
 7. **Is another review round needed?** Decide, with reasons, and do not start
    it. A new round is **recommended** when any of these holds:
@@ -56,5 +61,8 @@ It only ever talks to `pareiss/millenium-quiz`.
    by a comment or doc change counts as docs; a blocker never does), and all checks passed. Report: findings fixed / rejected / open, the checks and their
    result, the fix commit, the comment's link, and the recommendation with the
    command for the user to run: `bin/review-pr <number>`.
+   If the PR's commits carry the default reviewer's model family (your own
+   trailer counts), the script refuses: give `REVIEW_MODEL=<another family>
+   bin/review-pr <number>` instead.
 8. A rejected finding with a reason that will come up again: propose (do not
    write) an entry for "Decisions and known false positives" in `REVIEWING.md`.
