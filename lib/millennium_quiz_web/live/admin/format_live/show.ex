@@ -31,9 +31,12 @@ defmodule MillenniumQuizWeb.Admin.FormatLive.Show do
             <span :if={@format.description} class="block">{@format.description}</span>
           </:subtitle>
           <:actions>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap justify-end gap-2">
               <.button navigate={~p"/admin/formats/#{@format}/edit"} id="edit-format">
                 <.icon name="hero-pencil-square" class="size-4" /> Edit
+              </.button>
+              <.button navigate={~p"/admin/formats/#{@format}/pack"} id="import-pack">
+                <.icon name="hero-arrow-up-tray" class="size-4" /> Import pack
               </.button>
               <.button
                 phx-click="confirm_delete"
