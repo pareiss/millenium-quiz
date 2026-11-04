@@ -389,10 +389,10 @@ defmodule MillenniumQuizWeb.DuelComponents do
   Cards in a hand, graveyard, banished zone or Extra Deck have `"pos" => "atk"`
   and only name, kind, atk, def and art matter.
 
-  ## Events
-
   `source` (optional text) is a credit line shown as "Source: ..." between the
   header and the mat; nothing is drawn without it.
+
+  ## Events
 
   `on_card` is sent when a tile (or a list item) is tapped, with
   `phx-value-key` (`"p1:monsters:2"`, `"emz:0"`, `"p2:grave:1"`: player, zone and

@@ -60,6 +60,11 @@ defmodule MillenniumQuiz.Quiz.Export do
   The import validates the board against the format's date, fetches cards the
   pool lacks, and restores the question without the board when that fails.
 
+  A question has an `"explanation"` (text, at most 2000 characters) and a
+  `"source"` (a credit line) only when it has one. The format stays version 1:
+  a backup without them imports as before, and an older importer ignores the
+  keys.
+
   A card has an `"owner"` (1 or 2, the player it belongs to in the question)
   only when a player owns it. The format stays version 1: a backup without
   owners imports as before, with no card owned.

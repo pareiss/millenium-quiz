@@ -133,6 +133,54 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
     assert length(topic_questions(format, "Puzzle")) == 1
   end
 
+  test "a pack imported again fills in or changes explanation and source, never erases them", %{
+    format: format
+  } do
+    plain = [topic("Puzzle", [q("Step 1?", %{"board" => board()})])]
+    assert {:ok, %{imported: 1}} = run(format, pack(plain))
+
+    with_extras =
+      pack([
+        topic("Puzzle", [
+          q("Step 1?", %{"board" => board(), "explanation" => "Because.", "source" => "Ep. 5"})
+        ])
+      ])
+
+    assert {:ok, %{imported: 0, skipped: 1, updated: 1}} = run(format, with_extras)
+    [question] = topic_questions(format, "Puzzle")
+    assert {question.explanation, question.source} == {"Because.", "Ep. 5"}
+
+    # the same again changes nothing; so does a pack without the fields
+    assert {:ok, %{skipped: 1, updated: 0}} = run(format, with_extras)
+    assert {:ok, %{skipped: 1, updated: 0}} = run(format, pack(plain))
+    [question] = topic_questions(format, "Puzzle")
+    assert {question.explanation, question.source} == {"Because.", "Ep. 5"}
+
+    # a changed credit is taken over
+    changed =
+      pack([
+        topic("Puzzle", [q("Step 1?", %{"board" => board(), "source" => "Ep. 6"})])
+      ])
+
+    assert {:ok, %{skipped: 1, updated: 1}} = run(format, changed)
+    [question] = topic_questions(format, "Puzzle")
+    assert {question.explanation, question.source} == {"Because.", "Ep. 6"}
+
+    assert Enum.join(
+             PackImport.report_lines(%{
+               updated: 1,
+               imported: 0,
+               boards: 0,
+               skipped: 1,
+               failed: [],
+               topics_created: [],
+               warnings: [],
+               credits: nil
+             }),
+             "\n"
+           ) =~ "1 with an explanation or source updated"
+  end
+
   test "same text with another board is a different question", %{format: format} do
     other = put_in(board(), ["players", Access.at(1), "lp"], 4000)
 

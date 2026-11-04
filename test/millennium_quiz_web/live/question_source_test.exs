@@ -241,13 +241,27 @@ defmodule MillenniumQuizWeb.QuestionSourceTest do
       question: question
     } do
       question |> Ecto.Changeset.change(source: @credit) |> Repo.update!()
-      {id, _view} = open_dialog(conn, format)
+      {:ok, id} = Games.create_game(format.id, ["Ann", "Bob"], [])
+      {:ok, _} = Games.choose(id, 0)
 
       # the snapshot as an older version saved it: no "source" key
-      {:ok, %{game: game}} = Games.fetch_game(id)
-      map = game |> Game.to_map() |> Jason.encode!() |> Jason.decode!()
-      old = update_in(map, ["questions"], fn qs -> Enum.map(qs, &Map.delete(&1, "source")) end)
-      assert Enum.all?(Game.from_map(old).questions, &(&1.source == nil))
+      record = Repo.get!(MillenniumQuiz.Games.GameRecord, id)
+
+      old =
+        update_in(record.state, ["questions"], fn qs ->
+          Enum.map(qs, &Map.delete(&1, "source"))
+        end)
+
+      record |> Ecto.Changeset.change(state: old) |> Repo.update!()
+
+      # the running server holds the game in memory: stop it so the saved one is loaded
+      GenServer.stop(MillenniumQuiz.Games.Server.via(id))
+
+      {:ok, view, _html} = live(conn, ~p"/games/#{id}")
+      view |> element("#board-button") |> render_click()
+      assert has_element?(view, "#board-dialog")
+      refute has_element?(view, "#board-dialog-source")
+      refute render(view) =~ "Source:"
     end
 
     test "is not shown for a question without a board, whatever the source", %{
