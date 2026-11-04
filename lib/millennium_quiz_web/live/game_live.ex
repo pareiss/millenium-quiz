@@ -649,6 +649,19 @@ defmodule MillenniumQuizWeb.GameLive do
         </div>
 
         <div class="space-y-5">
+          <button
+            :if={@question[:explanation]}
+            type="button"
+            id="next-round-top"
+            class="btn btn-ghost btn-sm w-full sm:w-auto"
+            phx-click="next_round"
+            disabled={@turn_locked}
+          >
+            {if @last_round?,
+              do: "Skip the explanation: final results",
+              else: "Skip the explanation: back to the board"}
+            <.icon name="hero-arrow-right" class="size-4" />
+          </button>
           <ul class="grid gap-2 sm:grid-cols-2 md:landscape:grid-cols-1 lg:grid-cols-1">
             <li
               :for={{choice, i} <- Enum.with_index(@question.choices)}
@@ -743,6 +756,17 @@ defmodule MillenniumQuizWeb.GameLive do
               </p>
             </li>
           </ul>
+
+          <div
+            :if={@question[:explanation]}
+            id="explanation"
+            class="min-w-0 rounded-field border border-base-300 bg-base-200/60 p-3 space-y-1"
+          >
+            <p class="flex items-center gap-2 text-sm font-semibold text-base-content/70">
+              <.icon name="hero-information-circle" class="size-5 text-primary" /> Explanation
+            </p>
+            <p class="whitespace-pre-line [overflow-wrap:anywhere]">{@question.explanation}</p>
+          </div>
         </div>
       </div>
 

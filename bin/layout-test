@@ -44,6 +44,9 @@ Checks the question view (docs/plans/tablet-phone-layout.md):
     (up to 1180px wide), a long question text in the format page's rows wraps;
     LAYOUT_REQUIRE_ADMIN=1 (CI) makes missing credentials a failure instead of a skip.
     It logs in on the site it is pointed at, so use the throwaway site of CI or a local fixture, not a real one
+  - the explanation of a question (format 'Explanation fixture'; LAYOUT_REQUIRE_GAME_BOARD=1 makes the missing format a
+    failure): on the reveal below the correct answer, on screen and wrapped at every viewport, none for a question without one,
+    nothing of it while answering; and the optional explanation field of the admin question form on screen at every viewport
   - the board section of the admin question form (same admin login): at every viewport the collapsed section opens, the
     textarea, the preview and remove buttons are on screen (44px or more on touch viewports), the pasted empty board
     is valid and its preview dialog opens with the close button >= 44px and the mat on screen, a bad board lists its
@@ -178,6 +181,7 @@ FIXTURE_LINK = "a:has-text('Layout check'):not(:has-text('Layout check pictures'
 PICTURES_LINK = "a:has-text('Layout check pictures')"
 DUEL_LINK = "a:has-text('LP duel fixture')"
 BOARD_GAME_LINK = "a:has-text('Board in game fixture')"
+EXPLANATION_LINK = "a:has-text('Explanation fixture')"
 
 
 def start_game(page, link=FIXTURE_LINK):
@@ -577,8 +581,85 @@ with sync_playwright() as p:
         starter.context.close()
 
 
-    board_checks()
-    game_board_checks()
+    # The explanation of a question (format 'Explanation fixture'): on the reveal, below the correct answer and above the way
+    # back to the board, at every viewport on screen without sideways scrolling, the long word wrapped; a question without one
+    # has no block; while the question is being answered nothing of it is shown.
+    def explanation_checks():
+        probe = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+        probe.goto(base + "/")
+        if probe.locator(EXPLANATION_LINK).count() == 0:
+            probe.context.close()
+            if os.environ.get("LAYOUT_REQUIRE_GAME_BOARD"):
+                check("the format 'Explanation fixture' is seeded", False, "priv/repo/layout_fixture.exs")
+            else:
+                print("Explanation: skipped, no format 'Explanation fixture' (run priv/repo/layout_fixture.exs)")
+            return
+        probe.context.close()
+        print("Explanation (format 'Explanation fixture', the reveal)")
+        pg = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
+        start_game(pg, EXPLANATION_LINK)
+        pg.click("#question-0")
+        pg.wait_for_selector("#choice-0")
+        check("while the question is answered the explanation is not on the page",
+              pg.locator("#explanation").count() == 0 and "Pot of Greed lets you draw" not in pg.content())
+        game_url = pg.url
+        for _ in range(2):
+            pg.wait_for_timeout(4200)  # the server's turn guard and the pass-the-device bar
+            pg.click("#choice-0")
+            pg.wait_for_timeout(300)
+        pg.wait_for_selector("#reveal")
+        for name, w, h, _, _ in VIEWPORTS:
+            pg.set_viewport_size({"width": w, "height": h})
+            pg.goto(game_url)
+            pg.wait_for_selector("[data-phx-main].phx-connected")
+            pg.wait_for_selector("#explanation")
+            pg.wait_for_timeout(150)
+            m = pg.evaluate(
+                """() => {
+                  const r = (e) => e.getBoundingClientRect()
+                  const ex = document.querySelector('#explanation'), ok = document.querySelector('#round-results')
+                  const bar = document.querySelector('#next-round')
+                  const e = r(ex)
+                  return {
+                    inside: e.left >= 0 && e.right <= innerWidth + 0.5,
+                    overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                    textInside: ex.scrollWidth <= ex.clientWidth + 1,
+                    belowCorrect: e.top >= r(ok).bottom - 0.5,
+                    aboveButton: !!(ex.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING),  // the sticky bar overlays the end of a long page
+                    text: ex.textContent.includes('Pot of Greed lets you draw 2 cards') && ex.textContent.includes('Supercalifragilistic'),
+                    // below 512px of height the bar does not stick (app.css), so the button is only reached by scrolling
+                    buttonOn: innerHeight < 512 ? r(bar).left >= 0 && r(bar).right <= innerWidth + 0.5 : r(bar).bottom <= innerHeight + 0.5 && r(bar).top >= 0,
+                  }
+                }"""
+            )
+            check(f"{name}: the explanation is on screen below the round results, wrapped (no sideways scroll), the way back stays on screen",
+                  m["inside"] and m["overX"] <= 0 and m["textInside"] and m["belowCorrect"] and m["aboveButton"] and m["text"] and m["buttonOn"],
+                  str(m))
+        # a question without an explanation: no block
+        pg.set_viewport_size({"width": 390, "height": 844})
+        pg.goto(game_url)
+        pg.wait_for_selector("[data-phx-main].phx-connected")
+        pg.click("#next-round")
+        pg.wait_for_selector("#question-1")
+        pg.click("#question-1")
+        pg.wait_for_selector("#choice-0")
+        for _ in range(2):
+            pg.wait_for_timeout(4200)
+            pg.click("#choice-0")
+            pg.wait_for_timeout(300)
+        pg.wait_for_selector("#reveal")
+        check("a question without an explanation shows no explanation block", pg.locator("#explanation").count() == 0)
+        pg.context.close()
+
+    if os.environ.get("LAYOUT_ONLY") != "explanation":
+        board_checks()
+        game_board_checks()
+    explanation_checks()
+    if os.environ.get("LAYOUT_ONLY") == "explanation":
+        browser.close()
+        print()
+        print(f"{passed} passed, {failed} failed")
+        sys.exit(1 if failed else 0)
     if os.environ.get("LAYOUT_ONLY") == "board":
         browser.close()
         print()
@@ -895,6 +976,21 @@ with sync_playwright() as p:
             check(f"{name}: admin question form has the fixed-damage note (no points field), on screen, no horizontal overflow",
                   f["note"] is not None and "LP, fixed by the question's position" in f["note"] and f["points"] == 0
                   and f["inside"] and f["overX"] <= 0, str(f))
+        for name, w, h, _, _ in VIEWPORTS:
+            page.set_viewport_size({"width": w, "height": h})
+            page.wait_for_timeout(100)
+            f = page.evaluate(
+                """() => {
+                  const t = document.querySelector('textarea#question_explanation')
+                  const r = t && t.getBoundingClientRect()
+                  return {
+                    there: !!t, inside: !!r && r.left >= 0 && r.right <= innerWidth, h: r && r.height,
+                    overX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                  }
+                }"""
+            )
+            check(f"{name}: admin question form has the optional explanation field, on screen (44px or more), no horizontal overflow",
+                  f["there"] and f["inside"] and f["h"] >= 44 and f["overX"] <= 0, str(f))
         page.set_viewport_size({"width": 1280, "height": 900})
 
         def card_order():

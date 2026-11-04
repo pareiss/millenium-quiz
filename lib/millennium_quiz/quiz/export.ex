@@ -60,6 +60,10 @@ defmodule MillenniumQuiz.Quiz.Export do
   The import validates the board against the format's date, fetches cards the
   pool lacks, and restores the question without the board when that fails.
 
+  A question has an `"explanation"` (text, at most 2000 characters) only when
+  it has one. The format stays version 1: a backup without explanations
+  imports as before, and an older importer ignores the key.
+
   A card has an `"owner"` (1 or 2, the player it belongs to in the question)
   only when a player owns it. The format stays version 1: a backup without
   owners imports as before, with no card owned.
@@ -144,6 +148,7 @@ defmodule MillenniumQuiz.Quiz.Export do
       "cards" => Enum.map(q.question_cards, &card/1)
     }
     |> then(&if(q.board, do: Map.put(&1, "board", q.board), else: &1))
+    |> then(&if(q.explanation, do: Map.put(&1, "explanation", q.explanation), else: &1))
   end
 
   # "owner" only when a player owns the card, so a backup without owners is
