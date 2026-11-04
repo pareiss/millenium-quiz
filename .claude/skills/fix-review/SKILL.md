@@ -3,7 +3,7 @@ name: fix-review
 description: After the user ticked the verdicts of a review of millennium-quiz (the trivia app): post the review, fix the valid findings, push, post again with the fix commits, and say whether another review round is needed.
 argument-hint: <pr-number>
 disable-model-invocation: true
-allowed-tools: Bash(bin/review-post:*), Bash(mix precommit:*), Bash(mix test:*), Bash(python3 -m unittest:*), Bash(podman start mq-db), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git pull:*), Bash(git fetch:*), Bash(git worktree:*), Bash(git rev-parse:*), Bash(gh pr view:*), Bash(gh pr edit:*), Bash(sleep:*), Read, Edit, Write, Grep, Glob
+allowed-tools: Bash(bin/review-post:*), Bash(mix precommit:*), Bash(mix test:*), Bash(python3 -m unittest:*), Bash(podman start mq-db), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(git add:*), Bash(git commit:*), Bash(git pull:*), Bash(git fetch:*), Bash(git worktree list:*), Bash(git worktree add:*), Bash(git rev-parse:*), Bash(gh pr view:*), Bash(sleep:*), Bash(bin/layout-test:*), Read, Edit, Write, Grep, Glob
 ---
 
 The user ran this command, so that is their go-ahead to post the review and to
@@ -11,7 +11,9 @@ push fix commits to the PR's branch. Nothing else is authorised: do not merge,
 do not start a review (`bin/review-pr`) yourself, do not touch other PRs. Every `gh` call carries `-R pareiss/millenium-quiz`.
 It only ever talks to `pareiss/millenium-quiz`.
 
-1. **Find the review.** The file is `reviews/pr-<number>-<branch>.md` in the
+1. **Find the review.** The file is `pr-<number>-*.md` (the branch name has every character
+   outside letters, digits, `.`, `_`, `-` replaced by `-`; glob for it, and
+   `archive/` holds the reviews of merged or closed PRs) in the
    reviews directory of the main checkout (`bin/review-dirs` defines it as
    `$reviews_dir`; gitignored, so it is not inside a worktree). Read it. If
    there is none, or no finding has a verdict, stop and say so. If a finding is
@@ -27,7 +29,7 @@ It only ever talks to `pareiss/millenium-quiz`.
    finding or an earlier decision, say so instead of guessing). Skip findings
    marked **wrong**. Keep fixes small and inside the PR's scope; when a fix
    makes the PR description, README or docs untrue, change them in the same go.
-4. **Check.** `mix precommit` (needs Postgres at localhost:5432: `podman start mq-db`); when the fix touched `bin/review-*` or `test/review/`, also `python3 -m unittest discover -s test/review` (CI runs it); `mix precommit` covers CI's compile, unused-deps, format and test checks and the unittest covers the review tools; if the fix touched markup or `bin/layout-test`, say that the browser smoke test only runs in CI unless you ran it. Say honestly what was not run.
+4. **Check.** `mix precommit` (needs Postgres at localhost:5432: `podman start mq-db`); when the fix touched `bin/review-*` or `test/review/`, also `python3 -m unittest discover -s test/review` (CI runs it); `mix precommit` covers CI's compile, unused-deps, format and test checks and the unittest covers the review tools; if the fix touched markup, CSS or `bin/layout-test`, **try to run the browser smoke test** locally (setup is in the header of `bin/layout-test` and in `.github/workflows/smoke.yml`; a local release server and a Playwright venv are needed). If you cannot get it to run, it counts as a check that could not be run (step 7), and CI's result after the push is only a second look. Say honestly what was not run.
 5. **Commit and push.** One commit, message `Review findings of PR #<n>` plus a
    line `- F<k>: <what changed>` per finding (`bin/review-post` links the commit
    to the findings by these lines), ending with the model trailer
@@ -42,7 +44,7 @@ It only ever talks to `pareiss/millenium-quiz`.
    confirmed it in step 2: the same unreviewed commits are still there; if new
    ones show up, stop and ask; it updates the same
    comment) and read the table back: every valid finding must show the commit,
-   not "not yet". Update the PR description (`gh pr edit <n> -R pareiss/millenium-quiz --body-file <file>`; only the body) if the fix changed
+   not "not yet". Update the PR description (`gh pr edit <n> -R pareiss/millenium-quiz --body-file <file>`; only the body; this is not pre-approved, so the user sees a prompt) if the fix changed
    what it says.
 7. **Is another review round needed?** Decide, with reasons, and do not start
    it. A new round is **recommended** when any of these holds:
