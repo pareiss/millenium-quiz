@@ -439,6 +439,9 @@ changes were made. A fix commit names its findings at the start of a line of
 its message, e.g. `- F2: ...` or `- F1, F5: ...`; a mention elsewhere in the
 text doesn't count. Posting again updates the same comment, and commits after
 the review that address no finding are listed for confirmation first.
+`/fix-review <number>` does the whole round after you ticked the verdicts: it posts
+the review, fixes the valid findings, pushes, posts again with the fix commits
+and says whether another review is needed (it never starts one).
 Rejected findings can go into the "Decisions and known false positives" section
 of `REVIEWING.md`, so reviews improve over time.
 
