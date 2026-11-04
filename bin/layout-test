@@ -617,7 +617,7 @@ with sync_playwright() as p:
             m = pg.evaluate(
                 """() => {
                   const r = (e) => e.getBoundingClientRect()
-                  const ex = document.querySelector('#explanation'), ok = document.querySelector('[data-correct=true]')
+                  const ex = document.querySelector('#explanation'), ok = document.querySelector('#round-results')
                   const bar = document.querySelector('#next-round')
                   const e = r(ex)
                   return {
@@ -632,7 +632,7 @@ with sync_playwright() as p:
                   }
                 }"""
             )
-            check(f"{name}: the explanation is on screen below the correct answer, wrapped (no sideways scroll), the way back stays on screen",
+            check(f"{name}: the explanation is on screen below the round results, wrapped (no sideways scroll), the way back stays on screen",
                   m["inside"] and m["overX"] <= 0 and m["textInside"] and m["belowCorrect"] and m["aboveButton"] and m["text"] and m["buttonOn"],
                   str(m))
         # a question without an explanation: no block

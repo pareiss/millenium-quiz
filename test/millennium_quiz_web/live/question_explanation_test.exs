@@ -180,9 +180,10 @@ defmodule MillenniumQuizWeb.QuestionExplanationTest do
   end
 
   describe "the reveal" do
-    test "shows the explanation with the correct answer, above the way back to the board", %{
-      conn: conn
-    } do
+    test "shows the explanation with the correct answer, after the round results and above the way back to the board",
+         %{
+           conn: conn
+         } do
       format = format_fixture()
       question_fixture(hd(format.topics), %{"explanation" => "Pot of Greed draws two."})
       question_fixture(List.last(format.topics))
@@ -195,7 +196,15 @@ defmodule MillenniumQuizWeb.QuestionExplanationTest do
       {explanation_at, _} = :binary.match(html, "id=\"explanation\"")
       {button_at, _} = :binary.match(html, "id=\"next-round\"")
       {correct_at, _} = :binary.match(html, "data-correct=\"true\"")
-      assert correct_at < explanation_at and explanation_at < button_at
+      {results_at, _} = :binary.match(html, "id=\"round-results\"")
+
+      assert correct_at < results_at and results_at < explanation_at and
+               explanation_at < button_at
+
+      # a skip button at the top, for when the bar at the bottom is out of sight
+      assert has_element?(view, "#next-round-top")
+      {top_at, _} = :binary.match(html, "id=\"next-round-top\"")
+      assert top_at < correct_at
     end
 
     test "is not shown while the question is being answered", %{conn: conn} do
@@ -220,6 +229,7 @@ defmodule MillenniumQuizWeb.QuestionExplanationTest do
       view = play_to_reveal(conn, format)
       assert has_element?(view, "#reveal")
       refute has_element?(view, "#explanation")
+      refute has_element?(view, "#next-round-top")
     end
   end
 end
