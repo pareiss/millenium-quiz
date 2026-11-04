@@ -11,6 +11,8 @@ defmodule MillenniumQuiz.Quiz.PackImport do
          {"name": "Next play: GX B08",
           "questions": [
             {"text": "...", "choices": [{"text": "...", "correct": true}, ...],
+             "explanation": "optional, shown on the reveal",
+             "source": "optional credit line, shown in the board dialog",
              "cards": [{"password": 123, "owner": 1}],
              "board": { ... board.v1 ... }}]}]}
 
@@ -32,10 +34,15 @@ defmodule MillenniumQuiz.Quiz.PackImport do
       hardest end). A topic that is not there is created, as long as the
       format has fewer than `Format.max_topics/0`; a topic left without any
       imported question is not created.
-    * A question that the topic already has (same identity, see `duplicate?/3`) is
+    * A question that the topic already has (same identity, see `duplicate/3`) is
       counted in `skipped`, so importing a pack twice adds nothing. The text is
       compared without the `[card]` brackets and card names, so it does not
       matter whether a card was fetched or renamed between two imports.
+      `explanation` and `source` are not part of the identity, but a skipped
+      question takes over an `explanation` or `source` of the pack that is
+      present and differs from the stored one (counted in `updated`, a
+      subset of `skipped`). A pack without them never erases what an admin
+      has written.
     * Two imports into the same format never run their writes at the same time
       (an advisory lock on the format); the second waits up to `:lock_timeout_ms`
       (30 s) and then fails with "Another import into this format is running".
@@ -67,6 +74,7 @@ defmodule MillenniumQuiz.Quiz.PackImport do
           imported: non_neg_integer,
           boards: non_neg_integer,
           skipped: non_neg_integer,
+          updated: non_neg_integer,
           topics_created: [String.t()],
           failed: [failure],
           warnings: [String.t()],
@@ -277,6 +285,7 @@ defmodule MillenniumQuiz.Quiz.PackImport do
       imported: 0,
       boards: 0,
       skipped: 0,
+      updated: 0,
       topics_created: [],
       failed: [],
       warnings: [],
@@ -392,12 +401,14 @@ defmodule MillenniumQuiz.Quiz.PackImport do
         fail(report, topic_name, {number, raw, {:error, reason}})
 
       :ok ->
-        if duplicate?(db_topic, q, pool) do
-          %{report | skipped: report.skipped + 1}
+        if existing = duplicate(db_topic, q, pool) do
+          update_extras(report, existing, q)
         else
           attrs = %{
             "text" => text,
             "submitted_by" => q.submitted_by,
+            "explanation" => q.explanation,
+            "source" => q.source,
             "choices" => q.choices,
             "board" => q.board
           }
@@ -474,7 +485,7 @@ defmodule MillenniumQuiz.Quiz.PackImport do
   # comparison when it has a name and that name stands in the stored text (that
   # is how an unlinked card looks). A pack card without a name that was never
   # linked cannot be recognised and counts as a difference.
-  defp duplicate?(db_topic, q, pool) do
+  defp duplicate(db_topic, q, pool) do
     pack_names = pack_names(q, pool)
 
     from(x in Quiz.Question,
@@ -482,7 +493,7 @@ defmodule MillenniumQuiz.Quiz.PackImport do
       preload: [question_cards: :card]
     )
     |> Repo.all()
-    |> Enum.any?(fn x ->
+    |> Enum.find(fn x ->
       stored_cards = Enum.filter(x.question_cards, &(&1.card && is_binary(&1.card.name)))
       stored_names = for %{card: %{name: name, password: pw}} <- stored_cards, do: {name, pw}
       stored_pws = MapSet.new(stored_names, &elem(&1, 1))
@@ -515,6 +526,24 @@ defmodule MillenniumQuiz.Quiz.PackImport do
           names
         )
     end)
+  end
+
+  # A question that is already there: count it as skipped, and fill in or
+  # change its explanation and source when the pack has a different one.
+  defp update_extras(report, existing, q) do
+    changes =
+      for key <- [:explanation, :source],
+          new = Map.get(q, key),
+          new != Map.get(existing, key),
+          into: %{},
+          do: {Atom.to_string(key), new}
+
+    with true <- changes != %{},
+         {:ok, _} <- Quiz.update_question(existing, changes) do
+      %{report | skipped: report.skipped + 1, updated: report.updated + 1}
+    else
+      _ -> %{report | skipped: report.skipped + 1}
+    end
   end
 
   defp identity(text, choices, board, cards, names) do
@@ -582,7 +611,7 @@ defmodule MillenniumQuiz.Quiz.PackImport do
   @spec report_lines(report) :: [String.t()]
   def report_lines(r) do
     [
-      "Questions imported: #{r.imported} (#{r.boards} with a board), already there: #{r.skipped}, failed: #{length(r.failed)}"
+      "Questions imported: #{r.imported} (#{r.boards} with a board), already there: #{r.skipped} (#{r.updated} with an explanation or source updated), failed: #{length(r.failed)}"
     ] ++
       if(r.topics_created == [],
         do: [],

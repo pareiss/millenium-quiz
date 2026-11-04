@@ -914,6 +914,7 @@ defmodule MillenniumQuizWeb.GameLive do
         }
         on_card="board_card"
         selected={@selected}
+        source={@question[:source]}
       >
         <:detail :if={@detail && @wide}>
           <div id="board-detail" class="space-y-2">

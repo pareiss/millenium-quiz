@@ -309,3 +309,50 @@ else
 
   IO.puts("Seeded format #{format.name}.")
 end
+
+# A sixth format for the credit line (`source`) of a question, in the board dialog: two questions with the board of
+# 'Board in game fixture' (so that format must be seeded first, above); the first has a long source with a very long
+# word, the second none.
+if Repo.get_by(Format, name: "Source fixture") do
+  IO.puts("Source fixture already exists, skipping.")
+else
+  import Ecto.Query, only: [from: 2]
+
+  board =
+    Repo.one(
+      from q in MillenniumQuiz.Quiz.Question,
+        where: like(q.text, "{P1} has this board in Main Phase 1%") and not is_nil(q.board),
+        limit: 1,
+        select: q.board
+    ) || raise "seed 'Board in game fixture' first (it is above in this file)"
+
+  {:ok, format} =
+    Quiz.create_format(%{
+      "name" => "Source fixture",
+      "date" => Date.utc_today(),
+      "description" => "Fixture for bin/layout-test: both questions have a board; the first has a source, the second none.",
+      "topics" => %{"0" => %{"name" => "With a source"}, "1" => %{"name" => "Without"}}
+    })
+
+  [with_source, without] = format.topics
+
+  choices = %{
+    "0" => %{"text" => "Attack with the dragon", "correct" => "true"},
+    "1" => %{"text" => "Set a card and pass"},
+    "2" => %{"text" => "Summon the link monster"}
+  }
+
+  source =
+    "Puzzle by Someone Else, CC BY-SA 4.0, from https://example.org/puzzles/" <>
+      String.duplicate("WWWWWWWWWW", 8) <> " (changed: the life points). Thanks to the whole puzzle community."
+
+  for {topic, text, attrs} <- [
+        {with_source, "{P1} has this board. What is the best next play?", %{"source" => source}},
+        {without, "Same board, no credit line. What now?", %{}}
+      ] do
+    {:ok, question} = Quiz.create_question(topic, Map.merge(%{"text" => text, "choices" => choices}, attrs), [])
+    question |> Ecto.Changeset.change(board: board) |> Repo.update!()
+  end
+
+  IO.puts("Seeded format #{format.name}.")
+end

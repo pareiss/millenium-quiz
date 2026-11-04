@@ -88,11 +88,97 @@ defmodule MillenniumQuiz.Quiz.PackImportTest do
     assert length(Quiz.get_format!(format.id).topics) == 2
   end
 
+  test "explanation and source are carried; an exported question goes back in with them", %{
+    format: format
+  } do
+    extra = %{"explanation" => "Why: lethal.", "source" => "By Someone, CC BY-SA"}
+    pack = pack([topic("Puzzle", [q("With?", extra), q("Without?")])])
+    assert {:ok, %{imported: 2}} = run(format, pack)
+
+    assert %{"With?" => {"Why: lethal.", "By Someone, CC BY-SA"}, "Without?" => {nil, nil}} =
+             Map.new(topic_questions(format, "Puzzle"), &{&1.text, {&1.explanation, &1.source}})
+
+    # the backup writes them, and a pack made of the backup's topics keeps them
+    [exported] =
+      Enum.filter(MillenniumQuiz.Quiz.Export.build()["formats"], &(&1["name"] == "Edison"))
+
+    other = format_fixture(%{"name" => "Other", "date" => "2020-01-01"})
+
+    assert {:ok, %{imported: 2}} =
+             run(other, %{"version" => 1, "topics" => exported["topics"]})
+
+    assert %{"With?" => {"Why: lethal.", "By Someone, CC BY-SA"}, "Without?" => {nil, nil}} =
+             Map.new(topic_questions(other, "Puzzle"), &{&1.text, {&1.explanation, &1.source}})
+  end
+
+  test "a source that is too long or not text fails that question only", %{format: format} do
+    pack =
+      pack([
+        topic("Puzzle", [
+          q("Long?", %{"source" => String.duplicate("x", 301)}),
+          q("Number?", %{"source" => 5}),
+          q("Fine?", %{"source" => "ok"})
+        ])
+      ])
+
+    assert {:ok, %{imported: 1, failed: failed}} = run(format, pack)
+    assert length(failed) == 2
+    assert Enum.any?(failed, &(inspect(&1) =~ "source is too long"))
+  end
+
   test "importing the same pack twice adds nothing", %{format: format} do
     pack = pack([topic("Puzzle", [q("Step 1?", %{"board" => board()})])])
     assert {:ok, %{imported: 1}} = run(format, pack)
     assert {:ok, %{imported: 0, skipped: 1, failed: [], topics_created: []}} = run(format, pack)
     assert length(topic_questions(format, "Puzzle")) == 1
+  end
+
+  test "a pack imported again fills in or changes explanation and source, never erases them", %{
+    format: format
+  } do
+    plain = [topic("Puzzle", [q("Step 1?", %{"board" => board()})])]
+    assert {:ok, %{imported: 1}} = run(format, pack(plain))
+
+    with_extras =
+      pack([
+        topic("Puzzle", [
+          q("Step 1?", %{"board" => board(), "explanation" => "Because.", "source" => "Ep. 5"})
+        ])
+      ])
+
+    assert {:ok, %{imported: 0, skipped: 1, updated: 1}} = run(format, with_extras)
+    [question] = topic_questions(format, "Puzzle")
+    assert {question.explanation, question.source} == {"Because.", "Ep. 5"}
+
+    # the same again changes nothing; so does a pack without the fields
+    assert {:ok, %{skipped: 1, updated: 0}} = run(format, with_extras)
+    assert {:ok, %{skipped: 1, updated: 0}} = run(format, pack(plain))
+    [question] = topic_questions(format, "Puzzle")
+    assert {question.explanation, question.source} == {"Because.", "Ep. 5"}
+
+    # a changed credit is taken over
+    changed =
+      pack([
+        topic("Puzzle", [q("Step 1?", %{"board" => board(), "source" => "Ep. 6"})])
+      ])
+
+    assert {:ok, %{skipped: 1, updated: 1}} = run(format, changed)
+    [question] = topic_questions(format, "Puzzle")
+    assert {question.explanation, question.source} == {"Because.", "Ep. 6"}
+
+    assert Enum.join(
+             PackImport.report_lines(%{
+               updated: 1,
+               imported: 0,
+               boards: 0,
+               skipped: 1,
+               failed: [],
+               topics_created: [],
+               warnings: [],
+               credits: nil
+             }),
+             "\n"
+           ) =~ "1 with an explanation or source updated"
   end
 
   test "same text with another board is a different question", %{format: format} do

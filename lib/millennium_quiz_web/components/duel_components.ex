@@ -389,6 +389,9 @@ defmodule MillenniumQuizWeb.DuelComponents do
   Cards in a hand, graveyard, banished zone or Extra Deck have `"pos" => "atk"`
   and only name, kind, atk, def and art matter.
 
+  `source` (optional text) is a credit line shown as "Source: ..." between the
+  header and the mat; nothing is drawn without it.
+
   ## Events
 
   `on_card` is sent when a tile (or a list item) is tapped, with
@@ -406,6 +409,7 @@ defmodule MillenniumQuizWeb.DuelComponents do
   attr :on_card, :string, default: nil
   attr :selected, :string, default: nil, doc: "the key of the highlighted tile"
   attr :start_lp, :integer, default: 8000, doc: "what a full life point bar is"
+  attr :source, :string, default: nil, doc: "credit line of the board (who made it); none if nil"
   slot :detail, doc: "the selected card, shown in the panel from 900px"
 
   def duel_board(assigns) do
@@ -478,6 +482,13 @@ defmodule MillenniumQuizWeb.DuelComponents do
             <.icon name="hero-x-mark" class="size-6" />
           </button>
         </header>
+        <p
+          :if={@source}
+          id={"#{@id}-source"}
+          class="min-w-0 px-3 py-2 text-sm text-base-content/75 whitespace-pre-line [overflow-wrap:anywhere]"
+        >
+          <span class="font-semibold">Source:</span> {@source}
+        </p>
         <div class="duel-board-body">
           <div class="duel-board-main">
             <div class="duel-board-mat">
